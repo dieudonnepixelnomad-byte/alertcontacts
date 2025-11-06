@@ -1,0 +1,403 @@
+{
+  "@@locale": "fr",
+  "appTitle": "AlertContact",
+  "@appTitle": {
+    "description": "Le titre de l'application"
+  },
+  "welcome": "Bienvenue",
+  "@welcome": {
+    "description": "Message de bienvenue"
+  },
+  "signInOrRegister": "Connectez-vous ou inscrivez-vous et nous commencerons.",
+  "@signInOrRegister": {
+    "description": "Message de bienvenue"
+  },
+  "login": "Connexion",
+  "@login": {
+    "description": "Bouton de connexion"
+  },
+  "logout": "Déconnexion",
+  "@logout": {
+    "description": "Bouton de déconnexion"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Label pour le champ email"
+  },
+  "password": "Mot de passe",
+  "@password": {
+    "description": "Label pour le champ mot de passe"
+  },
+  "confirmPassword": "Confirmer le mot de passe",
+  "@confirmPassword": {
+    "description": "Label pour confirmer le mot de passe"
+  },
+  "forgotPassword": "Mot de passe oublié ?",
+  "@forgotPassword": {
+    "description": "Lien pour récupérer le mot de passe"
+  },
+  "register": "S'inscrire",
+  "@register": {
+    "description": "Bouton d'inscription"
+  },
+  "notAMember": "Pas encore membre ?",
+  "@notAMember": {
+    "description": "Lien pour s'inscrire"
+  },
+  "continueWithGoogle": "Continuer avec Google",
+  "@continueWithGoogle": {
+    "description": "Bouton pour continuer avec Google"
+  },
+  "createAccount": "Créer un compte",
+  "@createAccount": {
+    "description": "Bouton pour créer un compte"
+  },
+  "pleaseAcceptTerms": "Veuillez accepter les termes et conditions",
+  "@pleaseAcceptTerms": {
+    "description": "Message pour les termes et conditions"
+  },
+  "createYourAccount": "Créer votre compte",
+  "@createYourAccount": {
+    "description": "Message pour créer un compte"
+  },
+  "registerSubtitle": "Inscrivez-vous pour commencer.",
+  "@registerSubtitle": {
+    "description": "Message pour l'inscription"
+  },
+  "passwordRequired": "Le mot de passe est requis",
+  "@passwordRequired": {
+    "description": "Message pour le mot de passe requis"
+  },
+  "emailRequired": "L'email est requis",
+  "@emailRequired": {
+    "description": "Message pour l'email requis"
+  },
+  "emailInvalid": "L'email est invalide",
+  "@emailInvalid": {
+    "description": "Message pour l'email invalide"
+  },
+  "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+  "@passwordMinLength": {
+    "description": "Message pour le mot de passe minimum"
+  },
+  "passwordMatch": "Les mots de passe ne correspondent pas",
+  "@passwordMatch": {
+    "description": "Message pour les mots de passe non correspondants"
+  },
+  "passwordStrength": "Le mot de passe doit contenir au moins 1 majuscule, 1 chiffre et 1 caractère spécial",
+  "@passwordStrength": {
+    "description": "Message pour la force du mot de passe"
+  },
+  "passwordSpecialChar": "Le mot de passe doit contenir au moins 1 caractère spécial",
+  "@passwordSpecialChar": {
+    "description": "Message pour le caractère spécial"
+  },
+  "passwordCapitalLetter": "Le mot de passe doit contenir au moins 1 majuscule",
+  "@passwordCapitalLetter": {
+    "description": "Message pour la majuscule"
+  },
+  "passwordNumber": "Le mot de passe doit contenir au moins 1 chiffre",
+  "@passwordNumber": {
+    "description": "Message pour le chiffre"
+  },
+  "invalidEmail": "L'email est invalide",
+  "@invalidEmail": {
+    "description": "Message pour l'email invalide"
+  },
+  "fullName": "Nom complet",
+  "@fullName": {
+    "description": "Label pour le nom complet"
+  },
+  "nameRequired": "Le nom est requis",
+  "@nameRequired": {
+    "description": "Message pour le nom requis"
+  },
+  "nameTooShort": "Le nom doit contenir au moins 2 caractères",
+  "@nameTooShort": {
+    "description": "Message pour le nom trop court"
+  },
+  "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+  "@passwordTooShort": {
+    "description": "Message pour le mot de passe trop court"
+  },
+  "confirmPasswordRequired": "Le mot de passe de confirmation est requis",
+  "@confirmPasswordRequired": {
+    "description": "Message pour le mot de passe de confirmation requis"
+  },
+  "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+  "@passwordsDoNotMatch": {
+    "description": "Message pour les mots de passe non correspondants"
+  },
+  "passwordHintShort": "Min 6 caractères",
+  "@passwordHintShort": {
+    "description": "Message pour le mot de passe trop court"
+  },
+  "alreadyHaveAccount": "Vous avez déjà un compte ?",
+  "@alreadyHaveAccount": {
+    "description": "Message pour le lien pour se connecter"
+  },
+  "iAgreeWith": "Je accepte les",
+  "@iAgreeWith": {
+    "description": "Message pour le lien pour accepter les termes et conditions"
+  },
+  "termsOfUse": "Conditions d'utilisation",
+  "@termsOfUse": {
+    "description": "Message pour le lien pour les termes et conditions"
+  },
+  "privacyPolicy": "Politique de confidentialité",
+  "@privacyPolicy": {
+    "description": "Message pour le lien pour la politique de confidentialité"
+  },
+  "and": "et",
+  "@and": {
+    "description": "Message pour le lien pour les termes et conditions"
+  },
+  "home": "Accueil",
+  "@home": {
+    "description": "Onglet accueil"
+  },
+  "map": "Carte",
+  "@map": {
+    "description": "Onglet carte"
+  },
+  "dangerZones": "Zones de danger",
+  "@dangerZones": {
+    "description": "Onglet zones de danger"
+  },
+  "safeZones": "Zones de sécurité",
+  "@safeZones": {
+    "description": "Onglet zones de sécurité"
+  },
+  "contacts": "Contacts",
+  "@contacts": {
+    "description": "Onglet contacts"
+  },
+  "alerts": "Alertes",
+  "@alerts": {
+    "description": "Onglet alertes"
+  },
+  "settings": "Paramètres",
+  "@settings": {
+    "description": "Onglet paramètres"
+  },
+  "profile": "Profil",
+  "@profile": {
+    "description": "Onglet profil"
+  },
+  "addContact": "Ajouter un contact",
+  "@addContact": {
+    "description": "Bouton pour ajouter un contact"
+  },
+  "createDangerZone": "Créer une zone de danger",
+  "@createDangerZone": {
+    "description": "Bouton pour créer une zone de danger"
+  },
+  "createSafeZone": "Créer une zone de sécurité",
+  "@createSafeZone": {
+    "description": "Bouton pour créer une zone de sécurité"
+  },
+  "sendAlert": "Envoyer une alerte",
+  "@sendAlert": {
+    "description": "Bouton pour envoyer une alerte"
+  },
+  "cancel": "Annuler",
+  "@cancel": {
+    "description": "Bouton d'annulation"
+  },
+  "save": "Enregistrer",
+  "@save": {
+    "description": "Bouton d'enregistrement"
+  },
+  "delete": "Supprimer",
+  "@delete": {
+    "description": "Bouton de suppression"
+  },
+  "edit": "Modifier",
+  "@edit": {
+    "description": "Bouton de modification"
+  },
+  "search": "Rechercher",
+  "@search": {
+    "description": "Placeholder pour la recherche"
+  },
+  "loading": "Chargement...",
+  "@loading": {
+    "description": "Message de chargement"
+  },
+  "error": "Erreur",
+  "@error": {
+    "description": "Message d'erreur générique"
+  },
+  "success": "Succès",
+  "@success": {
+    "description": "Message de succès"
+  },
+  "noData": "Aucune donnée disponible",
+  "@noData": {
+    "description": "Message quand il n'y a pas de données"
+  },
+  "retry": "Réessayer",
+  "@retry": {
+    "description": "Bouton pour réessayer"
+  },
+  "permissionRequired": "Permission requise",
+  "@permissionRequired": {
+    "description": "Message pour les permissions requises"
+  },
+  "locationPermission": "Permission de localisation",
+  "@locationPermission": {
+    "description": "Message pour la permission de localisation"
+  },
+  "notificationPermission": "Permission de notification",
+  "@notificationPermission": {
+    "description": "Message pour la permission de notification"
+  },
+  "phonePermission": "Permission d'accès au téléphone",
+  "@phonePermission": {
+    "description": "Message pour la permission d'accès au téléphone"
+  },
+  "allow": "Autoriser",
+  "@allow": {
+    "description": "Bouton pour autoriser"
+  },
+  "deny": "Refuser",
+  "@deny": {
+    "description": "Bouton pour refuser"
+  },
+  "goToSettings": "Aller aux paramètres",
+  "@goToSettings": {
+    "description": "Bouton pour aller aux paramètres"
+  },
+  "onBoardingSlide_title_1": "Votre sécurité. Votre sérénité.",
+  "@onBoardingSlide_title_1": {
+    "description": "Titre du premier slide d'onboarding"
+  },
+  "onBoardingSlide_body_1": "Anticipez les risques autour de vous et veillez sur ceux qui comptent — simplement, sans stress.",
+  "@onBoardingSlide_body_1": {
+    "description": "Corps du premier slide d'onboarding"
+  },
+  "onBoardingSlide_title_2": "Évitez les zones à risques",
+  "@onBoardingSlide_title_2": {
+    "description": "Titre du deuxième slide d'onboarding"
+  },
+  "onBoardingSlide_body_2": "Alerte instantanée quand vous approchez d'un lieu signalé (vol, agression, accident).",
+  "@onBoardingSlide_body_2": {
+    "description": "Corps du deuxième slide d'onboarding"
+  },
+  "onBoardingSlide_title_3": "Créez des périmètres sûrs",
+  "@onBoardingSlide_title_3": {
+    "description": "Titre du troisième slide d'onboarding"
+  },
+  "onBoardingSlide_body_3": "Maison, école, trajet… Recevez une notification si un proche sort de la zone.",
+  "@onBoardingSlide_body_3": {
+    "description": "Corps du troisième slide d'onboarding"
+  },
+  "onBoardingSlide_title_4": "Vos proches, vos règles",
+  "@onBoardingSlide_title_4": {
+    "description": "Titre du quatrième slide d'onboarding"
+  },
+  "onBoardingSlide_body_4": "Devenir \"proches\" ne veut pas dire être suivi : vous décidez, personne d'autre.",
+  "@onBoardingSlide_body_4": {
+    "description": "Corps du quatrième slide d'onboarding"
+  },
+  "onBoardingStart": "Commencer",
+  "@onBoardingStart": {
+    "description": "Bouton pour commencer l'onboarding"
+  },
+  "onBoardingNext": "Suivant",
+  "@onBoardingNext": {
+    "description": "Bouton suivant dans l'onboarding"
+  },
+  "onBoardingSkip": "Passer",
+  "@onBoardingSkip": {
+    "description": "Bouton pour passer l'onboarding"
+  },
+  "emailVerificationTitle": "Vérifiez votre email",
+  "@emailVerificationTitle": {
+    "description": "Titre de la page de vérification d'email"
+  },
+  "emailVerificationDescription": "Nous avons envoyé un lien de vérification à votre adresse email. Cliquez sur le lien pour activer votre compte.",
+  "@emailVerificationDescription": {
+    "description": "Description de la page de vérification d'email"
+  },
+  "emailVerificationAutoCheck": "Vérification automatique en cours...",
+  "@emailVerificationAutoCheck": {
+    "description": "Message de vérification automatique"
+  },
+  "resendEmail": "Renvoyer l'email",
+  "@resendEmail": {
+    "description": "Bouton pour renvoyer l'email de vérification"
+  },
+  "resendEmailIn": "Renvoyer dans {seconds}s",
+  "@resendEmailIn": {
+    "description": "Compte à rebours pour renvoyer l'email",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "checkNow": "Vérifier maintenant",
+  "@checkNow": {
+    "description": "Bouton pour vérifier maintenant"
+  },
+  "emailNotFound": "Vous ne trouvez pas l'email ?",
+  "@emailNotFound": {
+    "description": "Message d'aide pour l'email non trouvé"
+  },
+  "emailVerificationResend": "Renvoyer l'email",
+  "emailVerificationResendCooldown": "Renvoyer dans {seconds}s",
+  "@emailVerificationResendCooldown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "emailVerificationCheckNow": "Vérifier maintenant",
+  "emailVerificationNotFound": "Vous ne trouvez pas l'email ?",
+  "emailTroubleshootingTips": "• Vérifiez votre dossier spam\n• Assurez-vous que l'adresse email est correcte\n• L'email peut prendre quelques minutes à arriver",
+  "@emailTroubleshootingTips": {
+    "description": "Conseils de dépannage pour l'email"
+  },
+  "forgotPasswordTitle": "Mot de passe oublié",
+  "@forgotPasswordTitle": {
+    "description": "Titre de la page de mot de passe oublié"
+  },
+  "forgotPasswordDescription": "Entrez votre adresse email pour recevoir un lien de réinitialisation de mot de passe.",
+  "@forgotPasswordDescription": {
+    "description": "Description de la page de mot de passe oublié"
+  },
+  "forgotPasswordEmailSent": "Un email de réinitialisation a été envoyé à votre adresse. Vérifiez votre boîte de réception et suivez les instructions.",
+  "@forgotPasswordEmailSent": {
+    "description": "Message confirmant l'envoi de l'email de réinitialisation"
+  },
+  "checkEmailTitle": "Vérifiez votre email",
+  "@checkEmailTitle": {
+    "description": "Titre après envoi du lien de réinitialisation"
+  },
+  "checkEmailDescription": "Nous avons envoyé un lien de réinitialisation à votre adresse email.",
+  "@checkEmailDescription": {
+    "description": "Description après envoi du lien de réinitialisation"
+  },
+  "sendResetLink": "Envoyer le lien",
+  "@sendResetLink": {
+    "description": "Bouton pour envoyer le lien de réinitialisation"
+  },
+  "resendResetEmail": "Renvoyer l'email",
+  "@resendResetEmail": {
+    "description": "Bouton pour renvoyer l'email de réinitialisation"
+  },
+  "backToLogin": "Retour à la connexion",
+  "@backToLogin": {
+    "description": "Lien pour retourner à la connexion"
+  },
+  "resetEmailSentSuccess": "Email de réinitialisation envoyé avec succès",
+  "@resetEmailSentSuccess": {
+    "description": "Message de succès d'envoi d'email de réinitialisation"
+  },
+  "resetEmailError": "Une erreur est survenue",
+  "@resetEmailError": {
+    "description": "Message d'erreur lors de l'envoi d'email de réinitialisation"
+  }
+}

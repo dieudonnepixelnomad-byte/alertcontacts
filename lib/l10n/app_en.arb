@@ -1,0 +1,403 @@
+{
+  "@@locale": "en",
+  "appTitle": "AlertContact",
+  "@appTitle": {
+    "description": "The application title"
+  },
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome message"
+  },
+  "signInOrRegister": "Sign in or register and we’ll get started.",
+  "@signInOrRegister": {
+    "description": "Message to sign in or register"
+  },
+  "login": "Login",
+  "@login": {
+    "description": "Login button"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Label for email field"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Label for password field"
+  },
+  "confirmPassword": "Confirm Password",
+  "@confirmPassword": {
+    "description": "Label to confirm password"
+  },
+  "forgotPassword": "Forgot Password?",
+  "@forgotPassword": {
+    "description": "Link to recover password"
+  },
+  "register": "Register",
+  "@register": {
+    "description": "Register button"
+  },
+  "notAMember": "Not a member?",
+  "@notAMember": {
+    "description": "Link to register"
+  },
+  "continueWithGoogle": "Continue with Google",
+  "@continueWithGoogle": {
+    "description": "Button to continue with Google"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Button to create account"
+  },
+  "pleaseAcceptTerms": "Please accept the terms and conditions",
+  "@pleaseAcceptTerms": {
+    "description": "Message for the terms and conditions"
+  },
+  "createYourAccount": "Create your account",
+  "@createYourAccount": {
+    "description": "Message for creating an account"
+  },
+  "registerSubtitle": "Register to get started.",
+  "@registerSubtitle": {
+    "description": "Message for registering"
+  },
+  "passwordRequired": "Password is required",
+  "@passwordRequired": {
+    "description": "Message for the password required"
+  },
+  "emailRequired": "Email is required",
+  "@emailRequired": {
+    "description": "Message for the email required"
+  },
+  "emailInvalid": "Email is invalid",
+  "@emailInvalid": {
+    "description": "Message for the email invalid"
+  },
+  "passwordMinLength": "Password must be at least 6 characters",
+  "@passwordMinLength": {
+    "description": "Message for the password minimum"
+  },
+  "passwordMatch": "Passwords do not match",
+  "@passwordMatch": {
+    "description": "Message for the passwords not matching"
+  },
+  "passwordStrength": "Password must contain at least 1 uppercase letter, 1 number and 1 special character",
+  "@passwordStrength": {
+    "description": "Message for the password strength"
+  },
+  "passwordSpecialChar": "Password must contain at least 1 special character",
+  "@passwordSpecialChar": {
+    "description": "Message for the special character"
+  },
+  "passwordCapitalLetter": "Password must contain at least 1 uppercase letter",
+  "@passwordCapitalLetter": {
+    "description": "Message for the uppercase letter"
+  },
+  "passwordNumber": "Password must contain at least 1 number",
+  "@passwordNumber": {
+    "description": "Message for the number"
+  },
+  "invalidEmail": "Email is invalid",
+  "@invalidEmail": {
+    "description": "Message for the invalid email"
+  },
+  "fullName": "Full Name",
+  "@fullName": {
+    "description": "Label for full name field"
+  },
+  "nameRequired": "Name is required",
+  "@nameRequired": {
+    "description": "Message for the name required"
+  },
+  "nameTooShort": "Name must be at least 2 characters",
+  "@nameTooShort": {
+    "description": "Message for the name too short"
+  },
+  "passwordTooShort": "Password must be at least 6 characters",
+  "@passwordTooShort": {
+    "description": "Message for the password too short"
+  },
+  "confirmPasswordRequired": "Confirm password is required",
+  "@confirmPasswordRequired": {
+    "description": "Message for the confirm password required"
+  },
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Message for the passwords not matching"
+  },
+  "passwordHintShort": "Min 6 characters",
+  "@passwordHintShort": {
+    "description": "Message for the password too short"
+  },
+  "alreadyHaveAccount": "Already have an account?",
+  "@alreadyHaveAccount": {
+    "description": "Message for the link to sign in"
+  },
+  "iAgreeWith": "I agree with",
+  "@iAgreeWith": {
+    "description": "Message for the link to agree with the terms and conditions"
+  },
+  "termsOfUse": "Terms of Use",
+  "@termsOfUse": {
+    "description": "Message for the link to the terms of use"
+  },
+  "privacyPolicy": "Privacy Policy",
+  "@privacyPolicy": {
+    "description": "Message for the link to the privacy policy"
+  },
+  "and": "and",
+  "@and": {
+    "description": "Message for the link to the terms and conditions"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home tab"
+  },
+  "map": "Map",
+  "@map": {
+    "description": "Map tab"
+  },
+  "dangerZones": "Danger Zones",
+  "@dangerZones": {
+    "description": "Danger zones tab"
+  },
+  "safeZones": "Safe Zones",
+  "@safeZones": {
+    "description": "Safe zones tab"
+  },
+  "contacts": "Contacts",
+  "@contacts": {
+    "description": "Contacts tab"
+  },
+  "alerts": "Alerts",
+  "@alerts": {
+    "description": "Alerts tab"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings tab"
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile tab"
+  },
+  "addContact": "Add Contact",
+  "@addContact": {
+    "description": "Button to add a contact"
+  },
+  "createDangerZone": "Create Danger Zone",
+  "@createDangerZone": {
+    "description": "Button to create a danger zone"
+  },
+  "createSafeZone": "Create Safe Zone",
+  "@createSafeZone": {
+    "description": "Button to create a safe zone"
+  },
+  "sendAlert": "Send Alert",
+  "@sendAlert": {
+    "description": "Button to send an alert"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button"
+  },
+  "edit": "Edit",
+  "@edit": {
+    "description": "Edit button"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Search placeholder"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading message"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Generic error message"
+  },
+  "success": "Success",
+  "@success": {
+    "description": "Success message"
+  },
+  "noData": "No data available",
+  "@noData": {
+    "description": "Message when there's no data"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button"
+  },
+  "permissionRequired": "Permission Required",
+  "@permissionRequired": {
+    "description": "Message for required permissions"
+  },
+  "locationPermission": "Location Permission",
+  "@locationPermission": {
+    "description": "Message for location permission"
+  },
+  "notificationPermission": "Notification Permission",
+  "@notificationPermission": {
+    "description": "Message for notification permission"
+  },
+  "phonePermission": "Phone Permission",
+  "@phonePermission": {
+    "description": "Message for phone permission"
+  },
+  "allow": "Allow",
+  "@allow": {
+    "description": "Allow button"
+  },
+  "deny": "Deny",
+  "@deny": {
+    "description": "Deny button"
+  },
+  "goToSettings": "Go to Settings",
+  "@goToSettings": {
+    "description": "Button to go to settings"
+  },
+  "onBoardingSlide_title_1": "Your security. Your serenity.",
+  "@onBoardingSlide_title_1": {
+    "description": "First onboarding slide title"
+  },
+  "onBoardingSlide_body_1": "Anticipate risks around you and watch over those who matter — simply, without stress.",
+  "@onBoardingSlide_body_1": {
+    "description": "First onboarding slide body"
+  },
+  "onBoardingSlide_title_2": "Avoid dangerous zones",
+  "@onBoardingSlide_title_2": {
+    "description": "Second onboarding slide title"
+  },
+  "onBoardingSlide_body_2": "Immediate alert when you approach a reported place (theft, assault, accident).",
+  "@onBoardingSlide_body_2": {
+    "description": "Second onboarding slide body"
+  },
+  "onBoardingSlide_title_3": "Create safe zones",
+  "@onBoardingSlide_title_3": {
+    "description": "Third onboarding slide title"
+  },
+  "onBoardingSlide_body_3": "Home, school, commute… Receive a notification if a relative leaves the zone.",
+  "@onBoardingSlide_body_3": {
+    "description": "Third onboarding slide body"
+  },
+  "onBoardingSlide_title_4": "Your relatives, your rules",
+  "@onBoardingSlide_title_4": {
+    "description": "Fourth onboarding slide title"
+  },
+  "onBoardingSlide_body_4": "Becoming \"relatives\" doesn't mean being followed: you decide, no one else.",
+  "@onBoardingSlide_body_4": {
+    "description": "Fourth onboarding slide body"
+  },
+  "onBoardingStart": "Start",
+  "@onBoardingStart": {
+    "description": "Button to start onboarding"
+  },
+  "onBoardingNext": "Next",
+  "@onBoardingNext": {
+    "description": "Next button in onboarding"
+  },
+  "onBoardingSkip": "Skip",
+  "@onBoardingSkip": {
+    "description": "Button to skip onboarding"
+  },
+  "emailVerificationTitle": "Verify your email",
+  "@emailVerificationTitle": {
+    "description": "Email verification page title"
+  },
+  "emailVerificationDescription": "We've sent a verification link to your email address. Click the link to activate your account.",
+  "@emailVerificationDescription": {
+    "description": "Email verification page description"
+  },
+  "emailVerificationAutoCheck": "Automatic verification in progress...",
+  "@emailVerificationAutoCheck": {
+    "description": "Automatic verification message"
+  },
+  "resendEmail": "Resend email",
+  "@resendEmail": {
+    "description": "Button to resend verification email"
+  },
+  "resendEmailIn": "Resend in {seconds}s",
+  "@resendEmailIn": {
+    "description": "Countdown to resend email",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "emailVerificationResend": "Resend email",
+  "emailVerificationResendCooldown": "Resend in {seconds}s",
+  "@emailVerificationResendCooldown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "emailVerificationCheckNow": "Check now",
+  "emailVerificationNotFound": "Can't find the email?",
+  "checkNow": "Check now",
+  "@checkNow": {
+    "description": "Button to check now"
+  },
+  "emailNotFound": "Can't find the email?",
+  "@emailNotFound": {
+    "description": "Help message for email not found"
+  },
+  "emailTroubleshootingTips": "• Check your spam folder\n• Make sure the email address is correct\n• The email may take a few minutes to arrive",
+  "@emailTroubleshootingTips": {
+    "description": "Email troubleshooting tips"
+  },
+  "forgotPasswordTitle": "Forgot password",
+  "@forgotPasswordTitle": {
+    "description": "Forgot password page title"
+  },
+  "forgotPasswordDescription": "Enter your email address to receive a reset link.",
+  "@forgotPasswordDescription": {
+    "description": "Forgot password page description"
+  },
+  "forgotPasswordEmailSent": "A reset email has been sent to your address. Check your inbox and follow the instructions.",
+  "@forgotPasswordEmailSent": {
+    "description": "Message confirming reset email was sent"
+  },
+  "checkEmailTitle": "Check your email",
+  "@checkEmailTitle": {
+    "description": "Title after sending reset link"
+  },
+  "checkEmailDescription": "We've sent a reset link to your email address.",
+  "@checkEmailDescription": {
+    "description": "Description after sending reset link"
+  },
+  "sendResetLink": "Send reset link",
+  "@sendResetLink": {
+    "description": "Button to send reset link"
+  },
+  "resendResetEmail": "Resend email",
+  "@resendResetEmail": {
+    "description": "Button to resend reset email"
+  },
+  "backToLogin": "Back to login",
+  "@backToLogin": {
+    "description": "Link to go back to login"
+  },
+  "resetEmailSentSuccess": "Reset email sent successfully",
+  "@resetEmailSentSuccess": {
+    "description": "Success message for reset email sent"
+  },
+  "resetEmailError": "An error occurred",
+  "@resetEmailError": {
+    "description": "Error message when sending reset email"
+  }
+}

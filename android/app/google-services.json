@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "404137724655",
+    "project_id": "alertcontacts",
+    "storage_bucket": "alertcontacts.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:404137724655:android:82ebe49ad48525b285291a",
+        "android_client_info": {
+          "package_name": "com.alertcontacts.alertcontacts"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "404137724655-cu0da21ficp9up3i32eqpov3ebi5rn5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alertcontacts.alertcontacts",
+            "certificate_hash": "4a3c88302c51b66d942dbffad6e153de476e3176"
+          }
+        },
+        {
+          "client_id": "404137724655-aae9nilshd70nc1u08krjghrmqivft7q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVWhbx94F4q1MBaLImlfQzmbp3-rAmd1g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "404137724655-aae9nilshd70nc1u08krjghrmqivft7q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "404137724655-1qvu8fkdpf16suh2puoq3bdbf88av5ue.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.alertcontacts.alertcontacts"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
