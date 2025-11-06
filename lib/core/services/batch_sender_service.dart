@@ -1,8 +1,9 @@
 // lib/core/services/batch_sender_service.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
 import 'dart:io';
+import 'package:alertcontacts/core/providers/auth_aware_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_point.dart';
@@ -17,7 +18,7 @@ import '../config/api_config.dart';
 /// - Envoyer au backend via API REST
 /// - Gérer le buffer offline avec retry
 /// - Idempotency pour éviter les doublons
-class BatchSenderService {
+class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
   static final BatchSenderService _instance = BatchSenderService._internal();
   factory BatchSenderService() => _instance;
   BatchSenderService._internal();
@@ -37,20 +38,19 @@ class BatchSenderService {
   Timer? _batchTimer;
   bool _isSending = false;
   bool _isInitialized = false;
-  
+
   // Services
   final PrefsService _prefs = PrefsService();
-  String? _bearerToken;
 
   /// Initialiser le service
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     try {
-      log('BatchSenderService: Initializing...');
+      debugPrint('📍 BatchSenderService: Initializing...');
 
       // Charger le token d'authentification
-      await _loadAuthToken();
+      await initializeAuth();
 
       // Charger le buffer offline depuis le stockage
       await _loadOfflineBuffer();
@@ -59,32 +59,40 @@ class BatchSenderService {
       _startBatchTimer();
 
       _isInitialized = true;
-      log('BatchSenderService: Initialized successfully');
+      debugPrint('📍 BatchSenderService: Initialized successfully');
 
       // Tenter d'envoyer le buffer offline si présent
       if (_offlineBuffer.isNotEmpty) {
-        log(
-          'BatchSenderService: Found ${_offlineBuffer.length} offline points, attempting to send...',
+        debugPrint(
+          '📍 BatchSenderService: Found ${_offlineBuffer.length} offline points, attempting to send...',
         );
         _sendOfflineBuffer();
       }
     } catch (e) {
-      log('BatchSenderService: Initialization failed: $e');
+      debugPrint('📍 BatchSenderService: Initialization failed: $e');
       rethrow;
     }
+  }
+
+  @override
+  void onAuthTokenChanged(String? token) {
+    if (kDebugMode) {
+      debugPrint('📍 [BatchSenderService] Auth token updated.');
+    }
+    updateAuthToken(token);
   }
 
   /// UC-L2: Ajouter un point au batch courant
   void addLocationPoint(LocationPoint point) {
     if (!_isInitialized) {
-      log('BatchSenderService: Not initialized, buffering point offline');
+      debugPrint('📍 BatchSenderService: Not initialized, buffering point offline');
       _addToOfflineBuffer(point);
       return;
     }
 
     _currentBatch.add(point);
-    log(
-      'BatchSenderService: Added point to batch (${_currentBatch.length}/$_maxBatchSize)',
+    debugPrint(
+      '📍 BatchSenderService: Added point to batch (${_currentBatch.length}/$_maxBatchSize)',
     );
 
     // Envoyer immédiatement si batch plein
@@ -98,8 +106,8 @@ class BatchSenderService {
     _batchTimer?.cancel();
     _batchTimer = Timer.periodic(_batchInterval, (timer) {
       if (_currentBatch.isNotEmpty && !_isSending) {
-        log(
-          'BatchSenderService: Timer triggered, sending batch of ${_currentBatch.length} points',
+        debugPrint(
+          '📍 BatchSenderService: Timer triggered, sending batch of ${_currentBatch.length} points',
         );
         _sendCurrentBatch();
       }
@@ -123,11 +131,11 @@ class BatchSenderService {
     _isSending = true;
 
     try {
-      log('BatchSenderService: Sending batch of ${points.length} points...');
+      debugPrint('📍 BatchSenderService: Sending batch of ${points.length} points...');
 
       // Vérifier la connectivité
       if (!await _hasNetworkConnection()) {
-        log('BatchSenderService: No network, adding to offline buffer');
+        debugPrint('📍 BatchSenderService: No network, adding to offline buffer');
         _addBatchToOfflineBuffer(points);
         return;
       }
@@ -145,13 +153,13 @@ class BatchSenderService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
         final accepted = responseData['accepted'] ?? points.length;
-        log(
-          'BatchSenderService: Batch sent successfully, $accepted points accepted',
+        debugPrint(
+          '📍 BatchSenderService: Batch sent successfully, $accepted points accepted',
         );
       } else if (response.statusCode == 401) {
         // UC-L2: A2. 401 → stoppe envoi, notifie l'app de réauthentifier
-        log(
-          'BatchSenderService: Authentication failed, stopping batch sending',
+        debugPrint(
+          '📍 BatchSenderService: Authentication failed, stopping batch sending',
         );
         _addBatchToOfflineBuffer(points);
         // TODO: Notifier l'app pour réauthentification
@@ -159,7 +167,7 @@ class BatchSenderService {
         throw HttpException('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      log('BatchSenderService: Failed to send batch: $e');
+      debugPrint('📍 BatchSenderService: Failed to send batch: $e');
       // UC-L2: A1/A3. Offline/Timeout → buffer + retry
       _addBatchToOfflineBuffer(points);
       _scheduleRetry();
@@ -230,15 +238,15 @@ class BatchSenderService {
         
         final filteredCount = bufferData.length - validPoints.length;
         if (filteredCount > 0) {
-          log('BatchSenderService: Filtered out $filteredCount points with invalid source values');
+          debugPrint('📍 BatchSenderService: Filtered out $filteredCount points with invalid source values');
         }
         
-        log(
-          'BatchSenderService: Loaded ${_offlineBuffer.length} valid points from offline buffer',
+        debugPrint(
+          '📍 BatchSenderService: Loaded ${_offlineBuffer.length} valid points from offline buffer',
         );
       }
     } catch (e) {
-      log('BatchSenderService: Failed to load offline buffer: $e');
+      debugPrint('📍 BatchSenderService: Failed to load offline buffer: $e');
     }
   }
 
@@ -251,7 +259,7 @@ class BatchSenderService {
       );
       await prefs.setString(_bufferKey, bufferJson);
     } catch (e) {
-      log('BatchSenderService: Failed to save offline buffer: $e');
+      debugPrint('📍 BatchSenderService: Failed to save offline buffer: $e');
     }
   }
 
@@ -274,9 +282,9 @@ class BatchSenderService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    
-    if (_bearerToken != null) {
-      headers['Authorization'] = 'Bearer $_bearerToken';
+
+    if (currentToken != null) {
+      headers['Authorization'] = 'Bearer $currentToken';
     }
 
     return await http
@@ -315,37 +323,14 @@ class BatchSenderService {
   void _scheduleRetry() {
     Timer(_retryDelay, () {
       if (_offlineBuffer.isNotEmpty) {
-        log('BatchSenderService: Retrying offline buffer send...');
+        debugPrint('📍 BatchSenderService: Retrying offline buffer send...');
         _sendOfflineBuffer();
       }
     });
   }
 
-  /// Charger le token d'authentification
-  Future<void> _loadAuthToken() async {
-    try {
-      _bearerToken = await _prefs.getBearerToken();
-      if (_bearerToken != null) {
-        log('BatchSenderService: Bearer token loaded successfully');
-      } else {
-        log('BatchSenderService: No bearer token found');
-      }
-    } catch (e) {
-      log('BatchSenderService: Failed to load bearer token: $e');
-    }
-  }
-
-  /// Mettre à jour le token d'authentification
-  void setBearerToken(String? token) {
-    _bearerToken = token;
-    if (token != null) {
-      log('BatchSenderService: Bearer token updated');
-    } else {
-      log('BatchSenderService: Bearer token cleared');
-    }
-  }
-
   /// Nettoyer les ressources
+  @override
   Future<void> dispose() async {
     _batchTimer?.cancel();
     _batchTimer = null;
@@ -358,6 +343,7 @@ class BatchSenderService {
 
     await _saveOfflineBuffer();
     _isInitialized = false;
+    super.dispose();
   }
 
   /// Nettoyer le cache offline (utile pour supprimer les données corrompues)
@@ -367,9 +353,9 @@ class BatchSenderService {
       await prefs.remove(_bufferKey);
       _offlineBuffer.clear();
       _currentBatch.clear();
-      log('BatchSenderService: Offline cache cleared');
+      debugPrint('📍 BatchSenderService: Offline cache cleared');
     } catch (e) {
-      log('BatchSenderService: Failed to clear offline cache: $e');
+      debugPrint('📍 BatchSenderService: Failed to clear offline cache: $e');
     }
   }
 

@@ -16,12 +16,17 @@ class MainActivity: FlutterActivity() {
     private val EVENT_CHANNEL = "com.alertcontacts.alertcontacts/location_stream"
     private var locationService: LocationService? = null
     private var isServiceBound = false
+    private var eventSink: EventChannel.EventSink? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as LocationService.LocationBinder
             locationService = binder.getService()
             isServiceBound = true
+            // Une fois le service connecté, on lui passe le "pont" de communication s'il existe déjà.
+            eventSink?.let {
+                locationService?.setEventSink(it)
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -55,11 +60,15 @@ class MainActivity: FlutterActivity() {
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL).setStreamHandler(
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    locationService?.setEventSink(events)
+                    // On stocke le "pont" et on tente de le passer au service s'il est déjà connecté.
+                    eventSink = events
+                    locationService?.setEventSink(eventSink)
                 }
 
                 override fun onCancel(arguments: Any?) {
+                    // On détruit le pont
                     locationService?.setEventSink(null)
+                    eventSink = null
                 }
             }
         )

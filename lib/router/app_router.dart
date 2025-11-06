@@ -21,9 +21,9 @@ import 'package:alertcontacts/features/zones_securite/presentation/safezone_setu
 import 'package:alertcontacts/features/safezone_setup/presentation/setup_introduction_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../features/user_setup/presentation/user_setup_wizard.dart';
 
 // === Pages (crée-les si besoin) ===
+import '../features/user_setup/presentation/user_setup_wizard.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/zones_securite/presentation/pages/zone_creation_success_page.dart';
 import '../features/zones_danger/presentation/danger_zone_introduction_page.dart';
@@ -186,6 +186,11 @@ class AppRouter {
           builder: (ctx, state) => const AppShell(),
         ),
         GoRoute(
+          path: AppRoutes.userSetup,
+          name: 'userSetup',
+          builder: (ctx, state) => const UserSetupWizard(),
+        ),
+        GoRoute(
           path: AppRoutes.safezoneSetup,
           name: 'safezone_setup',
           builder: (ctx, state) => const SetupIntroductionPage(),
@@ -322,6 +327,11 @@ class AppRouter {
 
         final location = state.uri.path;
         final fullLocation = state.uri.toString();
+
+        // Autoriser l'accès inconditionnel à la page de mise à jour forcée
+        if (location == AppRoutes.forcedUpdate) {
+          return null;
+        }
 
         // DEBUG: Log de la navigation
         print('🔄 ROUTER DEBUG: Navigating to: $fullLocation');
@@ -460,6 +470,30 @@ class AppRouter {
           );
           // Rediriger vers l'authentification mais permettre le retour vers l'invitation
           return AppRoutes.auth;
+        }
+
+        // 4. Vérification du setup utilisateur (APRÈS authentification)
+        if (isAuthenticated) {
+          final userSetupDone = await prefsService.isUserSetupDone();
+          final goingToUserSetup = location == AppRoutes.userSetup;
+
+          if (!userSetupDone && !goingToUserSetup) {
+            print(
+              '🔄 ROUTER DEBUG: User setup not done, redirecting to user setup',
+            );
+            return AppRoutes.userSetup;
+          }
+
+          // 5. Vérification du setup initial (création de la première zone)
+          final initialSetupDone = await prefsService.isInitialSetupDone();
+          final goingToSafeZoneSetup = location == AppRoutes.safezoneSetup;
+
+          if (userSetupDone && !initialSetupDone && !goingToSafeZoneSetup) {
+            print(
+              '🔄 ROUTER DEBUG: Initial setup not done, redirecting to safe zone setup',
+            );
+            return AppRoutes.safezoneSetup;
+          }
         }
 
         // Si on va vers l'acceptation d'invitation et qu'on est authentifié

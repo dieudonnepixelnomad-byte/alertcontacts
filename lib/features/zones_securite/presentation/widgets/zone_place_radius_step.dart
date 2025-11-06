@@ -12,7 +12,8 @@ class ZonePlaceRadiusStep extends StatefulWidget {
   final models.LatLng center;
   final double radius;
   final String? address;
-  final void Function(models.LatLng center, double radius, String? address) onChanged;
+  final void Function(models.LatLng center, double radius, String? address)
+  onChanged;
   final VoidCallback onNext;
   final VoidCallback onPrev;
   final bool isCreating;
@@ -46,8 +47,8 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
     _center = widget.center;
     _radius = widget.radius;
     _address = widget.address;
-    
-    // Si la position initiale est la position par défaut (Yaoundé), 
+
+    // Si la position initiale est la position par défaut (Yaoundé),
     // essayer d'obtenir la position actuelle
     if (_center.lat == 3.87000 && _center.lng == 11.51500) {
       _getCurrentLocation();
@@ -66,7 +67,7 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
     try {
       if (!mounted) return;
       setState(() => _isLoading = true);
-      
+
       // Vérifier les permissions
       final permission = await Permission.locationWhenInUse.status;
       if (permission.isDenied) {
@@ -86,20 +87,25 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
 
       // Obtenir la position actuelle via notre service natif
       final nativeLocationService = NativeLocationService();
-      
+
       // Écouter le stream de localisation pour obtenir la position actuelle
       StreamSubscription? locationSubscription;
-      locationSubscription = nativeLocationService.locationStream.listen((locationPoint) {
+      locationSubscription = nativeLocationService.locationStream.listen((
+        locationPoint,
+      ) {
         if (!mounted) return;
         setState(() {
-          _center = models.LatLng(locationPoint.latitude, locationPoint.longitude);
+          _center = models.LatLng(
+            locationPoint.latitude,
+            locationPoint.longitude,
+          );
           _hasInitializedLocation = true;
         });
-        
+
         // Annuler l'écoute après avoir reçu la première position
         locationSubscription?.cancel();
       });
-      
+
       // Si aucune position n'est reçue dans les 10 secondes, arrêter le chargement
       Timer(const Duration(seconds: 10), () {
         if (!_hasInitializedLocation) {
@@ -124,10 +130,7 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
 
   void _updateMapCamera() {
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(_center.lat, _center.lng),
-        16.0,
-      ),
+      CameraUpdate.newLatLngZoom(LatLng(_center.lat, _center.lng), 16.0),
     );
   }
 
@@ -176,16 +179,14 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
           const SizedBox(height: 8),
           Text(
             'Touchez la carte pour définir le centre de votre zone de sécurité',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.gray700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.gray700),
           ),
           const SizedBox(height: 16),
 
           // Widget de recherche géographique
-          LocationSearchField(
-            onLocationSelected: _onLocationSelected,
-          ),
+          LocationSearchField(onLocationSelected: _onLocationSelected),
           const SizedBox(height: 16),
 
           // Carte Google Maps
@@ -237,7 +238,7 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
                     ),
                   },
                   myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
+                  myLocationButtonEnabled: true,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
                 ),
@@ -311,15 +312,15 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
                   children: [
                     Text(
                       '50m',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.gray700,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray700),
                     ),
                     Text(
                       '1000m',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.gray700,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray700),
                     ),
                   ],
                 ),
@@ -346,17 +347,21 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: widget.isCreating ? null : widget.onNext,
-                  icon: widget.isCreating 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.check),
-                  label: Text(widget.isCreating ? 'Création...' : 'Créer la zone'),
+                  icon: widget.isCreating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.check),
+                  label: Text(
+                    widget.isCreating ? 'Création...' : 'Créer la zone',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.teal,
                     foregroundColor: Colors.white,

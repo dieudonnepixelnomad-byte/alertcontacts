@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/zone.dart';
 import '../../../theme/colors.dart';
 
-class ZoneDetailsPage extends StatelessWidget {
+class ZoneDetailsPage extends StatefulWidget {
   final Zone zone;
 
   const ZoneDetailsPage({
@@ -12,16 +13,21 @@ class ZoneDetailsPage extends StatelessWidget {
   });
 
   @override
+  State<ZoneDetailsPage> createState() => _ZoneDetailsPageState();
+}
+
+class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDanger = zone.type == ZoneType.danger;
+    final isDanger = widget.zone.type == ZoneType.danger;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Détails de la zone',
-          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: isDanger ? AppColors.alert : AppColors.safe,
         elevation: 0,
@@ -52,9 +58,9 @@ class ZoneDetailsPage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDanger 
-                        ? AppColors.alert.withOpacity(0.1)
-                        : AppColors.safe.withOpacity(0.1),
+                      color: isDanger
+                          ? AppColors.alert.withOpacity(0.1)
+                          : AppColors.safe.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -65,7 +71,7 @@ class ZoneDetailsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    zone.name,
+                    widget.zone.name,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -73,7 +79,8 @@ class ZoneDetailsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: isDanger ? AppColors.alert : AppColors.safe,
                       borderRadius: BorderRadius.circular(20),
@@ -93,6 +100,51 @@ class ZoneDetailsPage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
+            SizedBox(
+              height: 250,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target:
+                        LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                    zoom: 15,
+                  ),
+                  circles: {
+                    Circle(
+                      circleId: CircleId(widget.zone.id),
+                      center:
+                          LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                      radius: widget.zone.radiusMeters,
+                      fillColor: (isDanger ? AppColors.alert : AppColors.safe)
+                          .withOpacity(0.2),
+                      strokeColor: (isDanger ? AppColors.alert : AppColors.safe)
+                          .withOpacity(0.8),
+                      strokeWidth: 2,
+                    ),
+                  },
+                  markers: {
+                    Marker(
+                      markerId: MarkerId(widget.zone.id),
+                      position:
+                          LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                        isDanger ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
+                      ),
+                    ),
+                  },
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  scrollGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             // Informations générales
             _buildInfoSection(
               title: 'Informations générales',
@@ -100,28 +152,31 @@ class ZoneDetailsPage extends StatelessWidget {
                 _buildInfoRow(
                   icon: Icons.radio_button_unchecked,
                   label: 'Rayon',
-                  value: '${zone.radiusMeters.toStringAsFixed(0)} mètres',
+                  value: '${widget.zone.radiusMeters.toStringAsFixed(0)} mètres',
                 ),
                 _buildInfoRow(
                   icon: Icons.location_on,
                   label: 'Coordonnées',
-                  value: '${zone.center.lat.toStringAsFixed(6)}, ${zone.center.lng.toStringAsFixed(6)}',
+                  value:
+                      '${widget.zone.center.lat.toStringAsFixed(6)}, ${widget.zone.center.lng.toStringAsFixed(6)}',
                 ),
-                if (zone.address?.isNotEmpty == true)
+                if (widget.zone.address?.isNotEmpty == true)
                   _buildInfoRow(
                     icon: Icons.place,
                     label: 'Adresse',
-                    value: zone.address!,
+                    value: widget.zone.address!,
                   ),
                 _buildInfoRow(
                   icon: Icons.access_time,
                   label: 'Créée le',
-                  value: DateFormat('dd/MM/yyyy à HH:mm').format(zone.createdAt),
+                  value:
+                      DateFormat('dd/MM/yyyy à HH:mm').format(widget.zone.createdAt),
                 ),
                 _buildInfoRow(
                   icon: Icons.update,
                   label: 'Modifiée le',
-                  value: DateFormat('dd/MM/yyyy à HH:mm').format(zone.updatedAt),
+                  value:
+                      DateFormat('dd/MM/yyyy à HH:mm').format(widget.zone.updatedAt),
                 ),
               ],
             ),
@@ -129,7 +184,7 @@ class ZoneDetailsPage extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Description si disponible
-            if (zone.description?.isNotEmpty == true) ...[
+            if (widget.zone.description?.isNotEmpty == true) ...[
               _buildInfoSection(
                 title: 'Description',
                 children: [
@@ -141,7 +196,7 @@ class ZoneDetailsPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      zone.description!,
+                      widget.zone.description!,
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
@@ -248,18 +303,19 @@ class ZoneDetailsPage extends StatelessWidget {
         _buildInfoRow(
           icon: Icons.priority_high,
           label: 'Niveau de sévérité',
-          value: _getSeverityLabel(zone.severity),
+          value: _getSeverityLabel(widget.zone.severity),
         ),
         _buildInfoRow(
           icon: Icons.verified,
           label: 'Confirmations',
-          value: '${zone.confirmations ?? 0} confirmation(s)',
+          value: '${widget.zone.confirmations ?? 0} confirmation(s)',
         ),
-        if (zone.lastReportAt != null)
+        if (widget.zone.lastReportAt != null)
           _buildInfoRow(
             icon: Icons.report,
             label: 'Dernier signalement',
-            value: DateFormat('dd/MM/yyyy à HH:mm').format(zone.lastReportAt!),
+            value: DateFormat('dd/MM/yyyy à HH:mm')
+                .format(widget.zone.lastReportAt!),
           ),
       ],
     );
@@ -269,49 +325,53 @@ class ZoneDetailsPage extends StatelessWidget {
     return _buildInfoSection(
       title: 'Informations de sécurité',
       children: [
-        if (zone.iconKey?.isNotEmpty == true)
+        if (widget.zone.iconKey?.isNotEmpty == true)
           _buildInfoRow(
             icon: Icons.category,
             label: 'Catégorie',
-            value: _getIconLabel(zone.iconKey!),
+            value: _getIconLabel(widget.zone.iconKey!),
           ),
         _buildInfoRow(
           icon: Icons.people,
           label: 'Proches assignés',
-          value: '${zone.memberIds?.length ?? 0} proche(s)',
+          value: '${widget.zone.memberIds?.length ?? 0} proche(s)',
         ),
-        if (zone.memberIds?.isNotEmpty == true) ...[
+        if (widget.zone.memberIds?.isNotEmpty == true) ...[
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: zone.memberIds!.map((memberId) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.safe.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.safe.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.person,
-                    size: 16,
-                    color: AppColors.safe,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    memberId,
-                    style: TextStyle(
-                      color: AppColors.safe,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            )).toList(),
+            children: widget.zone.memberIds!
+                .map((memberId) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.safe.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border:
+                            Border.all(color: AppColors.safe.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person,
+                            size: 16,
+                            color: AppColors.safe,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            memberId,
+                            style: TextStyle(
+                              color: AppColors.safe,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
           ),
         ],
       ],

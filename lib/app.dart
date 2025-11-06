@@ -28,7 +28,7 @@ import 'package:alertcontacts/core/services/api_ignored_danger_zones_service.dar
 import 'package:alertcontacts/features/activities/repositories/activities_repository.dart';
 import 'package:alertcontacts/features/settings/providers/activities_provider.dart';
 import 'package:alertcontacts/core/config/api_config.dart';
-
+import 'package:alertcontacts/core/services/batch_sender_service.dart';
 import 'package:alertcontacts/features/zones/providers/zones_notifier.dart';
 import 'package:alertcontacts/features/zones_danger/providers/danger_zone_notifier.dart';
 import 'package:alertcontacts/features/zones_danger/providers/ignored_danger_zones_provider.dart';
@@ -37,7 +37,6 @@ import 'package:alertcontacts/features/proches/providers/relationship_provider.d
 import 'package:alertcontacts/features/alertes/providers/alert_provider.dart';
 import 'package:alertcontacts/core/providers/auth_manager.dart';
 import 'package:alertcontacts/core/services/deep_link_service.dart';
-
 import 'package:alertcontacts/core/services/app_initialization_service.dart';
 import 'package:alertcontacts/features/alertes/services/permissions_manager_service.dart';
 import 'package:alertcontacts/core/services/persistent_status_notification_service.dart';
@@ -189,6 +188,9 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<AppInitializationService>(
           create: (_) => AppInitializationService(),
         ),
+        Provider<BatchSenderService>(
+          create: (_) => BatchSenderService(),
+        ),
         // Services critiques de sécurité
         Provider<CriticalNotificationRedundancyService>(
           create: (_) => CriticalNotificationRedundancyService(),
@@ -323,6 +325,7 @@ class _AlertContactAppState extends State<AlertContactApp> {
                 authManager.registerAuthAwareProvider(relationshipProvider);
                 authManager.registerAuthAwareProvider(ignoredDangerZonesProvider);
                 authManager.registerAuthAwareProvider(profileProvider);
+                authManager.registerAuthAwareProvider(context.read<BatchSenderService>());
                 return authManager;
               },
         ),
