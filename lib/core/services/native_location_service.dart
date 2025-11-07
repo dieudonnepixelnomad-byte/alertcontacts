@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import '../models/location_point.dart';
+import '../utils/location_utils.dart';
 import 'batch_sender_service.dart';
 
 class NativeLocationService {
@@ -19,9 +20,14 @@ class NativeLocationService {
   bool _isTracking = false;
   StreamSubscription<dynamic>? _locationSubscription;
 
+  LocationPoint? _lastSentPoint;
+  static final double _minDistanceThreshold = 5.0; // 5 mètres
+  final double _maxAccuracyThreshold = 10.0; // 10 mètres
+
   bool get isTracking => _isTracking;
 
-  final StreamController<LocationPoint> _locationController = StreamController<LocationPoint>.broadcast();
+  final StreamController<LocationPoint> _locationController =
+      StreamController<LocationPoint>.broadcast();
   Stream<LocationPoint> get locationStream => _locationController.stream;
 
   Future<void> initialize() async {
@@ -29,7 +35,10 @@ class NativeLocationService {
 
     await _batchSender.initialize();
     _isInitialized = true;
-    developer.log('NativeLocationService initialized', name: 'NativeLocationService');
+    developer.log(
+      'NativeLocationService initialized',
+      name: 'NativeLocationService',
+    );
   }
 
   Future<void> startTracking() async {
@@ -38,11 +47,17 @@ class NativeLocationService {
 
     try {
       await _methodChannel.invokeMethod('startLocationService');
-      _locationSubscription = _eventChannel.receiveBroadcastStream().listen(_onLocationData, onError: _onLocationError);
+      _locationSubscription = _eventChannel.receiveBroadcastStream().listen(
+        _onLocationData,
+        onError: _onLocationError,
+      );
       _isTracking = true;
       developer.log('Location tracking started', name: 'NativeLocationService');
     } on PlatformException catch (e) {
-      developer.log("Failed to start tracking: '${e.message}'.", name: 'NativeLocationService');
+      developer.log(
+        "Failed to start tracking: '${e.message}'.",
+        name: 'NativeLocationService',
+      );
     }
   }
 
@@ -55,13 +70,17 @@ class NativeLocationService {
       _isTracking = false;
       developer.log('Location tracking stopped', name: 'NativeLocationService');
     } on PlatformException catch (e) {
-      developer.log("Failed to stop tracking: '${e.message}'.", name: 'NativeLocationService');
+      developer.log(
+        "Failed to stop tracking: '${e.message}'.",
+        name: 'NativeLocationService',
+      );
     }
   }
 
   void _onLocationData(dynamic data) {
     try {
       final Map<String, dynamic> locationData = Map<String, dynamic>.from(data);
+      developer.log('Received location data: $locationData', name: 'NativeLocationService');
       final locationPoint = LocationPoint(
         latitude: (locationData['latitude'] as num).toDouble(),
         longitude: (locationData['longitude'] as num).toDouble(),
@@ -74,15 +93,41 @@ class NativeLocationService {
         batteryLevel: locationData['batteryLevel'] as int?,
       );
 
+      // Filtre de précision
+      if (locationPoint.accuracy > _maxAccuracyThreshold) {
+        developer.log('Location point ignored due to low accuracy: ${locationPoint.accuracy}', name: 'NativeLocationService');
+        return;
+      }
+
+      // Filtre de distance
+      if (_lastSentPoint != null) {
+        final distance = LocationUtils.getDistance(
+          _lastSentPoint!.latitude,
+          _lastSentPoint!.longitude,
+          locationPoint.latitude,
+          locationPoint.longitude,
+        );
+
+        if (distance < _minDistanceThreshold) {
+          developer.log('Location point ignored due to distance threshold: ${distance.toStringAsFixed(2)}m', name: 'NativeLocationService');
+          return;
+        }
+      }
+
       _locationController.add(locationPoint);
       _batchSender.addLocationPoint(locationPoint);
+      _lastSentPoint = locationPoint;
+
     } catch (e) {
       developer.log('Error processing location data: $e', name: 'NativeLocationService');
     }
   }
 
   void _onLocationError(dynamic error) {
-    developer.log('Location stream error: $error', name: 'NativeLocationService');
+    developer.log(
+      'Location stream error: $error',
+      name: 'NativeLocationService',
+    );
   }
 
   void dispose() {

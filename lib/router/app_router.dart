@@ -1,6 +1,5 @@
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:alertcontacts/core/services/permissions_service.dart';
-import 'package:alertcontacts/core/services/pending_deep_link_service.dart';
 import 'package:alertcontacts/features/about/presentation/about_page.dart';
 import 'package:alertcontacts/features/app_shell/presentation/app_shell.dart';
 import 'package:alertcontacts/features/auth/presentation/login_page.dart';
@@ -186,11 +185,6 @@ class AppRouter {
           builder: (ctx, state) => const AppShell(),
         ),
         GoRoute(
-          path: AppRoutes.userSetup,
-          name: 'userSetup',
-          builder: (ctx, state) => const UserSetupWizard(),
-        ),
-        GoRoute(
           path: AppRoutes.safezoneSetup,
           name: 'safezone_setup',
           builder: (ctx, state) => const SetupIntroductionPage(),
@@ -324,229 +318,86 @@ class AppRouter {
       redirect: (ctx, state) async {
         final prefsService = PrefsService();
         final onboardingDone = await prefsService.isOnboardingDone();
+        final authNotifier = ctx.read<AuthNotifier>();
+        final isAuthenticated = authNotifier.state.status == AuthStatus.authenticated;
 
         final location = state.uri.path;
-        final fullLocation = state.uri.toString();
 
-        // Autoriser l'accès inconditionnel à la page de mise à jour forcée
-        if (location == AppRoutes.forcedUpdate) {
+        // Autoriser l'accès inconditionnel à certaines pages
+        final allowedPaths = [
+          AppRoutes.splash,
+          AppRoutes.forcedUpdate,
+          AppRoutes.onboarding,
+          AppRoutes.auth,
+          AppRoutes.register,
+          AppRoutes.forgotPassword,
+          AppRoutes.emailVerification,
+        ];
+        if (allowedPaths.contains(location) || location.startsWith(AppRoutes.acceptInvite)) {
           return null;
         }
 
-        // DEBUG: Log de la navigation
-        print('🔄 ROUTER DEBUG: Navigating to: $fullLocation');
-        print('🔄 ROUTER DEBUG: Path: $location');
-        print('🔄 ROUTER DEBUG: Scheme: ${state.uri.scheme}');
-        print('🔄 ROUTER DEBUG: Host: ${state.uri.host}');
-
-        // Ignorer complètement les URLs alertcontact:// - elles sont gérées par DeepLinkService
-        if (state.uri.scheme == 'alertcontact') {
-          print(
-            '🔄 ROUTER DEBUG: Detected alertcontact:// scheme, redirecting to splash',
-          );
-          return AppRoutes.splash;
-        }
-
-        final goingToSplash = location == AppRoutes.splash;
-        final goingToOnboarding = location == AppRoutes.onboarding;
-        final goingToAuth =
-            location == AppRoutes.auth || location == AppRoutes.register;
-        final goingToPermissions =
-            location == AppRoutes.permissionLocation ||
-            location == AppRoutes.permissionNotification ||
-            location == AppRoutes.permissionBackgroundLocation;
-
-        // Routes protégées qui nécessitent une authentification complète
-        final protectedRoutes = [
-          AppRoutes.appShell,
-          AppRoutes.safezoneSetup,
-          AppRoutes.dangerCreate,
-          AppRoutes.dangerDetail,
-          AppRoutes.safezoneCreate,
-          AppRoutes.proches,
-          AppRoutes.addProche,
-          // Routes supprimées car gérées en interne par ProchesScreen :
-          // - AppRoutes.prochesManagement,
-          // - AppRoutes.createInvitation,
-          // - AppRoutes.invitationDetail,
-          AppRoutes.alertes,
-          AppRoutes.ignoredZones,
-          AppRoutes.settings,
-          AppRoutes.profile,
-          AppRoutes.feedback,
-          // Note: AppRoutes.acceptInvite retiré car il doit être accessible même sans auth complète
-        ];
-        final goingToProtectedRoute = protectedRoutes.contains(location);
-        final goingToAcceptInvite = location.startsWith('/invitations/accept');
-
-        // Routes publiques qui ne nécessitent pas de permissions
-        final publicRoutes = [
-          AppRoutes.about,
-          AppRoutes.debugPermissions,
-          AppRoutes.debugFcm,
-        ];
-        final goingToPublicRoute = publicRoutes.contains(location);
-
-        print('🔄 ROUTER DEBUG: goingToAcceptInvite: $goingToAcceptInvite');
-        print('🔄 ROUTER DEBUG: goingToPublicRoute: $goingToPublicRoute');
-
-        // 1. Gestion de l'onboarding
-        if (!onboardingDone &&
-            !goingToSplash &&
-            !goingToOnboarding &&
-            !goingToPublicRoute) {
-          print('🔄 ROUTER DEBUG: Redirecting to onboarding');
+        // 1. Onboarding
+        if (!onboardingDone) {
           return AppRoutes.onboarding;
         }
 
-        // 2. Gestion des permissions après onboarding (AVANT authentification)
-        if (onboardingDone &&
-            !goingToPermissions &&
-            !goingToAuth &&
-            !goingToSplash &&
-            !goingToOnboarding &&
-            !goingToPublicRoute) {
-          final permissionsSetupComplete =
-              await PermissionsService.isPermissionsSetupComplete();
-
-          // Si les permissions ne sont pas configurées
-          if (!permissionsSetupComplete) {
-            // Vérifier quelle permission demander en premier
-            final locationGranted =
-                await PermissionsService.isLocationPermissionGranted();
-            if (!locationGranted) {
-              print('🔄 ROUTER DEBUG: Redirecting to location permission');
-              return AppRoutes.permissionLocation;
-            }
-
-            final notificationGranted =
-                await PermissionsService.isNotificationPermissionGranted();
-            if (!notificationGranted) {
-              print('🔄 ROUTER DEBUG: Redirecting to notification permission');
-              return AppRoutes.permissionNotification;
-            }
-
-            // Vérifier la permission de géolocalisation en arrière-plan
-            final backgroundLocationGranted =
-                await PermissionsService.isBackgroundLocationPermissionGranted();
-            if (!backgroundLocationGranted) {
-              print(
-                '🔄 ROUTER DEBUG: Redirecting to background location permission',
-              );
-              return AppRoutes.permissionBackgroundLocation;
-            }
-
-            // Si toutes les permissions sont accordées, marquer comme terminé
-            await PermissionsService.markPermissionsSetupComplete();
-          }
-        }
-
-        // 3. Vérification de l'authentification (APRÈS permissions)
-        final authNotifier = ctx.read<AuthNotifier>();
-        final authState = authNotifier.state;
-        final isAuthenticated = authState.status == AuthStatus.authenticated;
-
-        print('🔄 ROUTER DEBUG: isAuthenticated: $isAuthenticated');
-        print('🔄 ROUTER DEBUG: authState.status: ${authState.status}');
-
-        // Si permissions OK mais pas authentifié et va vers une route protégée
-        final permissionsSetupComplete =
-            await PermissionsService.isPermissionsSetupComplete();
-
-        if (onboardingDone &&
-            permissionsSetupComplete &&
-            !isAuthenticated &&
-            goingToProtectedRoute) {
-          print(
-            '🔄 ROUTER DEBUG: Permissions OK but not authenticated, redirecting to auth (protected route)',
-          );
+        // 2. Authentification
+        if (!isAuthenticated) {
           return AppRoutes.auth;
         }
 
-        // Cas spécial: acceptation d'invitation - nécessite au minimum une authentification
-        if (goingToAcceptInvite && !isAuthenticated) {
-          print(
-            '🔄 ROUTER DEBUG: Going to accept invite but not authenticated, redirecting to auth',
-          );
-          // Rediriger vers l'authentification mais permettre le retour vers l'invitation
-          return AppRoutes.auth;
+        // À partir d'ici, l'utilisateur est authentifié.
+
+        // Si l'utilisateur authentifié tente d'accéder aux pages d'auth, le rediriger.
+        if (location == AppRoutes.auth || location == AppRoutes.register) {
+          return AppRoutes.appShell;
         }
 
-        // 4. Vérification du setup utilisateur (APRÈS authentification)
-        if (isAuthenticated) {
-          final userSetupDone = await prefsService.isUserSetupDone();
-          final goingToUserSetup = location == AppRoutes.userSetup;
+        // 3. Permissions
+        final permissionsSetupComplete = await PermissionsService.isPermissionsSetupComplete();
+        final isGoingToPermissionPage = location.startsWith('/permission');
 
-          if (!userSetupDone && !goingToUserSetup) {
-            print(
-              '🔄 ROUTER DEBUG: User setup not done, redirecting to user setup',
-            );
-            return AppRoutes.userSetup;
-          }
+        print('Router Redirect: permissionsSetupComplete: $permissionsSetupComplete');
+        print('Router Redirect: isGoingToPermissionPage: $isGoingToPermissionPage');
+        print('Router Redirect: location: $location');
 
-          // 5. Vérification du setup initial (création de la première zone)
-          final initialSetupDone = await prefsService.isInitialSetupDone();
-          final goingToSafeZoneSetup = location == AppRoutes.safezoneSetup;
+        if (!permissionsSetupComplete && !isGoingToPermissionPage) {
+          final locationGranted = await PermissionsService.isLocationPermissionGranted();
+          print('Router Redirect: locationGranted: $locationGranted');
+          if (!locationGranted) return AppRoutes.permissionLocation;
 
-          if (userSetupDone && !initialSetupDone && !goingToSafeZoneSetup) {
-            print(
-              '🔄 ROUTER DEBUG: Initial setup not done, redirecting to safe zone setup',
-            );
-            return AppRoutes.safezoneSetup;
-          }
+          final notificationGranted = await PermissionsService.isNotificationPermissionGranted();
+          print('Router Redirect: notificationGranted: $notificationGranted');
+          if (!notificationGranted) return AppRoutes.permissionNotification;
+
+          final backgroundLocationGranted = await PermissionsService.isBackgroundLocationPermissionGranted();
+          print('Router Redirect: backgroundLocationGranted: $backgroundLocationGranted');
+          if (!backgroundLocationGranted) return AppRoutes.permissionBackgroundLocation;
+
+          // Si toutes les permissions sont accordées, marquer le setup comme complet
+          await PermissionsService.markPermissionsSetupComplete();
+        }
+        
+        // Si les permissions ne sont pas complètes, mais que l'utilisateur navigue déjà vers une page de permission, autoriser.
+        if (!permissionsSetupComplete && isGoingToPermissionPage) {
+            return null;
         }
 
-        // Si on va vers l'acceptation d'invitation et qu'on est authentifié
-        if (goingToAcceptInvite && isAuthenticated) {
-          print(
-            '🔄 ROUTER DEBUG: Going to accept invite and authenticated, allowing access',
-          );
-          return null; // Permettre l'accès direct
+        // 4. User Setup
+        final userSetupDone = await prefsService.isUserSetupDone();
+        if (!userSetupDone && location != AppRoutes.userSetup) {
+          return AppRoutes.userSetup;
         }
 
-        // 4. Gestion du setup initial (première zone de sécurité) après permissions
-        if (isAuthenticated && !goingToAcceptInvite) {
-          final permissionsSetupComplete =
-              await PermissionsService.isPermissionsSetupComplete();
-          final initialSetupDone = await prefsService.isInitialSetupDone();
-
-          // Si permissions OK mais setup initial pas fait, et qu'on va vers une route protégée
-          if (permissionsSetupComplete &&
-              !initialSetupDone &&
-              goingToProtectedRoute) {
-            // Exception: permettre d'aller vers safezone_setup
-            if (location != AppRoutes.safezoneSetup &&
-                !location.startsWith('/safezone/setup')) {
-              return AppRoutes.safezoneSetup;
-            }
-          }
+        // 5. Initial SafeZone Setup
+        final initialSetupDone = await prefsService.isInitialSetupDone();
+        if (!initialSetupDone && !location.startsWith(AppRoutes.safezoneSetup)) {
+          return AppRoutes.safezoneSetup;
         }
 
-        // 5. Si authentifié et va vers auth/register, rediriger selon l'état
-        if (isAuthenticated && goingToAuth) {
-          // Vérifier s'il y a un deep link en attente (invitation)
-          final hasPendingDeepLink =
-              await PendingDeepLinkService.hasPendingDeepLink();
-
-          // Si il y a un deep link en attente, laisser passer pour permettre le rejeu
-          if (hasPendingDeepLink) {
-            return null; // Laisser l'utilisateur aller vers /auth pour le rejeu
-          }
-
-          final initialSetupDone = await prefsService.isInitialSetupDone();
-
-          if (initialSetupDone) {
-            // Tout est configuré, aller vers l'app shell
-            return AppRoutes.appShell;
-          } else {
-            // Setup initial pas fait
-            return AppRoutes.safezoneSetup;
-          }
-        }
-
-        return null;
+        return null; // Pas de redirection
       },
-      debugLogDiagnostics: true,
     );
   }
 }

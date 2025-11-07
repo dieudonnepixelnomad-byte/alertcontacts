@@ -70,7 +70,7 @@ class _SetupIntroductionPageState extends State<SetupIntroductionPage> {
 
                     // Titre principal
                     Text(
-                      'Protégeons vos proches',
+                      'Protégeons nos proches',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             fontWeight: FontWeight.w700,

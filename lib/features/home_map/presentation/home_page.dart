@@ -10,6 +10,7 @@ import '../../../core/services/native_location_service.dart';
 import '../../zones_danger/providers/danger_zone_notifier.dart';
 import '../../zones/providers/zones_notifier.dart';
 import 'dart:async';
+import '../../../core/services/permissions_service.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -28,6 +29,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   gmaps.LatLng? _currentPosition;
   bool _loadingLocation = false;
   Timer? _cameraDebounceTimer;
+  late final NativeLocationService _nativeLocationService;
+  StreamSubscription? _locationSubscription;
+  gmaps.MapType _currentMapType = gmaps.MapType.hybrid;
 
   // Filtres
   bool _showDangers = true;
@@ -42,14 +46,21 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _nativeLocationService = context.read<NativeLocationService>();
     _initializeServices();
-    _getCurrentLocation();
+    _subscribeToLocationUpdates();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cameraDebounceTimer?.cancel();
+    _locationSubscription?.cancel();
     super.dispose();
   }
 
@@ -58,36 +69,26 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    final nativeLocationService = NativeLocationService();
-
     switch (state) {
       case AppLifecycleState.resumed:
-        // L'app revient au premier plan - optimiser pour la performance
         print('App au premier plan - redémarrage du suivi');
-        nativeLocationService.startTracking();
-        // Reprendre les mises à jour de la carte si nécessaire
-        _getCurrentLocation();
+        _initializeServices();
+        _subscribeToLocationUpdates();
         break;
 
       case AppLifecycleState.paused:
-        // L'app passe en arrière-plan - économiser les ressources
         print('App en arrière-plan - économie des ressources');
-        // Le service background continue, mais on peut arrêter les animations UI
-        nativeLocationService.startTracking();
+        _locationSubscription?.cancel();
+        _locationSubscription = null; // Important pour la reprise
         break;
 
       case AppLifecycleState.detached:
-        // L'app est fermée - s'assurer que le service background persiste
         print('App fermée - vérification persistance service background');
-        // Vérifier que le service background est bien actif
-        nativeLocationService.startTracking();
         break;
 
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        // États transitoires - maintenir les services essentiels
         print('App inactive/cachée - maintien services essentiels');
-        // Pas d'action spécifique nécessaire
         break;
     }
   }
@@ -95,12 +96,21 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   /// Initialise les services de surveillance automatique
   Future<void> _initializeServices() async {
     try {
+      // Vérifier si les permissions sont accordées
+      final permissionsGranted =
+          await PermissionsService.isPermissionsSetupComplete();
+      if (!permissionsGranted) {
+        print(
+          'Permissions non accordées. Le service de localisation ne sera pas démarré.',
+        );
+        return;
+      }
+
       // Démarrer le service de géolocalisation natif
-      final nativeLocationService = NativeLocationService();
-      await nativeLocationService.initialize();
+      await _nativeLocationService.initialize();
 
       // Démarrer le suivi
-      await nativeLocationService.startTracking();
+      await _nativeLocationService.startTracking();
 
       // Charger les zones de sécurité de l'utilisateur
       if (mounted) {
@@ -167,6 +177,43 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
   /// Gère la création d'une zone de sécurité (accès libre)
   Future<void> _onCreateSafeZone() async {
+    // Accès libre à la création de zones de sécurité
+    context.go('/safezone/setup');
+  }
+
+  void _subscribeToLocationUpdates() {
+    if (_locationSubscription != null) return; // Déjà abonné
+
+    setState(() => _loadingLocation = true);
+
+    _locationSubscription = _nativeLocationService.locationStream.listen(
+      (locationPoint) {
+        if (!mounted) return;
+        setState(() {
+          _currentPosition = gmaps.LatLng(
+            locationPoint.latitude,
+            locationPoint.longitude,
+          );
+          if (_loadingLocation) {
+            _loadingLocation = false;
+            // Animer la caméra seulement la première fois
+            _controller?.animateCamera(
+              gmaps.CameraUpdate.newLatLng(_currentPosition!),
+            );
+          }
+        });
+      },
+      onError: (error) {
+        print("Erreur de stream de localisation: $error");
+        if (mounted) {
+          setState(() => _loadingLocation = false);
+        }
+      },
+    );
+  }
+
+  /// Gère la création d'une zone de danger (accès premium)
+  Future<void> _onCreateDangerZone() async {
     // Accès libre à la création de zones de sécurité
     context.go('/safezone/setup');
   }
@@ -269,12 +316,54 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               myLocationButtonEnabled: true,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
-              mapType: gmaps.MapType.hybrid,
+              mapType: _currentMapType,
+            ),
+
+            // Bouton pour changer le type de carte
+            Positioned(
+              top: 8,
+              right: 54,
+              child: FloatingActionButton(
+                mini: true,
+                heroTag: 'map_type_selector',
+                onPressed: () {},
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                child: PopupMenuButton<gmaps.MapType>(
+                  onSelected: (gmaps.MapType result) {
+                    setState(() {
+                      _currentMapType = result;
+                    });
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<gmaps.MapType>>[
+                        const PopupMenuItem<gmaps.MapType>(
+                          value: gmaps.MapType.normal,
+                          child: Text('Normal'),
+                        ),
+                        const PopupMenuItem<gmaps.MapType>(
+                          value: gmaps.MapType.satellite,
+                          child: Text('Satellite'),
+                        ),
+                        const PopupMenuItem<gmaps.MapType>(
+                          value: gmaps.MapType.hybrid,
+                          child: Text('Hybride'),
+                        ),
+                        const PopupMenuItem<gmaps.MapType>(
+                          value: gmaps.MapType.terrain,
+                          child: Text('Terrain'),
+                        ),
+                      ],
+                  icon: Icon(
+                    Icons.layers,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
             ),
 
             // Barre de recherche
             Positioned(
-              top: 64,
+              top: 70, // Ajusté pour ne pas superposer le nouveau bouton
               left: 16,
               right: 16,
               child: LocationSearchField(
@@ -283,30 +372,6 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                 margin: EdgeInsets.zero,
               ),
             ),
-
-            // Indicateur de chargement
-            if (_loadingLocation)
-              Positioned(
-                top: 80,
-                left: 16,
-                right: 16,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text('Localisation en cours...'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
 
             // Boutons d'action flottants avec libellés
             Positioned(

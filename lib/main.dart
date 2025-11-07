@@ -10,9 +10,11 @@ import 'core/services/fcm_service.dart';
 /// DOIT être une fonction top-level pour Firebase
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Initialiser Firebase si nécessaire
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+  // Initialiser Firebase uniquement s'il n'a pas déjà été fait
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
+
   // Déléguer le traitement au FCMService
   await FCMService.handleBackgroundMessage(message);
 }

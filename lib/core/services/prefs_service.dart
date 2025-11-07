@@ -14,19 +14,23 @@ class PrefsService {
     await prefs.setBool(_keyOnboardingDone, true);
   }
 
-  Future<bool> isOnboardingDone() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyOnboardingDone) ?? false;
-  }
-
-  Future<void> setBearerToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyBearerToken, token);
-  }
-
   Future<String?> getBearerToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyBearerToken);
+  }
+
+  Future<void> setBearerToken(String? token) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (token != null) {
+      await prefs.setString(_keyBearerToken, token);
+    } else {
+      await prefs.remove(_keyBearerToken);
+    }
+  }
+
+  Future<bool> isOnboardingDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingDone) ?? false;
   }
 
   Future<void> clearBearerToken() async {

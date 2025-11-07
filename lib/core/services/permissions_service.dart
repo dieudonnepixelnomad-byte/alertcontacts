@@ -1,11 +1,12 @@
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 class PermissionsService {
   static const String _locationPermissionKey = 'location_permission_granted';
-  static const String _notificationPermissionKey = 'notification_permission_granted';
-  static const String _permissionsSetupCompleteKey = 'permissions_setup_complete';
+  static const String _notificationPermissionKey =
+      'notification_permission_granted';
+  static const String _permissionsSetupCompleteKey =
+      'permissions_setup_complete';
 
   /// Vérifie si l'utilisateur a déjà configuré ses permissions
   static Future<bool> isPermissionsSetupComplete() async {
@@ -23,7 +24,8 @@ class PermissionsService {
   static Future<bool> requestLocationPermission() async {
     try {
       // Vérifier d'abord si les services de localisation sont activés
-      bool serviceEnabled = await Permission.locationWhenInUse.serviceStatus.isEnabled;
+      bool serviceEnabled =
+          await Permission.locationWhenInUse.serviceStatus.isEnabled;
       if (!serviceEnabled) {
         // Les services de localisation ne sont pas activés
         return false;
@@ -55,21 +57,12 @@ class PermissionsService {
   /// Demande la permission pour les notifications
   static Future<bool> requestNotificationPermission() async {
     try {
-      final messaging = FirebaseMessaging.instance;
-      
-      // Demander la permission
-      NotificationSettings settings = await messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
+      PermissionStatus status = await Permission.notification.status;
+      if (status.isDenied) {
+        status = await Permission.notification.request();
+      }
 
-      final isGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
-                       settings.authorizationStatus == AuthorizationStatus.provisional;
+      final isGranted = status.isGranted || status.isProvisional;
 
       if (isGranted) {
         final prefs = await SharedPreferences.getInstance();
@@ -105,10 +98,8 @@ class PermissionsService {
   /// Vérifie le statut actuel de la permission de notifications
   static Future<bool> isNotificationPermissionGranted() async {
     try {
-      final messaging = FirebaseMessaging.instance;
-      final settings = await messaging.getNotificationSettings();
-      return settings.authorizationStatus == AuthorizationStatus.authorized ||
-             settings.authorizationStatus == AuthorizationStatus.provisional;
+      final status = await Permission.notification.status;
+      return status.isGranted || status.isProvisional;
     } catch (e) {
       return false;
     }
@@ -123,7 +114,8 @@ class PermissionsService {
   static Future<bool> areAllCriticalPermissionsGranted() async {
     final locationGranted = await isLocationPermissionGranted();
     final notificationGranted = await isNotificationPermissionGranted();
-    final backgroundLocationGranted = await isBackgroundLocationPermissionGranted();
+    final backgroundLocationGranted =
+        await isBackgroundLocationPermissionGranted();
     return locationGranted && notificationGranted && backgroundLocationGranted;
   }
 

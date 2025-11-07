@@ -17,15 +17,17 @@ class PersistentStatusNotificationService {
 
   bool _isInitialized = false;
   Timer? _statusUpdateTimer;
-  
+
   // IDs de notification pour éviter les conflits
   static const int _statusNotificationId = 9001;
   static const String _channelId = 'service_status';
   static const String _channelName = 'État des services';
-  static const String _channelDescription = 'Notifications persistantes indiquant l\'état des services de surveillance';
+  static const String _channelDescription =
+      'Notifications persistantes indiquant l\'état des services de surveillance';
 
   // Clés de préférences
-  static const String _keyStatusNotificationEnabled = 'status_notification_enabled';
+  static const String _keyStatusNotificationEnabled =
+      'status_notification_enabled';
   static const String _keyLastStatusUpdate = 'last_status_update';
 
   // État des services
@@ -43,15 +45,15 @@ class PersistentStatusNotificationService {
     try {
       await _initializeNotifications();
       await _loadSettings();
-      
+
       // Démarrer les mises à jour périodiques du statut
       _startPeriodicStatusUpdates();
-      
+
       // Vérifier l'état réel des services après un délai pour permettre l'initialisation
       Future.delayed(const Duration(seconds: 2), () {
         _checkAndUpdateRealServiceStatus();
       });
-      
+
       _isInitialized = true;
       log('PersistentStatusNotificationService: Initialized successfully');
     } catch (e) {
@@ -61,9 +63,12 @@ class PersistentStatusNotificationService {
 
   /// Initialiser les notifications locales
   Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false, // Pas d'alerte pour les notifications de statut
+      requestAlertPermission:
+          false, // Pas d'alerte pour les notifications de statut
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
@@ -87,7 +92,9 @@ class PersistentStatusNotificationService {
     );
 
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -95,7 +102,7 @@ class PersistentStatusNotificationService {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(_keyStatusNotificationEnabled) ?? true;
-    
+
     if (enabled) {
       await showStatusNotification();
     }
@@ -120,7 +127,11 @@ class PersistentStatusNotificationService {
   }
 
   /// Mettre à jour le statut du géofencing
-  void updateGeofencingStatus(ServiceStatus status, {int dangerZones = 0, int safeZones = 0}) {
+  void updateGeofencingStatus(
+    ServiceStatus status, {
+    int dangerZones = 0,
+    int safeZones = 0,
+  }) {
     _geofencingStatus = status;
     _monitoredDangerZones = dangerZones;
     _monitoredSafeZones = safeZones;
@@ -139,7 +150,7 @@ class PersistentStatusNotificationService {
 
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(_keyStatusNotificationEnabled) ?? true;
-    
+
     if (!enabled) return;
 
     await _updateStatusNotification();
@@ -156,7 +167,7 @@ class PersistentStatusNotificationService {
 
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(_keyStatusNotificationEnabled) ?? true;
-    
+
     if (!enabled) return;
 
     final statusText = _buildStatusText();
@@ -173,12 +184,12 @@ class PersistentStatusNotificationService {
       showWhen: false,
       enableVibration: false,
       playSound: false,
-      icon: '@drawable/ic_security', // Icône de sécurité
+      icon: '@mipmap/launcher_icon', // Icône de sécurité
       color: const Color(0xFF006970), // Couleur principale de l'app
       styleInformation: BigTextStyleInformation(
         detailText,
         contentTitle: statusText,
-        summaryText: 'AlertContact - Surveillance active',
+        summaryText: 'AlertContacts - Surveillance active',
       ),
     );
 
@@ -203,11 +214,16 @@ class PersistentStatusNotificationService {
       );
 
       // Sauvegarder l'heure de la dernière mise à jour
-      await prefs.setString(_keyLastStatusUpdate, DateTime.now().toIso8601String());
-      
+      await prefs.setString(
+        _keyLastStatusUpdate,
+        DateTime.now().toIso8601String(),
+      );
+
       log('PersistentStatusNotificationService: Status notification updated');
     } catch (e) {
-      log('PersistentStatusNotificationService: Error updating notification: $e');
+      log(
+        'PersistentStatusNotificationService: Error updating notification: $e',
+      );
     }
   }
 
@@ -215,19 +231,19 @@ class PersistentStatusNotificationService {
   String _buildStatusText() {
     final activeServices = <String>[];
     final startingServices = <String>[];
-    
+
     if (_geolocationStatus == ServiceStatus.running) {
       activeServices.add('Géolocalisation');
     } else if (_geolocationStatus == ServiceStatus.starting) {
       startingServices.add('Géolocalisation');
     }
-    
+
     if (_geofencingStatus == ServiceStatus.running) {
       activeServices.add('Surveillance zones');
     } else if (_geofencingStatus == ServiceStatus.starting) {
       startingServices.add('Surveillance zones');
     }
-    
+
     if (_backgroundLocationStatus == ServiceStatus.running) {
       activeServices.add('Localisation continue');
     } else if (_backgroundLocationStatus == ServiceStatus.starting) {
@@ -255,7 +271,9 @@ class PersistentStatusNotificationService {
       final lastUpdateText = _lastLocationUpdate != null
           ? _formatLastUpdate(_lastLocationUpdate!)
           : 'jamais';
-      details.add('📍 Géolocalisation: active (dernière mise à jour: $lastUpdateText)');
+      details.add(
+        '📍 Géolocalisation: active (dernière mise à jour: $lastUpdateText)',
+      );
     } else if (_geolocationStatus == ServiceStatus.starting) {
       details.add('📍 Géolocalisation: initialisation...');
     } else {
@@ -313,7 +331,9 @@ class PersistentStatusNotificationService {
       await hideStatusNotification();
     }
 
-    log('PersistentStatusNotificationService: Status notifications ${enabled ? 'enabled' : 'disabled'}');
+    log(
+      'PersistentStatusNotificationService: Status notifications ${enabled ? 'enabled' : 'disabled'}',
+    );
   }
 
   /// Vérifier si les notifications de statut sont activées
@@ -333,8 +353,8 @@ class PersistentStatusNotificationService {
   /// Vérifier si au moins un service est actif
   bool get hasActiveServices {
     return _geolocationStatus == ServiceStatus.running ||
-           _geofencingStatus == ServiceStatus.running ||
-           _backgroundLocationStatus == ServiceStatus.running;
+        _geofencingStatus == ServiceStatus.running ||
+        _backgroundLocationStatus == ServiceStatus.running;
   }
 
   /// Obtenir les statistiques des services
@@ -363,13 +383,17 @@ class PersistentStatusNotificationService {
       if (_backgroundLocationStatus == ServiceStatus.starting) {
         _backgroundLocationStatus = ServiceStatus.stopped;
       }
-      
+
       // Mettre à jour la notification avec les vrais statuts
       _updateStatusNotification();
-      
-      log('PersistentStatusNotificationService: Real service status checked and updated');
+
+      log(
+        'PersistentStatusNotificationService: Real service status checked and updated',
+      );
     } catch (e) {
-      log('PersistentStatusNotificationService: Error checking real service status: $e');
+      log(
+        'PersistentStatusNotificationService: Error checking real service status: $e',
+      );
     }
   }
 
@@ -383,9 +407,4 @@ class PersistentStatusNotificationService {
 }
 
 /// Énumération des statuts de service
-enum ServiceStatus {
-  stopped,
-  starting,
-  running,
-  error,
-}
+enum ServiceStatus { stopped, starting, running, error }

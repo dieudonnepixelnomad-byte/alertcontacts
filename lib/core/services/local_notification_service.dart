@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:alertcontacts/features/alertes/services/notification_config_service.dart' as config;
+import 'package:alertcontacts/features/alertes/services/notification_config_service.dart'
+    as config;
 import 'global_navigation_service.dart';
 
 /// Types de notifications disponibles
@@ -17,12 +18,7 @@ enum NotificationType {
 }
 
 /// Priorités des notifications
-enum NotificationPriority {
-  low,
-  normal,
-  high,
-  critical,
-}
+enum NotificationPriority { low, normal, high, critical }
 
 /// Configuration d'une notification
 class NotificationConfig {
@@ -50,13 +46,14 @@ class NotificationConfig {
 /// Service unifié pour la gestion de toutes les notifications locales
 /// Centralise l'initialisation, la configuration et l'envoi des notifications
 class LocalNotificationService {
-  static final LocalNotificationService _instance = LocalNotificationService._internal();
+  static final LocalNotificationService _instance =
+      LocalNotificationService._internal();
   factory LocalNotificationService() => _instance;
   LocalNotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  final config.NotificationConfigService _configService = 
+  final config.NotificationConfigService _configService =
       config.NotificationConfigService();
 
   bool _isInitialized = false;
@@ -68,22 +65,22 @@ class LocalNotificationService {
     try {
       // Configuration Android
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@mipmap/launcher_icon');
 
       // Configuration iOS
       const DarwinInitializationSettings initializationSettingsIOS =
           DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-        requestCriticalPermission: true,
-      );
+            requestAlertPermission: true,
+            requestBadgePermission: true,
+            requestSoundPermission: true,
+            requestCriticalPermission: true,
+          );
 
       const InitializationSettings initializationSettings =
           InitializationSettings(
-        android: initializationSettingsAndroid,
-        iOS: initializationSettingsIOS,
-      );
+            android: initializationSettingsAndroid,
+            iOS: initializationSettingsIOS,
+          );
 
       final bool? result = await _flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
@@ -186,7 +183,8 @@ class LocalNotificationService {
     for (final channel in channels) {
       await _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
     }
 
@@ -196,7 +194,7 @@ class LocalNotificationService {
   /// Gère les taps sur les notifications
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('📱 Notification tappée: ${response.payload}');
-    
+
     // Gérer la navigation basée sur le payload
     GlobalNavigationService.handleNotificationNavigation(response.payload);
   }
@@ -209,7 +207,8 @@ class LocalNotificationService {
     } else if (Platform.isIOS) {
       final bool? result = await _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(
             alert: true,
             badge: true,
@@ -228,7 +227,8 @@ class LocalNotificationService {
     } else if (Platform.isIOS) {
       final permissions = await _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.checkPermissions();
       return permissions != null;
     }
@@ -239,7 +239,9 @@ class LocalNotificationService {
   Future<void> showNotification(NotificationConfig config) async {
     // Vérifier si les notifications peuvent être envoyées (heures calmes)
     if (!await _configService.canSendNotification()) {
-      debugPrint('🔇 Notification locale bloquée (heures calmes): ${config.title}');
+      debugPrint(
+        '🔇 Notification locale bloquée (heures calmes): ${config.title}',
+      );
       return;
     }
 
@@ -253,23 +255,29 @@ class LocalNotificationService {
     }
 
     try {
-      final int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-      
-      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        _getChannelId(config.type),
-        _getChannelName(config.type),
-        channelDescription: _getChannelDescription(config.type),
-        importance: _getAndroidImportance(config.priority),
-        priority: _getAndroidPriority(config.priority),
-        enableVibration: config.enableVibration,
-        playSound: config.enableSound,
-        sound: config.enableSound ? _getNotificationSound(config.type) : null,
-        ledColor: _getLedColor(config.type),
-        ledOnMs: 1000, // LED allumée pendant 1 seconde
-        ledOffMs: 500, // LED éteinte pendant 0.5 seconde
-        enableLights: config.priority == NotificationPriority.critical || 
-                     config.type == NotificationType.dangerZone,
-      );
+      final int notificationId = DateTime.now().millisecondsSinceEpoch
+          .remainder(100000);
+
+      final AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+            _getChannelId(config.type),
+            _getChannelName(config.type),
+            channelDescription: _getChannelDescription(config.type),
+            importance: _getAndroidImportance(config.priority),
+            priority: _getAndroidPriority(config.priority),
+            enableVibration: config.enableVibration,
+            icon: '@mipmap/launcher_icon',
+            playSound: config.enableSound,
+            sound: config.enableSound
+                ? _getNotificationSound(config.type)
+                : null,
+            ledColor: _getLedColor(config.type),
+            ledOnMs: 1000, // LED allumée pendant 1 seconde
+            ledOffMs: 500, // LED éteinte pendant 0.5 seconde
+            enableLights:
+                config.priority == NotificationPriority.critical ||
+                config.type == NotificationType.dangerZone,
+          );
 
       final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
         presentAlert: true,
@@ -405,11 +413,13 @@ class LocalNotificationService {
   }
 
   /// Obtient le son de notification Android
-  RawResourceAndroidNotificationSound? _getNotificationSound(NotificationType type) {
+  RawResourceAndroidNotificationSound? _getNotificationSound(
+    NotificationType type,
+  ) {
     // Sons personnalisés désactivés car fichiers manquants
     // Utilise le son par défaut du système
     return null;
-    
+
     /* Configuration originale (fichiers audio manquants) :
     switch (type) {
       case NotificationType.dangerZone:
@@ -430,7 +440,7 @@ class LocalNotificationService {
     // Sons personnalisés désactivés car fichiers manquants
     // Utilise le son par défaut du système
     return null;
-    
+
     /* Configuration originale (fichiers audio manquants) :
     switch (type) {
       case NotificationType.dangerZone:

@@ -12,6 +12,10 @@ import android.content.ComponentName
 import android.content.Context
 
 class MainActivity: FlutterActivity() {
+    private val DEEP_LINK_CHANNEL = "alertcontact/deep_links"
+    private var deepLinkMethodChannel: MethodChannel? = null
+    private var initialLink: String? = null
+
     private val METHOD_CHANNEL = "com.alertcontacts.alertcontacts/location"
     private val EVENT_CHANNEL = "com.alertcontacts.alertcontacts/location_stream"
     private var locationService: LocationService? = null
@@ -23,6 +27,7 @@ class MainActivity: FlutterActivity() {
             val binder = service as LocationService.LocationBinder
             locationService = binder.getService()
             isServiceBound = true
+            locationService?.setActivityBound(true)
             // Une fois le service connecté, on lui passe le "pont" de communication s'il existe déjà.
             eventSink?.let {
                 locationService?.setEventSink(it)
@@ -30,6 +35,7 @@ class MainActivity: FlutterActivity() {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            locationService?.setActivityBound(false)
             locationService = null
             isServiceBound = false
         }
@@ -37,6 +43,17 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Configuration du MethodChannel pour les deep links
+        deepLinkMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEEP_LINK_CHANNEL)
+        deepLinkMethodChannel?.setMethodCallHandler { call, result ->
+            if (call.method == "getInitialLink") {
+                result.success(initialLink)
+                initialLink = null // Le lien ne doit être consommé qu'une seule fois
+            } else {
+                result.notImplemented()
+            }
+        }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL).setMethodCallHandler {
             call, result ->
@@ -74,9 +91,33 @@ class MainActivity: FlutterActivity() {
         )
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        val appLinkAction = intent?.action
+        val appLinkData = intent?.data
+        if (Intent.ACTION_VIEW == appLinkAction && appLinkData != null) {
+            val link = appLinkData.toString()
+            if (deepLinkMethodChannel != null) {
+                deepLinkMethodChannel?.invokeMethod("onDeepLink", link)
+            } else {
+                initialLink = link
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (isServiceBound) {
+            locationService?.setActivityBound(false)
             unbindService(serviceConnection)
             isServiceBound = false
         }

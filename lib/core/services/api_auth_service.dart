@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../errors/auth_exceptions.dart';
@@ -8,10 +9,24 @@ import '../errors/auth_exceptions.dart';
 class ApiAuthService {
   final String baseUrl;
   final http.Client _client;
+  final PrefsService _prefsService = PrefsService();
   String? _bearerToken;
 
   ApiAuthService({required this.baseUrl, http.Client? client})
-    : _client = client ?? http.Client();
+      : _client = client ?? http.Client() {
+    _loadToken();
+  }
+
+  Future<void> _loadToken() async {
+    _bearerToken = await _prefsService.getBearerToken();
+    log('ApiAuthService: Token loaded from storage');
+  }
+
+  Future<void> _saveToken(String? token) async {
+    _bearerToken = token;
+    await _prefsService.setBearerToken(token);
+    log('ApiAuthService: Token saved to storage');
+  }
 
   /// Headers par défaut pour les requêtes API
   Map<String, String> get _headers => {
@@ -43,7 +58,7 @@ class ApiAuthService {
       final data = _handleResponse(response);
 
       // Stocker le token Bearer pour les futures requêtes
-      _bearerToken = data['token'] as String?;
+      await _saveToken(data['token'] as String?);
       log('ApiAuthService.exchangeFirebaseToken: Bearer token stored');
 
       // Retourner le profil utilisateur
@@ -92,7 +107,7 @@ class ApiAuthService {
       final data = _handleResponse(response);
 
       // Stocker le token Bearer pour les futures requêtes
-      _bearerToken = data['token'] as String?;
+      await _saveToken(data['token'] as String?);
 
       log('Utilisateur créé', name: 'ApiAuthService.register', level: 100);
 
@@ -118,7 +133,7 @@ class ApiAuthService {
       final data = _handleResponse(response);
 
       // Stocker le token Bearer pour les futures requêtes
-      _bearerToken = data['token'] as String?;
+      await _saveToken(data['token'] as String?);
 
       // Retourner le profil utilisateur
       return User.fromJson(data['user'] as Map<String, dynamic>);
@@ -154,13 +169,13 @@ class ApiAuthService {
       await _client.post(Uri.parse('$baseUrl/auth/logout'), headers: _headers);
 
       // Nettoyer le token local
-      _bearerToken = null;
+      await _saveToken(null);
     } on SocketException {
       throw const NetworkException();
     } catch (e) {
       // On ignore les erreurs de logout côté serveur
       // mais on nettoie quand même le token local
-      _bearerToken = null;
+      await _saveToken(null);
     }
   }
 
@@ -180,7 +195,7 @@ class ApiAuthService {
       final data = _handleResponse(response);
 
       // Stocker le nouveau token Bearer
-      _bearerToken = data['token'] as String?;
+      await _saveToken(data['token'] as String?);
 
       // Retourner le profil utilisateur mis à jour
       return User.fromJson(data['user'] as Map<String, dynamic>);
@@ -193,8 +208,8 @@ class ApiAuthService {
   }
 
   /// Définir le token Bearer manuellement (pour la persistance)
-  void setBearerToken(String? token) {
-    _bearerToken = token;
+  Future<void> setBearerToken(String? token) async {
+    await _saveToken(token);
   }
 
   /// Obtenir le token Bearer actuel

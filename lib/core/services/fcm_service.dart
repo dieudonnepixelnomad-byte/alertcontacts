@@ -439,15 +439,6 @@ class FCMService {
             notificationManager,
           );
           break;
-        default:
-          log('FCMService: Handling general notification...');
-          // Notification générale
-          await _handleGeneralNotification(
-            data,
-            notification,
-            notificationManager,
-          );
-          break;
       }
 
       log('FCMService: Notification processing completed');
@@ -480,7 +471,9 @@ class FCMService {
       if (zoneName == null || zoneName.isEmpty) {
         log('FCMService: ⚠️ ALERTE IGNORÉE - zone_name manquant ou vide');
         log('FCMService: Données reçues: $data');
-        log('FCMService: Cette alerte sera ignorée pour éviter les alertes "Zone inconnue"');
+        log(
+          'FCMService: Cette alerte sera ignorée pour éviter les alertes "Zone inconnue"',
+        );
         log('FCMService: ===============================================');
         return;
       }
@@ -521,7 +514,9 @@ class FCMService {
       // Vérifier que zone_name est valide
       final zoneName = data['zone_name']?.toString().trim();
       if (zoneName == null || zoneName.isEmpty) {
-        log('FCMService: ⚠️ ALERTE ZONE SÉCURITÉ IGNORÉE - zone_name manquant ou vide');
+        log(
+          'FCMService: ⚠️ ALERTE ZONE SÉCURITÉ IGNORÉE - zone_name manquant ou vide',
+        );
         log('FCMService: Données reçues: $data');
         return;
       }
@@ -535,9 +530,7 @@ class FCMService {
         return;
       }
 
-      log(
-        'FCMService: Handling safe zone exit alert - Zone: $zoneName',
-      );
+      log('FCMService: Handling safe zone exit alert - Zone: $zoneName');
 
       await notificationManager.triggerSafeZoneExitAlert(
         zoneName: zoneName,
@@ -549,23 +542,6 @@ class FCMService {
   }
 
   /// Traiter une notification générale
-  static Future<void> _handleGeneralNotification(
-    Map<String, dynamic> data,
-    RemoteNotification? notification,
-    NotificationManager notificationManager,
-  ) async {
-    try {
-      log('FCMService: Handling general notification');
-
-      await notificationManager.sendSimpleNotification(
-        title: notification?.title ?? 'AlertContact',
-        body: notification?.body ?? 'Nouvelle notification',
-        payload: jsonEncode(data),
-      );
-    } catch (e) {
-      log('FCMService: Error handling general notification: $e');
-    }
-  }
 
   /// Gérer les notifications de réponse d'invitation
   static Future<void> _handleInvitationResponse(
