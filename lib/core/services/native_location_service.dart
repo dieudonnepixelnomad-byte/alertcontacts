@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import '../models/location_point.dart';
-import '../utils/location_utils.dart';
 import 'batch_sender_service.dart';
 
 class NativeLocationService {
-  static const MethodChannel _methodChannel = MethodChannel('com.alertcontacts.alertcontacts/location');
-  static const EventChannel _eventChannel = EventChannel('com.alertcontacts.alertcontacts/location_stream');
+  static const MethodChannel _methodChannel = MethodChannel(
+    'com.alertcontacts.alertcontacts/location',
+  );
+  static const EventChannel _eventChannel = EventChannel(
+    'com.alertcontacts.alertcontacts/location_stream',
+  );
 
-  static final NativeLocationService _instance = NativeLocationService._internal();
+  static final NativeLocationService _instance =
+      NativeLocationService._internal();
   factory NativeLocationService() => _instance;
   NativeLocationService._internal();
 
@@ -21,8 +24,7 @@ class NativeLocationService {
   StreamSubscription<dynamic>? _locationSubscription;
 
   LocationPoint? _lastSentPoint;
-  static final double _minDistanceThreshold = 5.0; // 5 mètres
-  final double _maxAccuracyThreshold = 10.0; // 10 mètres
+  final double _maxAccuracyThreshold = 5.0; // Précision maximale de 5 mètres
 
   bool get isTracking => _isTracking;
 
@@ -80,14 +82,19 @@ class NativeLocationService {
   void _onLocationData(dynamic data) {
     try {
       final Map<String, dynamic> locationData = Map<String, dynamic>.from(data);
-      developer.log('Received location data: $locationData', name: 'NativeLocationService');
+      developer.log(
+        'Received location data: $locationData',
+        name: 'NativeLocationService',
+      );
       final locationPoint = LocationPoint(
         latitude: (locationData['latitude'] as num).toDouble(),
         longitude: (locationData['longitude'] as num).toDouble(),
         accuracy: (locationData['accuracy'] as num?)?.toDouble() ?? 0.0,
         speed: (locationData['speed'] as num?)?.toDouble(),
         heading: (locationData['bearing'] as num?)?.toDouble(),
-        capturedAtDevice: DateTime.fromMillisecondsSinceEpoch((locationData['captured_at_device'] as num).toInt()),
+        capturedAtDevice: DateTime.fromMillisecondsSinceEpoch(
+          (locationData['captured_at_device'] as num).toInt(),
+        ),
         foreground: locationData['isForeground'] as bool? ?? true,
         source: locationData['source'] as String? ?? 'fused',
         batteryLevel: locationData['batteryLevel'] as int?,
@@ -95,31 +102,21 @@ class NativeLocationService {
 
       // Filtre de précision
       if (locationPoint.accuracy > _maxAccuracyThreshold) {
-        developer.log('Location point ignored due to low accuracy: ${locationPoint.accuracy}', name: 'NativeLocationService');
-        return;
-      }
-
-      // Filtre de distance
-      if (_lastSentPoint != null) {
-        final distance = LocationUtils.getDistance(
-          _lastSentPoint!.latitude,
-          _lastSentPoint!.longitude,
-          locationPoint.latitude,
-          locationPoint.longitude,
+        developer.log(
+          'Location point ignored due to low accuracy: ${locationPoint.accuracy}',
+          name: 'NativeLocationService',
         );
-
-        if (distance < _minDistanceThreshold) {
-          developer.log('Location point ignored due to distance threshold: ${distance.toStringAsFixed(2)}m', name: 'NativeLocationService');
-          return;
-        }
+        return;
       }
 
       _locationController.add(locationPoint);
       _batchSender.addLocationPoint(locationPoint);
       _lastSentPoint = locationPoint;
-
     } catch (e) {
-      developer.log('Error processing location data: $e', name: 'NativeLocationService');
+      developer.log(
+        'Error processing location data: $e',
+        name: 'NativeLocationService',
+      );
     }
   }
 

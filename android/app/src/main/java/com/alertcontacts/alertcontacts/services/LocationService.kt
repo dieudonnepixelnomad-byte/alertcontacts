@@ -114,6 +114,7 @@ class LocationService : Service() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, LOCATION_UPDATE_INTERVAL)
             .setWaitForAccurateLocation(false)
             .setMinUpdateIntervalMillis(FASTEST_LOCATION_UPDATE_INTERVAL)
+            .setMinUpdateDistanceMeters(5f) // 5 mètres
             .build()
 
         try {

@@ -18,7 +18,7 @@ class GeofencingMethodCallHandler: NSObject, CLLocationManagerDelegate {
         locationManager = CLLocationManager()
         locationManager?.delegate = self
         locationManager?.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager?.distanceFilter = 10 // 10 mètres
+        locationManager?.distanceFilter = 15 // 15 mètres
     }
     
     func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
