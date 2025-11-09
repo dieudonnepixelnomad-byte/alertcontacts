@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/user.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../providers/profile_provider.dart';
@@ -328,15 +329,6 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: () => setState(() => _isEditing = true),
               contentPadding: EdgeInsets.zero,
             ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.block_outlined),
-              title: const Text('Limiter le traitement'),
-              subtitle: const Text('Restreindre l\'utilisation de vos données'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () => _showDataProcessingLimitation(),
-              contentPadding: EdgeInsets.zero,
-            ),
           ],
         ),
       ),
@@ -414,30 +406,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Politique de confidentialité'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'AlertContact respecte votre vie privée et s\'engage à protéger vos données personnelles.\n\n'
-            'Nous collectons uniquement les données nécessaires au fonctionnement de l\'application :\n'
-            '• Informations de compte (nom, email)\n'
-            '• Données de localisation (avec votre consentement)\n'
-            '• Zones de sécurité et contacts d\'urgence\n\n'
-            'Vos données ne sont jamais vendues à des tiers et sont stockées de manière sécurisée.\n\n'
-            'Conformément au RGPD, vous avez le droit d\'accéder, rectifier, supprimer ou limiter le traitement de vos données.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
+  void _showPrivacyPolicy() async {
+    final Uri url = Uri.parse('https://mobile.alertcontacts.net/privacy');
+    if (!await launchUrl(url)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
   void _showConsentManagement() {
@@ -478,7 +451,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _saveProfile,
             child: const Text('Sauvegarder'),
           ),
         ],

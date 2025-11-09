@@ -30,7 +30,7 @@ class ProfileRepository {
   Future<User> getProfile() async {
     try {
       final response = await _client.get(
-        Uri.parse('${ApiConfig.baseUrl}/user/profile'),
+        Uri.parse(ApiConfig.baseUrl).replace(path: '/user/profile'),
         headers: await _headers,
       );
 
