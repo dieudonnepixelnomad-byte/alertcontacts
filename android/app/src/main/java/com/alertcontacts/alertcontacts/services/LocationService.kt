@@ -1,32 +1,42 @@
 package com.alertcontacts.alertcontacts.services
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.os.BatteryManager
+import android.os.Binder
+import android.os.Build
 import android.os.IBinder
+import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.*
-import android.os.Looper
-import android.util.Log
-import io.flutter.plugin.common.EventChannel
-import android.content.Context
+import com.alertcontacts.alertcontacts.R
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.gson.Gson
-import android.os.Binder
-import android.content.IntentFilter
-import android.os.BatteryManager
-import android.app.ActivityManager
-import android.content.pm.ServiceInfo
-import android.os.Build
+import io.flutter.plugin.common.EventChannel
+import java.io.IOException
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
+import okhttp3.Response
 
 class LocationService : Service() {
-
     private val binder = LocationBinder()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -52,12 +62,12 @@ class LocationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannel()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 val newPoints = locationResult.locations.map { location ->
-                    Log.d("LocationService", "New location: ${location.latitude}, ${location.longitude}")
                     mapOf(
                         "latitude" to location.latitude,
                         "longitude" to location.longitude,
@@ -75,7 +85,6 @@ class LocationService : Service() {
                 if (isActivityBound && eventSink != null) {
                     newPoints.forEach { eventSink?.success(it) }
                 } else {
-                    // L'activité n'est pas liée, envoyer directement au backend
                     val pointsToSend = getAndClearCachedPoints().toMutableList()
                     pointsToSend.addAll(newPoints)
                     sendLocationsToBackend(pointsToSend)
@@ -84,11 +93,25 @@ class LocationService : Service() {
         }
     }
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Location"
+            val descriptionText = "Notifications for location tracking"
+            val importance = NotificationManager.IMPORTANCE_LOW
+            val channel = NotificationChannel("location", name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = NotificationCompat.Builder(this, "location")
             .setContentTitle("Suivi de la localisation actif")
             .setContentText("AlertContact vous protège en arrière-plan.")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.mipmap.launcher_icon)
             .build()
 
         val notificationsEnabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
@@ -103,9 +126,11 @@ class LocationService : Service() {
             } else {
                 startForeground(1, notification)
             }
+            startLocationUpdates()
+        } else {
+            Log.w("LocationService", "Permissions not granted to start foreground service. Stopping service.")
+            stopSelf()
         }
-
-        startLocationUpdates()
 
         return START_STICKY
     }
@@ -143,14 +168,14 @@ class LocationService : Service() {
             .post(requestBody)
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
+        httpClient.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
                 Log.e("LocationService", "Failed to send locations to backend: ${e.message}")
                 // En cas d'échec, mettre en cache pour une tentative ultérieure
                 points.forEach { cacheLocationPoint(it) }
             }
 
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+            override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
                     Log.e("LocationService", "Backend returned an error for batch: ${response.code}")
                     points.forEach { cacheLocationPoint(it) }
@@ -219,7 +244,7 @@ class LocationService : Service() {
     private fun isAppInForeground(): Boolean {
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val appProcesses = activityManager.runningAppProcesses ?: return false
-        return appProcesses.any { it.processName == packageName && it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }
+        return appProcesses.any { it.processName == applicationContext.packageName && it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }
     }
 
     override fun onDestroy() {

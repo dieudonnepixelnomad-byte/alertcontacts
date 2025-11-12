@@ -82,8 +82,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildPersonalInfoSection(user),
                 const SizedBox(height: 24),
                 _buildPrivacySection(),
-                const SizedBox(height: 24),
-                _buildDataManagementSection(),
+                /* const SizedBox(height: 24),
+                _buildDataManagementSection(), */
                 const SizedBox(height: 24),
                 _buildDangerZone(),
               ],
@@ -103,10 +103,10 @@ class _ProfilePageState extends State<ProfilePage> {
             CircleAvatar(
               radius: 40,
               backgroundColor: const Color(0xFF006970),
-              backgroundImage: user.photoUrl != null
+              backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
                   ? NetworkImage(user.photoUrl!)
                   : null,
-              child: user.photoUrl == null
+              child: user.photoUrl == null || user.photoUrl!.isEmpty
                   ? Text(
                       user.name.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
@@ -343,21 +343,6 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.warning, color: Colors.red[700]),
-                const SizedBox(width: 8),
-                Text(
-                  'Zone de danger',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.delete_forever, color: Colors.red[700]),
               title: Text(

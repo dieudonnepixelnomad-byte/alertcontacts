@@ -17,7 +17,8 @@ class UnifiedZonesPage extends StatefulWidget {
 
 class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
   final TextEditingController _searchController = TextEditingController();
-  ZoneType? _currentFilter; // null = toutes, ZoneType.safe = sécurité, ZoneType.danger = danger
+  ZoneType?
+  _currentFilter; // null = toutes, ZoneType.safe = sécurité, ZoneType.danger = danger
 
   @override
   void initState() {
@@ -74,7 +75,9 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
                         label: Text(_getFilterLabel()),
                         style: _currentFilter != null
                             ? OutlinedButton.styleFrom(
-                                backgroundColor: AppColors.teal.withOpacity(0.1),
+                                backgroundColor: AppColors.teal.withOpacity(
+                                  0.1,
+                                ),
                                 foregroundColor: AppColors.teal,
                               )
                             : null,
@@ -143,17 +146,20 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
     switch (filterType) {
       case ZoneType.safe:
         title = 'Aucune zone de sécurité';
-        subtitle = 'Vos zones de sécurité apparaîtront ici.\nCréez-les depuis la carte principale.';
+        subtitle =
+            'Vos zones de sécurité apparaîtront ici.\nCréez-les depuis la carte principale.';
         icon = Icons.shield_outlined;
         break;
       case ZoneType.danger:
         title = 'Aucune zone de danger';
-        subtitle = 'Les zones de danger que vous signalez apparaîtront ici.\nCréez-les depuis la carte principale.';
+        subtitle =
+            'Les zones de danger que vous signalez apparaîtront ici.\nCréez-les depuis la carte principale.';
         icon = Icons.warning_outlined;
         break;
       default:
         title = 'Aucune zone créée';
-        subtitle = 'Vos zones apparaîtront ici.\nCréez-les depuis la carte principale.';
+        subtitle =
+            'Vos zones apparaîtront ici.\nCréez-les depuis la carte principale.';
         icon = Icons.location_on_outlined;
     }
 
@@ -176,9 +182,9 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
           ],
@@ -207,9 +213,9 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
             const SizedBox(height: 8),
             Text(
               notifier.errorMessage ?? 'Une erreur est survenue',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),

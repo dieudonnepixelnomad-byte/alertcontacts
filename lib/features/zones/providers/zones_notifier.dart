@@ -66,7 +66,7 @@ class ZonesNotifier extends ChangeNotifier {
     try {
       log('ZonesNotifier.loadZones: Chargement des zones');
 
-      final zones = await _zonesRepository.getMyZones();
+      final zones = await _zonesRepository.getMyZones(forceRefresh: true);
 
       log('ZonesNotifier.loadZones: ${zones.length} zones chargées');
       _updateState(
