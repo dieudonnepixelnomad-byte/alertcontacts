@@ -5,7 +5,6 @@ import 'package:alertcontacts/core/services/app_initialization_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:alertcontacts/features/auth/providers/auth_notifier.dart';
 import 'package:alertcontacts/features/auth/providers/auth_state.dart';
-import 'package:alertcontacts/features/splash/presentation/forced_update_page.dart';
 import 'package:alertcontacts/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -82,14 +81,18 @@ class _SplashPageState extends State<SplashPage>
 
     try {
       // Lancer l'initialisation des services (qui inclut la vérification de la version)
-      await context.read<AppInitializationService>().initializeServices(context);
+      await context.read<AppInitializationService>().initializeServices(
+        context,
+      );
 
       // Si l'initialisation réussit, continuer avec la logique d'authentification
       if (authNotifier.isAuthenticated) {
         log("SplashPage _initializeAuth: Utilisateur déjà authentifié");
         _handleAuthState(authNotifier.state);
       } else {
-        log("SplashPage _initializeAuth: Tentative d'authentification silencieuse");
+        log(
+          "SplashPage _initializeAuth: Tentative d'authentification silencieuse",
+        );
         authNotifier.silentSignIn();
       }
 
@@ -121,12 +124,16 @@ class _SplashPageState extends State<SplashPage>
     final onBoardingDone = await prefs.isOnboardingDone();
 
     if (onBoardingDone) {
-      log("SplashPage _handleAuthTimeout: Onboarding terminé, redirection vers la connexion");
+      log(
+        "SplashPage _handleAuthTimeout: Onboarding terminé, redirection vers la connexion",
+      );
       if (mounted) {
         context.go(AppRoutes.auth);
       }
     } else {
-      log("SplashPage _handleAuthTimeout: Onboarding non terminé, redirection vers l'onboarding");
+      log(
+        "SplashPage _handleAuthTimeout: Onboarding non terminé, redirection vers l'onboarding",
+      );
       if (mounted) {
         context.go(AppRoutes.onboarding);
       }
@@ -142,18 +149,23 @@ class _SplashPageState extends State<SplashPage>
       if (mounted) {
         context.go(AppRoutes.appShell);
       }
-    } else if (state.status == AuthStatus.error || state.status == AuthStatus.unauthenticated) {
+    } else if (state.status == AuthStatus.error ||
+        state.status == AuthStatus.unauthenticated) {
       log('SplashPage _handleAuthState: AuthError or AuthUnauthenticated');
       final prefs = context.read<PrefsService>();
       final onBoardingDone = await prefs.isOnboardingDone();
 
       if (onBoardingDone) {
-        log("SplashPage _handleAuthState: Onboarding terminé, redirection vers la connexion");
+        log(
+          "SplashPage _handleAuthState: Onboarding terminé, redirection vers la connexion",
+        );
         if (mounted) {
           context.go(AppRoutes.auth);
         }
       } else {
-        log("SplashPage _handleAuthState: Onboarding non terminé, redirection vers l'onboarding");
+        log(
+          "SplashPage _handleAuthState: Onboarding non terminé, redirection vers l'onboarding",
+        );
         if (mounted) {
           context.go(AppRoutes.onboarding);
         }

@@ -156,14 +156,7 @@ class _InviteProchePageState extends State<InviteProchePage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Invitation créée avec succès. Scrollez en bas pour voir le lien',
-            ),
-            duration: Duration(seconds: 5),
-          ),
-        );
+        _showSuccessDialog();
       }
     } catch (e) {
       setState(() {
@@ -177,6 +170,48 @@ class _InviteProchePageState extends State<InviteProchePage> {
         ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
+  }
+
+  /// Afficher une boîte de dialogue de succès attrayante
+  void _showSuccessDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: Theme.of(context).colorScheme.primary,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Invitation créée',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Le lien est prêt à être partagé. Scrollez vers le bas pour pouvoir partager le lien à votre proche.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Construire le message de partage pour l'invitation
@@ -208,9 +243,7 @@ class _InviteProchePageState extends State<InviteProchePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inviter un proche'),
-      ),
+      appBar: AppBar(title: const Text('Inviter un proche')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
@@ -228,7 +261,9 @@ class _InviteProchePageState extends State<InviteProchePage> {
                   value: _theySeeMe,
                   onChanged: (v) => setState(() => _theySeeMe = v),
                   title: const Text('Autoriser ce proche à voir ma position'),
-                  subtitle: const Text('Vous pourrez changer cela à tout moment'),
+                  subtitle: const Text(
+                    'Vous pourrez changer cela à tout moment',
+                  ),
                 ),
               ],
             ),
@@ -246,11 +281,13 @@ class _InviteProchePageState extends State<InviteProchePage> {
                     : Column(
                         children: _availableZones.map((zone) {
                           final isSelected = _selectedZones[zone.id] ?? false;
-                          
+
                           return CheckboxListTile(
                             value: isSelected,
                             onChanged: (v) {
-                              setState(() => _selectedZones[zone.id] = v ?? false);
+                              setState(
+                                () => _selectedZones[zone.id] = v ?? false,
+                              );
                             },
                             title: Text(zone.name),
                             subtitle: Text(
@@ -362,7 +399,7 @@ class _InviteProchePageState extends State<InviteProchePage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Erreur lors du partage: $e'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: Theme.of(context).colorScheme.error,
                       ),
                     );
                   }

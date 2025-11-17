@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/zone.dart';
-import '../../../theme/colors.dart';
 
 class ZoneDetailsPage extends StatefulWidget {
   final Zone zone;
@@ -20,18 +19,19 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isDanger = widget.zone.type == ZoneType.danger;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Détails de la zone',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+          style: theme.appBarTheme.titleTextStyle?.copyWith(color: cs.onPrimary),
         ),
-        backgroundColor: isDanger ? AppColors.alert : AppColors.safe,
+        backgroundColor: isDanger ? cs.error : cs.primary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: cs.onPrimary),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -43,11 +43,11 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cs.surface,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: cs.shadow.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -59,13 +59,13 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: isDanger
-                          ? AppColors.alert.withOpacity(0.1)
-                          : AppColors.safe.withOpacity(0.1),
+                          ? cs.error.withOpacity(0.1)
+                          : cs.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       isDanger ? Icons.warning : Icons.shield,
-                      color: isDanger ? AppColors.alert : AppColors.safe,
+                      color: isDanger ? cs.error : cs.primary,
                       size: 48,
                     ),
                   ),
@@ -82,13 +82,13 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isDanger ? AppColors.alert : AppColors.safe,
+                      color: isDanger ? cs.error : cs.primary,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       isDanger ? 'Zone de danger' : 'Zone de sécurité',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: cs.onPrimary,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -116,9 +116,9 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                       center:
                           LatLng(widget.zone.center.lat, widget.zone.center.lng),
                       radius: widget.zone.radiusMeters,
-                      fillColor: (isDanger ? AppColors.alert : AppColors.safe)
+                      fillColor: (isDanger ? cs.error : cs.primary)
                           .withOpacity(0.2),
-                      strokeColor: (isDanger ? AppColors.alert : AppColors.safe)
+                      strokeColor: (isDanger ? cs.error : cs.primary)
                           .withOpacity(0.8),
                       strokeWidth: 2,
                     ),
@@ -147,14 +147,20 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
 
             // Informations générales
             _buildInfoSection(
+              theme: theme,
+              cs: cs,
               title: 'Informations générales',
               children: [
                 _buildInfoRow(
+                  theme: theme,
+                  cs: cs,
                   icon: Icons.radio_button_unchecked,
                   label: 'Rayon',
                   value: '${widget.zone.radiusMeters.toStringAsFixed(0)} mètres',
                 ),
                 _buildInfoRow(
+                  theme: theme,
+                  cs: cs,
                   icon: Icons.location_on,
                   label: 'Coordonnées',
                   value:
@@ -162,17 +168,23 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                 ),
                 if (widget.zone.address?.isNotEmpty == true)
                   _buildInfoRow(
+                    theme: theme,
+                    cs: cs,
                     icon: Icons.place,
                     label: 'Adresse',
                     value: widget.zone.address!,
                   ),
                 _buildInfoRow(
+                  theme: theme,
+                  cs: cs,
                   icon: Icons.access_time,
                   label: 'Créée le',
                   value:
                       DateFormat('dd/MM/yyyy à HH:mm').format(widget.zone.createdAt),
                 ),
                 _buildInfoRow(
+                  theme: theme,
+                  cs: cs,
                   icon: Icons.update,
                   label: 'Modifiée le',
                   value:
@@ -186,13 +198,15 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
             // Description si disponible
             if (widget.zone.description?.isNotEmpty == true) ...[
               _buildInfoSection(
+                theme: theme,
+                cs: cs,
                 title: 'Description',
                 children: [
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: cs.surfaceVariant,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -207,9 +221,9 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
 
             // Informations spécifiques selon le type
             if (isDanger) ...[
-              _buildDangerSpecificInfo(),
+              _buildDangerSpecificInfo(theme: theme, cs: cs),
             ] else ...[
-              _buildSafeSpecificInfo(),
+              _buildSafeSpecificInfo(theme: theme, cs: cs),
             ],
           ],
         ),
@@ -218,6 +232,8 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
   }
 
   Widget _buildInfoSection({
+    required ThemeData theme,
+    required ColorScheme cs,
     required String title,
     required List<Widget> children,
   }) {
@@ -225,11 +241,11 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: cs.shadow.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -240,10 +256,7 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           ...children,
@@ -253,6 +266,8 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
   }
 
   Widget _buildInfoRow({
+    required ThemeData theme,
+    required ColorScheme cs,
     required IconData icon,
     required String label,
     required String value,
@@ -265,7 +280,7 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
           Icon(
             icon,
             size: 20,
-            color: Colors.grey[600],
+            color: cs.onSurface.withOpacity(0.6),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -274,17 +289,14 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -296,22 +308,30 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
     );
   }
 
-  Widget _buildDangerSpecificInfo() {
+  Widget _buildDangerSpecificInfo({required ThemeData theme, required ColorScheme cs}) {
     return _buildInfoSection(
+      theme: theme,
+      cs: cs,
       title: 'Informations de danger',
       children: [
         _buildInfoRow(
+          theme: theme,
+          cs: cs,
           icon: Icons.priority_high,
           label: 'Niveau de sévérité',
           value: _getSeverityLabel(widget.zone.severity),
         ),
         _buildInfoRow(
+          theme: theme,
+          cs: cs,
           icon: Icons.verified,
           label: 'Confirmations',
           value: '${widget.zone.confirmations ?? 0} confirmation(s)',
         ),
         if (widget.zone.lastReportAt != null)
           _buildInfoRow(
+            theme: theme,
+            cs: cs,
             icon: Icons.report,
             label: 'Dernier signalement',
             value: DateFormat('dd/MM/yyyy à HH:mm')
@@ -321,17 +341,23 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
     );
   }
 
-  Widget _buildSafeSpecificInfo() {
+  Widget _buildSafeSpecificInfo({required ThemeData theme, required ColorScheme cs}) {
     return _buildInfoSection(
+      theme: theme,
+      cs: cs,
       title: 'Informations de sécurité',
       children: [
         if (widget.zone.iconKey?.isNotEmpty == true)
           _buildInfoRow(
+            theme: theme,
+            cs: cs,
             icon: Icons.category,
             label: 'Catégorie',
             value: _getIconLabel(widget.zone.iconKey!),
           ),
         _buildInfoRow(
+          theme: theme,
+          cs: cs,
           icon: Icons.people,
           label: 'Proches assignés',
           value: '${widget.zone.memberIds?.length ?? 0} proche(s)',
@@ -346,10 +372,10 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.safe.withOpacity(0.1),
+                        color: cs.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                         border:
-                            Border.all(color: AppColors.safe.withOpacity(0.3)),
+                            Border.all(color: cs.primary.withOpacity(0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -357,15 +383,14 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
                           Icon(
                             Icons.person,
                             size: 16,
-                            color: AppColors.safe,
+                            color: cs.primary,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             memberId,
-                            style: TextStyle(
-                              color: AppColors.safe,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: cs.primary,
                               fontWeight: FontWeight.w500,
-                              fontSize: 12,
                             ),
                           ),
                         ],

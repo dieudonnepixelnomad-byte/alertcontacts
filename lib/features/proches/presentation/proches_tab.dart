@@ -1,4 +1,5 @@
 // lib/features/proches/presentation/proches_tab.dart
+import 'dart:developer';
 import 'package:alertcontacts/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -118,12 +119,17 @@ class _ProchesTabState extends State<ProchesTab> {
     ShareLevel shareLevel,
   ) async {
     final relationshipProvider = context.read<RelationshipProvider>();
+    // Log des paramètres reçus par la méthode
+    log('UI: Tentative de mise à jour du niveau de partage. RelationshipId: $relationshipId, ShareLevel: $shareLevel');
+
     final success = await relationshipProvider.updateShareLevel(
       relationshipId,
       shareLevel,
     );
 
     if (!success && mounted) {
+      // Log de l'échec
+      log('UI: Echec de la mise à jour du niveau de partage. Erreur: ${relationshipProvider.error}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -147,9 +153,8 @@ class _ProchesTabState extends State<ProchesTab> {
   void _viewLocations(ContactRelation contactRelation) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ContactLocationsPage(
-          contactRelation: contactRelation,
-        ),
+        builder: (context) =>
+            ContactLocationsPage(contactRelation: contactRelation),
       ),
     );
   }

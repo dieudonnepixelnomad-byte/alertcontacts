@@ -65,6 +65,8 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
 
     // Debounce de 300ms pour éviter trop d'appels API
     _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+
       setState(() {
         _isSearching = true;
       });
@@ -117,12 +119,16 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
           }
         }
 
+        if (!mounted) return;
+
         setState(() {
           _searchResults = results;
           _showResults = true;
           _isSearching = false;
         });
       } catch (e) {
+        if (!mounted) return;
+        
         setState(() {
           _searchResults = [];
           _showResults = false;
@@ -167,7 +173,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
               focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: widget.hintText ?? 'Rechercher un lieu...',
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF006970)),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
                 suffixIcon: _isSearching
                     ? const SizedBox(
                         width: 20,
@@ -176,7 +182,6 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                           padding: EdgeInsets.all(12),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF006970),
                           ),
                         ),
                       )
@@ -197,7 +202,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,

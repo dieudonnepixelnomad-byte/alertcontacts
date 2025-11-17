@@ -103,17 +103,26 @@ class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
     try {
       final relationship = await _apiService.getRelationship(relationshipId);
 
+      debugPrint('Récupération de la relation: $relationship');
+
       // Mettre à jour la relation dans la liste locale
       final index = _relationships.indexWhere(
         (rel) => rel.id == relationshipId,
       );
+
+      debugPrint('Index trouvé: $index');
+
       if (index != -1) {
         _relationships[index] = relationship;
+        debugPrint('Relation mise à jour dans la liste locale: $relationship');
         notifyListeners();
       }
 
+      debugPrint('Relation retournée: $relationship');
+
       return relationship;
     } catch (e) {
+      debugPrint('Erreur lors de la récupération du contact: ${e.toString()}');
       _setError('Erreur lors de la récupération du contact: ${e.toString()}');
       return null;
     }
@@ -126,12 +135,23 @@ class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
   ) async {
     _clearError();
 
+    log('Mise à jour du niveau de partage pour relationshipId: $relationshipId avec le niveau: $shareLevel');
+
     try {
+      // Log des paramètres envoyés
+      log('Calling API: updateShareLevel with relationshipId: $relationshipId, shareLevel: $shareLevel');
+
       final updatedRelation = await _apiService.updateShareLevel(
         relationshipId: relationshipId,
         shareLevel: shareLevel,
         canSeeMe: true, // Valeur par défaut, peut être paramétrable
       );
+
+      // Log de la réponse brute (si possible, dépend de l'implémentation de _apiService)
+      // Si _apiService ne renvoie pas la réponse brute, nous devrons la modifier.
+      // Pour l'instant, nous loggons l'objet parsé.
+      log('API response (parsed): ${updatedRelation.toJson()}');
+
 
       // Mettre à jour la relation dans la liste locale
       final index = _relationships.indexWhere(
@@ -143,7 +163,10 @@ class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
       }
 
       return true;
-    } catch (e) {
+    } catch (e, stacktrace) {
+      // Log de l'erreur détaillée
+      log('Erreur détaillée lors de la mise à jour du niveau de partage: $e');
+      log('Stacktrace: $stacktrace');
       _setError('Erreur lors de la mise à jour: ${e.toString()}');
       return false;
     }

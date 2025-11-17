@@ -70,14 +70,22 @@ class ApiRelationshipService {
     required ShareLevel shareLevel,
     required bool canSeeMe,
   }) async {
+    final body = {
+      'share_level': _shareLevelToString(shareLevel),
+      'can_see_me': canSeeMe,
+    };
+
+    log('⬆️  PUT /relationships/$relationshipId/share-level',
+        name: 'ApiRelationshipService', error: jsonEncode(body));
+
     final response = await http.put(
       Uri.parse('$baseUrl/relationships/$relationshipId/share-level'),
       headers: _headers,
-      body: jsonEncode({
-        'share_level': _shareLevelToString(shareLevel),
-        'can_see_me': canSeeMe,
-      }),
+      body: jsonEncode(body),
     );
+
+    log('⬇️  ${response.statusCode} /relationships/$relationshipId/share-level',
+        name: 'ApiRelationshipService', error: response.body);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

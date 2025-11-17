@@ -72,8 +72,6 @@ class _FeedbackPageState extends State<FeedbackPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Critiques & Suggestions'),
-        backgroundColor: const Color(0xFF006970),
-        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -105,7 +103,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                             children: [
                               Icon(
                                 Icons.feedback,
-                                color: const Color(0xFF006970),
+                                color: Theme.of(context).colorScheme.primary,
                                 size: 24,
                               ),
                               const SizedBox(width: 8),
@@ -114,7 +112,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                                 style: Theme.of(context).textTheme.titleLarge
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF006970),
+                                      color: Theme.of(context).colorScheme.primary,
                                     ),
                               ),
                             ],
@@ -242,19 +240,19 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
+                      border: Border.all(color: Theme.of(context).colorScheme.secondaryContainer),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info, color: Colors.blue.shade700),
+                        Icon(Icons.info, color: Theme.of(context).colorScheme.secondary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Vos retours sont anonymes et utilisés uniquement pour améliorer l\'application.',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: Colors.blue.shade700),
+                                ?.copyWith(color: Theme.of(context).colorScheme.secondary),
                           ),
                         ),
                       ],
@@ -270,23 +268,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
                       onPressed: feedbackProvider.isLoading
                           ? null
                           : _submitFeedback,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF006970),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
                       child: feedbackProvider.isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
                               ),
                             )
                           : const Text(

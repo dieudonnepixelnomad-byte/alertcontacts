@@ -48,7 +48,7 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
         children: [
           // Barre de recherche et filtres
           Container(
-            color: Colors.white,
+            color: cs.surface,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
@@ -75,10 +75,9 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
                         label: Text(_getFilterLabel()),
                         style: _currentFilter != null
                             ? OutlinedButton.styleFrom(
-                                backgroundColor: AppColors.teal.withOpacity(
-                                  0.1,
-                                ),
-                                foregroundColor: AppColors.teal,
+                                backgroundColor:
+                                    cs.primary.withOpacity(0.1),
+                                foregroundColor: cs.primary,
                               )
                             : null,
                       ),
@@ -139,6 +138,7 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
   }
 
   Widget _buildEmptyState(ZoneType? filterType) {
+    final cs = Theme.of(context).colorScheme;
     String title;
     String subtitle;
     IconData icon;
@@ -169,22 +169,23 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: Colors.grey[400]),
+            Icon(icon, size: 64, color: cs.onSurface.withOpacity(0.4)),
             const SizedBox(height: 16),
             Text(
               title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+                    color: cs.onSurface.withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: cs.onSurface.withOpacity(0.5)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -194,28 +195,30 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
   }
 
   Widget _buildErrorState(ZonesNotifier notifier) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+            Icon(Icons.error_outline, size: 64, color: cs.error),
             const SizedBox(height: 16),
             Text(
               'Erreur de chargement',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+                    color: cs.onSurface.withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               notifier.errorMessage ?? 'Une erreur est survenue',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: cs.onSurface.withOpacity(0.5)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -232,8 +235,8 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
                   icon: const Icon(Icons.refresh),
                   label: const Text('Réessayer'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    foregroundColor: Colors.white,
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
                   ),
                 ),
               ],
@@ -245,6 +248,7 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
   }
 
   void _deleteZone(Zone zone) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -276,13 +280,13 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
                         ? 'Zone "${zone.name}" supprimée avec succès'
                         : 'Erreur lors de la suppression',
                   ),
-                  backgroundColor: success ? Colors.green : Colors.red,
+                  backgroundColor: success ? cs.primary : cs.error,
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
             ),
             child: const Text('Supprimer'),
           ),
@@ -309,6 +313,7 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
   }
 
   void _showFilterDialog() {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -320,7 +325,7 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
               leading: const Icon(Icons.list),
               title: const Text('Toutes les zones'),
               trailing: _currentFilter == null
-                  ? const Icon(Icons.check, color: AppColors.teal)
+                  ? Icon(Icons.check, color: cs.primary)
                   : null,
               onTap: () {
                 setState(() => _currentFilter = null);
@@ -328,10 +333,10 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.shield, color: Colors.green),
+              leading: Icon(Icons.shield, color: cs.primary),
               title: const Text('Zones de sécurité'),
               trailing: _currentFilter == ZoneType.safe
-                  ? const Icon(Icons.check, color: AppColors.teal)
+                  ? Icon(Icons.check, color: cs.primary)
                   : null,
               onTap: () {
                 setState(() => _currentFilter = ZoneType.safe);
@@ -339,10 +344,10 @@ class _UnifiedZonesPageState extends State<UnifiedZonesPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.warning, color: Colors.red),
+              leading: Icon(Icons.warning, color: cs.error),
               title: const Text('Zones de danger'),
               trailing: _currentFilter == ZoneType.danger
-                  ? const Icon(Icons.check, color: AppColors.teal)
+                  ? Icon(Icons.check, color: cs.primary)
                   : null,
               onTap: () {
                 setState(() => _currentFilter = ZoneType.danger);

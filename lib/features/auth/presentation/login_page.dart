@@ -61,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
   void _handleGoogleSignIn() {
     // Réinitialiser le flag de navigation pour permettre une nouvelle tentative
     _hasNavigated = false;
-    
+
     context.read<AuthNotifier>().clearMessage();
     context.read<AuthNotifier>().signInWithGoogle();
   }
@@ -113,24 +113,25 @@ class _LoginPageState extends State<LoginPage> {
     if (authState.status == AuthStatus.authenticated) {
       log('LoginPage User Connected!');
       _hasNavigated = true;
-      
+
       // Vérifier s'il y a un deep link en attente à rejouer
       SchedulerBinding.instance.addPostFrameCallback((_) async {
         if (mounted) {
           // Vérifier d'abord s'il y a un deep link en attente
-          final hadPendingDeepLink = await PendingDeepLinkService.hasPendingDeepLink();
-          
+          final hadPendingDeepLink =
+              await PendingDeepLinkService.hasPendingDeepLink();
+
           // Tenter de rejouer un deep link en attente
           final router = GoRouter.of(context);
           await DeepLinkService.replayPendingDeepLink(router);
-          
+
           // Attendre un peu pour voir si une navigation a eu lieu
           await Future.delayed(const Duration(milliseconds: 500));
-          
+
           // Si on est toujours sur la page de login ET qu'il n'y avait pas de deep link en attente,
           // alors rediriger vers SplashPage
-          if (mounted && 
-              ModalRoute.of(context)?.settings.name == 'auth' && 
+          if (mounted &&
+              ModalRoute.of(context)?.settings.name == 'auth' &&
               !hadPendingDeepLink) {
             context.go(AppRoutes.splash);
           }
@@ -144,7 +145,8 @@ class _LoginPageState extends State<LoginPage> {
           context.go(AppRoutes.emailVerification);
         }
       });
-    } else if (authState.message != null && authState.status != AuthStatus.authenticating) {
+    } else if (authState.message != null &&
+        authState.status != AuthStatus.authenticating) {
       final isError = authState.status == AuthStatus.error;
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -214,11 +216,19 @@ class _LoginPageState extends State<LoginPage> {
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       enabled: !isLoading,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(color: Colors.black87),
+                      decoration: InputDecoration(
                         labelText: 'Adresse email',
                         hintText: 'votre@email.com',
-                        prefixIcon: Icon(Icons.email_outlined),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          color: Colors.grey,
+                        ),
                         border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                        labelStyle: TextStyle(color: Colors.grey[400]!),
+                        hintStyle: TextStyle(color: Colors.grey[400]!),
                       ),
                       validator: _validateEmail,
                     ),
@@ -231,15 +241,20 @@ class _LoginPageState extends State<LoginPage> {
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.done,
                       enabled: !isLoading,
+                      style: const TextStyle(color: Colors.black87),
                       decoration: InputDecoration(
                         labelText: 'Mot de passe',
                         hintText: 'Votre mot de passe',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: Colors.grey,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility
                                 : Icons.visibility_off,
+                            color: Colors.grey,
                           ),
                           onPressed: () {
                             setState(() {
@@ -247,7 +262,11 @@ class _LoginPageState extends State<LoginPage> {
                             });
                           },
                         ),
-                        border: const OutlineInputBorder(),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                        labelStyle: TextStyle(color: Colors.grey[400]!),
+                        hintStyle: TextStyle(color: Colors.grey[400]!),
                       ),
                       validator: _validatePassword,
                       onFieldSubmitted: (_) => _handleLogin(),
@@ -273,7 +292,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         Text(
                           'Se souvenir de moi',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: TextStyle(
+                            color: Color(0xFF006970), // AppTheme.primaryColor
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const Spacer(),
                         TextButton(
@@ -359,7 +381,8 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Text(
                           'Pas encore de compte ? ',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.grey[600]),
                         ),
                         TextButton(
                           onPressed: isLoading

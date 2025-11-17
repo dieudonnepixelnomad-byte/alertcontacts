@@ -328,17 +328,18 @@ class _UserSetupWizardViewState extends State<_UserSetupWizardView> {
 
   Widget _goalButton(String label, String value) {
     final selected = _selectedGoal == value;
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => setState(() => _selectedGoal = value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: selected
-              ? Colors.teal.withOpacity(0.15)
-              : Colors.grey.shade200,
+              ? theme.colorScheme.primary.withOpacity(0.15)
+              : theme.colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? Colors.teal : Colors.transparent,
+            color: selected ? theme.colorScheme.primary : Colors.transparent,
           ),
         ),
         child: Text(label),

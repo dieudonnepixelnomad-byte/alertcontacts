@@ -215,11 +215,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               controller: _name,
                               textInputAction: TextInputAction.next,
                               enabled: !isLoading,
+                              style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
                                 labelText: context.l10n.fullName,
                                 hintText: 'Jean Dupont',
-                                prefixIcon: const Icon(Icons.person_outline),
+                                prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
                                 border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelStyle: TextStyle(color: Colors.grey[400]!),
+                                hintStyle: TextStyle(color: Colors.grey[400]!),
                               ),
                               validator: _validateName,
                             ),
@@ -231,11 +236,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               enabled: !isLoading,
+                              style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
                                 labelText: context.l10n.email,
                                 hintText: 'jean@example.com',
-                                prefixIcon: const Icon(Icons.email_outlined),
+                                prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                                 border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelStyle: TextStyle(color: Colors.grey[400]!),
+                                hintStyle: TextStyle(color: Colors.grey[400]!),
                               ),
                               validator: _validateEmail,
                             ),
@@ -247,12 +257,17 @@ class _RegisterPageState extends State<RegisterPage> {
                               obscureText: _obscurePwd,
                               textInputAction: TextInputAction.next,
                               enabled: !isLoading,
+                              style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
                                 labelText: context.l10n.password,
                                 hintText: 'Votre mot de passe',
-                                prefixIcon: const Icon(Icons.lock_outline),
+                                prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
                                 border: const OutlineInputBorder(),
                                 helperText: context.l10n.passwordHintShort,
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelStyle: TextStyle(color: Colors.grey[400]!),
+                                hintStyle: TextStyle(color: Colors.grey[400]!),
                                 suffixIcon: IconButton(
                                   onPressed: () => setState(
                                     () => _obscurePwd = !_obscurePwd,
@@ -261,6 +276,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     _obscurePwd
                                         ? Icons.visibility_off
                                         : Icons.visibility,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ),
@@ -274,11 +290,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               obscureText: _obscureCfm,
                               textInputAction: TextInputAction.done,
                               enabled: !isLoading,
+                              style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
                                 labelText: context.l10n.confirmPassword,
                                 hintText: 'Confirmez votre mot de passe',
-                                prefixIcon: const Icon(Icons.lock_outline),
+                                prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
                                 border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelStyle: TextStyle(color: Colors.grey[400]!),
+                                hintStyle: TextStyle(color: Colors.grey[400]!),
                                 suffixIcon: IconButton(
                                   onPressed: () => setState(
                                     () => _obscureCfm = !_obscureCfm,
@@ -287,6 +308,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     _obscureCfm
                                         ? Icons.visibility_off
                                         : Icons.visibility,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ),

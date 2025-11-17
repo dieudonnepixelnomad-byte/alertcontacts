@@ -38,7 +38,7 @@ class _ReportAbuseDialogState extends State<ReportAbuseDialog> {
         children: [
           Icon(
             Icons.report_problem,
-            color: AppColors.alert,
+            color: Theme.of(context).colorScheme.error,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -118,8 +118,8 @@ class _ReportAbuseDialogState extends State<ReportAbuseDialog> {
         ElevatedButton(
           onPressed: _isLoading || !_canSubmit() ? null : _submitReport,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.alert,
-            foregroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
           ),
           child: _isLoading
               ? const SizedBox(
@@ -127,7 +127,6 @@ class _ReportAbuseDialogState extends State<ReportAbuseDialog> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
               : const Text('Signaler'),
@@ -159,9 +158,9 @@ class _ReportAbuseDialogState extends State<ReportAbuseDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Signalement envoyé avec succès'),
-            backgroundColor: Colors.orange,
+          SnackBar(
+            content: const Text('Signalement envoyé avec succès'),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
@@ -173,7 +172,7 @@ class _ReportAbuseDialogState extends State<ReportAbuseDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur lors du signalement: $e'),
-            backgroundColor: AppColors.alert,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
