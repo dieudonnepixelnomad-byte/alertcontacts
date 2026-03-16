@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/repositories/auth_repository.dart';
@@ -44,43 +45,19 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Initialiser FCM après une connexion réussie
   Future<void> _initializeFCMAfterLogin(String bearerToken) async {
-    log('🔐 AuthNotifier._initializeFCMAfterLogin: DÉBUT');
-    debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - DÉBUT');
-    log('🔐 AuthNotifier._initializeFCMAfterLogin: bearerToken = ${bearerToken.substring(0, 10)}...');
-    debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - bearerToken = ${bearerToken.substring(0, 10)}...');
-    log('🔐 AuthNotifier._initializeFCMAfterLogin: baseUrl = ${ApiConfig.baseUrlSync}');
-    debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - baseUrl = ${ApiConfig.baseUrlSync}');
-    
     try {
       final fcmService = FCMService();
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: FCMService instance créée');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - FCMService instance créée');
 
       // Mettre à jour les credentials FCM avec le token fraîchement obtenu
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: Mise à jour des credentials FCM...');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - Mise à jour des credentials FCM...');
       fcmService.updateCredentials(
         baseUrl: ApiConfig.baseUrlSync,
         bearerToken: bearerToken,
       );
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: Credentials FCM mises à jour');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - Credentials FCM mises à jour');
 
-      // Initialiser FCM après connexion
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: Initialisation FCM...');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - Initialisation FCM...');
       await fcmService.initializeAfterLogin();
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: FCM initialisé avec succès');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - FCM initialisé avec succès');
-
-      log('🔐 AuthNotifier._initializeFCMAfterLogin: FIN - SUCCÈS');
-      debugPrint('🔐 FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - FIN - SUCCÈS');
     } catch (e) {
-      log('❌ AuthNotifier._initializeFCMAfterLogin: ERREUR: $e');
-      debugPrint('❌ FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - ERREUR: $e');
-      log('❌ AuthNotifier._initializeFCMAfterLogin: Stack trace: ${StackTrace.current}');
-      debugPrint('❌ FLUTTER DEBUG: AuthNotifier._initializeFCMAfterLogin - Stack trace: ${StackTrace.current}');
-      // Ne pas faire échouer la connexion si FCM échoue
+      // Crashlytics Log Trace
+      FirebaseCrashlytics.instance.recordError(e, StackTrace.current);
     }
   }
 
@@ -91,18 +68,11 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Authentification silencieuse au démarrage de l'application
   Future<void> silentSignIn() async {
-    debugPrint('🚀 FLUTTER DEBUG: ===== SILENT SIGN IN DÉMARRÉ =====');
-    
     if (_state.status == AuthStatus.authenticating) return;
 
     _updateState(_state.copyWith(status: AuthStatus.authenticating));
 
     try {
-      log(
-        'AuthNotifier.silentSignIn: Tentative d\'authentification silencieuse',
-      );
-      debugPrint('🚀 FLUTTER DEBUG: Tentative d\'authentification silencieuse');
-
       // Essayer de rafraîchir la session existante
       final user = await _authRepository.refreshSession();
 
@@ -119,19 +89,11 @@ class AuthNotifier extends ChangeNotifier {
           ),
         );
 
-        // Initialiser FCM après connexion silencieuse réussie
-        log('🔐 AuthNotifier.silentSignIn: Récupération du bearerToken pour FCM...');
-        debugPrint('🔐 FLUTTER DEBUG: AuthNotifier.silentSignIn - Récupération du bearerToken pour FCM...');
         final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
-          log('🔐 AuthNotifier.silentSignIn: bearerToken récupéré, initialisation FCM...');
-          debugPrint('🔐 FLUTTER DEBUG: AuthNotifier.silentSignIn - bearerToken récupéré, initialisation FCM...');
           await _initializeFCMAfterLogin(bearerToken);
-        } else {
-          log('❌ AuthNotifier.silentSignIn: bearerToken null, FCM non initialisé');
-          debugPrint('❌ FLUTTER DEBUG: AuthNotifier.silentSignIn - bearerToken null, FCM non initialisé');
-        }
+        } else {}
 
         // Rejouer les deep links en attente après authentification silencieuse
         if (_router != null) {
@@ -196,14 +158,20 @@ class AuthNotifier extends ChangeNotifier {
         );
 
         // Initialiser FCM après connexion réussie
-        log('🔐 AuthNotifier.signInWithEmail: Récupération du bearerToken pour FCM...');
+        log(
+          '🔐 AuthNotifier.signInWithEmail: Récupération du bearerToken pour FCM...',
+        );
         final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
-          log('🔐 AuthNotifier.signInWithEmail: bearerToken récupéré, initialisation FCM...');
+          log(
+            '🔐 AuthNotifier.signInWithEmail: bearerToken récupéré, initialisation FCM...',
+          );
           await _initializeFCMAfterLogin(bearerToken);
         } else {
-          log('❌ AuthNotifier.signInWithEmail: bearerToken null, FCM non initialisé');
+          log(
+            '❌ AuthNotifier.signInWithEmail: bearerToken null, FCM non initialisé',
+          );
         }
       } else {
         _updateState(
@@ -362,14 +330,20 @@ class AuthNotifier extends ChangeNotifier {
         );
 
         // Initialiser FCM après connexion réussie
-        log('🔐 AuthNotifier.signInWithGoogle: Récupération du bearerToken pour FCM...');
+        log(
+          '🔐 AuthNotifier.signInWithGoogle: Récupération du bearerToken pour FCM...',
+        );
         final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
-          log('🔐 AuthNotifier.signInWithGoogle: bearerToken récupéré, initialisation FCM...');
+          log(
+            '🔐 AuthNotifier.signInWithGoogle: bearerToken récupéré, initialisation FCM...',
+          );
           await _initializeFCMAfterLogin(bearerToken);
         } else {
-          log('❌ AuthNotifier.signInWithGoogle: bearerToken null, FCM non initialisé');
+          log(
+            '❌ AuthNotifier.signInWithGoogle: bearerToken null, FCM non initialisé',
+          );
         }
       } else {
         _updateState(

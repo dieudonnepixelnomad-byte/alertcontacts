@@ -46,6 +46,7 @@ import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
+import 'package:alertcontacts/core/services/device_info_service.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -201,6 +202,7 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<UnifiedCriticalAlertService>(
           create: (_) => UnifiedCriticalAlertService(),
         ),
+        Provider<DeviceInfoService>(create: (_) => DeviceInfoService()),
         // Repository
         Provider<AuthRepository>(
           create: (context) => AuthRepository(
@@ -297,6 +299,7 @@ class _AlertContactAppState extends State<AlertContactApp> {
         ChangeNotifierProvider<FeedbackProvider>(
           create: (context) => FeedbackProvider(
             feedbackRepository: context.read<FeedbackRepository>(),
+            deviceInfoService: context.read<DeviceInfoService>(),
           ),
         ),
 

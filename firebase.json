@@ -1,0 +1,22 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "alertcontacts",
+                    "appId": "1:404137724655:android:82ebe49ad48525b285291a",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "alertcontacts",
+                    "configurations": {
+                        "android": "1:404137724655:android:82ebe49ad48525b285291a",
+                        "ios": "1:404137724655:ios:725558acbdac889d85291a"
+                    }
+                }
+            }
+        }
+    }
+}

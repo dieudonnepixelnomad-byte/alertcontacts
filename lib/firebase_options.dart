@@ -63,10 +63,9 @@ class DefaultFirebaseOptions {
     messagingSenderId: '404137724655',
     projectId: 'alertcontacts',
     storageBucket: 'alertcontacts.appspot.com',
-    androidClientId:
-        '404137724655-6lflcm9duk7q3gejdfv152v1k4ij5ksl.apps.googleusercontent.com',
-    iosClientId:
-        '404137724655-1qvu8fkdpf16suh2puoq3bdbf88av5ue.apps.googleusercontent.com',
+    androidClientId: '404137724655-9pal2ujfpmqhlvosnvlctr6rpo7m414u.apps.googleusercontent.com',
+    iosClientId: '404137724655-1qvu8fkdpf16suh2puoq3bdbf88av5ue.apps.googleusercontent.com',
     iosBundleId: 'com.alertcontacts.alertcontacts',
   );
+
 }

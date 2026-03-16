@@ -33,18 +33,16 @@ class FeedbackRepository {
     required String category,
     required String subject,
     required String message,
+    String? appVersion,
+    String? osVersion,
   }) async {
     try {
-      // Récupérer les informations de l'application
-      final packageInfo = await PackageInfo.fromPlatform();
-      final appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-      
       final body = {
         'type': category,
         'subject': subject,
         'message': message,
         'app_version': appVersion,
-        'device_info': '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+        'device_info': osVersion,
       };
 
       final response = await _client.post(
