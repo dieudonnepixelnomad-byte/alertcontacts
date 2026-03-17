@@ -1,6 +1,7 @@
 import CoreLocation
 import Flutter
 import UIKit
+import GoogleMaps
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -12,6 +13,11 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Configurer la clé API Google Maps
+    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "MAPS_API_KEY_IOS") as? String, !apiKey.isEmpty {
+      GMSServices.provideAPIKey(apiKey)
+    }
+
     GeneratedPluginRegistrant.register(with: self)
 
     // Configuration du channel pour les deep links

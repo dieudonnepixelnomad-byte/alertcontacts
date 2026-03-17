@@ -1,21 +1,30 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/places_autocomplete.dart';
 
 class PlacesService {
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
-  static const String _apiKey = 'AIzaSyAc1sHRJ1F-CwUNZ9H2VC0MrBNj8_x9V8I';
+
+  static const String _apiKey = String.fromEnvironment(
+    'PLACES_API_KEY',
+    defaultValue: '',
+  );
 
   /// Recherche d'autocomplétion de lieux
   static Future<PlaceAutoCompleteResponse> getAutocomplete(String input) async {
+    developer.log('ApiKey: $_apiKey', name: 'PlaceService');
     try {
       final String url =
           '$_baseUrl/autocomplete/json?input=${Uri.encodeComponent(input)}&key=$_apiKey&language=fr'; // Limité au Cameroun
+      developer.log('Request URL: $url', name: 'PlaceService');
 
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
+        developer.log('Response JSON: $json', name: 'PlaceService');
         return PlaceAutoCompleteResponse.fromJson(json);
       } else {
         throw Exception('Erreur HTTP: ${response.statusCode}');

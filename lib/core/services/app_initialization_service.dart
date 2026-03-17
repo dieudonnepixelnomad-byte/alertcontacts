@@ -42,33 +42,45 @@ class AppInitializationService {
     log('$_tag: Début de l\'initialisation des services');
 
     try {
-      // 0. Vérifier la mise à jour obligatoire AVANT tout le reste
-      await checkUpdate();
+      // 0. Vérifier la mise à jour obligatoire en parallèle (non bloquant pour l'UI, mais bloquant pour la suite si critique)
+      // On lance la vérification mais on n'attend pas forcément le résultat réseau pour afficher l'UI de base
+      // Cependant, si une maj est critique, elle affichera une page bloquante via le router/listener
+      _checkUpdateInBackground();
 
-      // 1. Initialiser les services critiques de sécurité en priorité
-      await _initializeCriticalSecurityServices(context);
+      // Utilisation de Future.wait pour paralléliser les initialisations indépendantes
+      // Cela réduit considérablement le temps d'attente total
+      await Future.wait([
+        // 1. Initialiser les services critiques de sécurité en priorité
+        _initializeCriticalSecurityServices(context),
 
-      // 2. Initialiser le service FCM pour les notifications push
-      await _initializeFCMService(context);
+        // 2. Initialiser le service FCM pour les notifications push
+        _initializeFCMService(context),
 
-      // 3. Initialiser le service de monitoring de santé
-      await _initializeHealthMonitorService(context);
-
-      // 4. Initialiser le service de géolocalisation intégré
+        // 3. Initialiser le service de monitoring de santé
+        _initializeHealthMonitorService(context),
+      ]);
+      
+      // 4. Initialiser le service de géolocalisation intégré (peut dépendre des permissions)
       await _initializeGeolocationService(context);
 
       // 5. Initialiser le service de notification persistante en dernier
-      // pour qu'il puisse afficher l'état correct des autres services
       await _initializePersistentNotificationService(context);
 
       _isInitialized = true;
       log('$_tag: Initialisation des services terminée avec succès');
     } catch (e) {
       log('$_tag: Erreur lors de l\'initialisation des services: $e');
-      rethrow;
+      // On ne rethrow pas pour ne pas crasher l'app, l'utilisateur verra peut-être un état dégradé
     } finally {
       _isInitializing = false;
     }
+  }
+
+  /// Vérifie si une mise à jour de l'application est obligatoire en arrière-plan
+  void _checkUpdateInBackground() {
+    checkUpdate().catchError((e) {
+      log('$_tag: Erreur non bloquante lors de la vérification de la mise à jour: $e');
+    });
   }
 
   /// Vérifie si une mise à jour de l'application est obligatoire.
@@ -78,9 +90,11 @@ class AppInitializationService {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = Version.parse(packageInfo.version);
 
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/app-status'),
-      );
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/app-status'),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

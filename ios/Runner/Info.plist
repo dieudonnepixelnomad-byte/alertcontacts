@@ -62,6 +62,8 @@
 	<string>AlertContact a besoin d'accéder à votre localisation pour vous alerter des zones de danger à proximité.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>AlertContact a besoin d'accéder à votre localisation en permanence pour vous alerter des zones de danger même quand l'application est fermée.</string>
+	<key>MAPS_API_KEY_IOS</key>
+	<string>$(MAPS_API_KEY_IOS)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

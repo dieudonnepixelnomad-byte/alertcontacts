@@ -1,3 +1,6 @@
+import 'dart:developer' as developer;
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
@@ -111,12 +114,27 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                     ),
                   );
                 }
-              } catch (e) {
+              } catch (e, stack) {
                 // En cas d'erreur pour ce lieu spécifique, passer au suivant
+                FirebaseCrashlytics.instance.recordError(
+                  e,
+                  stack,
+                  reason:
+                      'Erreur lors de la récupération des détails du lieu ${prediction.placeId}',
+                );
                 continue;
               }
             }
           }
+        } else {
+          // Log si le statut n'est pas OK
+          FirebaseCrashlytics.instance.recordError(
+            Exception(
+              'Places Autocomplete API Warning: Status=${response.status}, ErrorMessage=${response.toString()}',
+            ),
+            StackTrace.current,
+            reason: 'Autocomplete API non-OK status',
+          );
         }
 
         if (!mounted) return;
@@ -126,9 +144,15 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
           _showResults = true;
           _isSearching = false;
         });
-      } catch (e) {
+      } catch (e, stack) {
         if (!mounted) return;
-        
+
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stack,
+          reason: 'Erreur globale lors de la recherche de lieu pour: $query',
+        );
+
         setState(() {
           _searchResults = [];
           _showResults = false;
@@ -173,16 +197,17 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
               focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: widget.hintText ?? 'Rechercher un lieu...',
-                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 suffixIcon: _isSearching
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: Padding(
                           padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
                     : _controller.text.isNotEmpty
@@ -209,6 +234,10 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                 ),
               ),
               onChanged: (value) {
+                developer.log(
+                  'Search input: $value',
+                  name: 'LocationSearchField',
+                );
                 _searchLocation(value);
               },
               onTap: () {
@@ -248,7 +277,11 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                     ),
                     title: Text(
                       result.displayName,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
                     ),
                     subtitle: Text(
                       '${result.coordinates.latitude.toStringAsFixed(4)}, ${result.coordinates.longitude.toStringAsFixed(4)}',

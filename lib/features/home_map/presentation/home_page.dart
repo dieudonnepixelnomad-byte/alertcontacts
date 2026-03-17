@@ -363,7 +363,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
             // Barre de recherche
             Positioned(
-              top: 70, // Ajusté pour ne pas superposer le nouveau bouton
+              top: 130,
               left: 16,
               right: 16,
               child: LocationSearchField(
@@ -405,7 +405,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
             // Filtres en bas de la barre de recherche
             Positioned(
-              top: 120,
+              top: 55, // Ajusté pour ne pas superposer le nouveau bouton
               left: 16,
               right: 16,
               child: Card(
