@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:alertcontacts/core/services/deep_link_service.dart';
@@ -64,6 +65,13 @@ class _LoginPageState extends State<LoginPage> {
 
     context.read<AuthNotifier>().clearMessage();
     context.read<AuthNotifier>().signInWithGoogle();
+  }
+
+  void _handleAppleSignIn() {
+    _hasNavigated = false;
+
+    context.read<AuthNotifier>().clearMessage();
+    context.read<AuthNotifier>().signInWithApple();
   }
 
   void _handleForgotPassword() {
@@ -362,6 +370,17 @@ class _LoginPageState extends State<LoginPage> {
                     // Boutons de connexion sociale
                     Row(
                       children: [
+                        if (Platform.isIOS) ...
+                          [
+                            Expanded(
+                              child: _SocialButton(
+                                label: 'Apple',
+                                onPressed: isLoading ? null : _handleAppleSignIn,
+                                style: _SocialStyle.apple,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
                         Expanded(
                           child: _SocialButton(
                             label: 'Google',

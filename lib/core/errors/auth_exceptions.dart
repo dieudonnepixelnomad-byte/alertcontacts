@@ -48,6 +48,16 @@ class GoogleSignInCancelledException extends AuthException {
       : super('Connexion Google annulée', 'google-signin-cancelled');
 }
 
+class AppleSignInCancelledException extends AuthException {
+  const AppleSignInCancelledException() 
+      : super('Connexion Apple annulée', 'apple-signin-cancelled');
+}
+
+class AppleSignInFailedException extends AuthException {
+  const AppleSignInFailedException(String details) 
+      : super('Connexion Apple échouée : $details', 'apple-signin-failed');
+}
+
 class InvalidIdTokenException extends AuthException {
   const InvalidIdTokenException() 
       : super('Token d\'authentification invalide', 'invalid-id-token');

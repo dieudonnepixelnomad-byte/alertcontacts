@@ -34,13 +34,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -62,6 +55,8 @@
 	<string>AlertContact a besoin d'accéder à votre localisation pour vous alerter des zones de danger à proximité.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>AlertContact a besoin d'accéder à votre localisation en permanence pour vous alerter des zones de danger même quand l'application est fermée.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>AlertContacts utilise vos données pour améliorer votre expérience de sécurité et vous alerter des dangers à proximité.</string>
 	<key>MAPS_API_KEY_IOS</key>
 	<string>$(MAPS_API_KEY_IOS)</string>
 	<key>UIBackgroundModes</key>

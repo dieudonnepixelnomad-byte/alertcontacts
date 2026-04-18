@@ -375,15 +375,68 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// Connexion avec Apple (non implémentée)
+  /// Connexion avec Apple
   Future<void> signInWithApple() async {
     _updateState(
       _state.copyWith(
-        status: AuthStatus.unauthenticated,
-        message: 'Connexion Apple non encore implémentée',
-        errorCode: 'apple_sign_in_not_implemented',
+        status: AuthStatus.authenticating,
+        message: null,
+        errorCode: null,
       ),
     );
+
+    try {
+      log('AuthNotifier.signInWithApple: Tentative de connexion Apple');
+
+      await _authRepository.signInWithApple();
+
+      final user = await _authRepository.refreshSession();
+
+      if (user != null) {
+        log(
+          'AuthNotifier.signInWithApple: Connexion Apple réussie pour ${user.email}',
+        );
+        _updateState(
+          _state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user,
+            message: 'Connexion Apple réussie',
+          ),
+        );
+
+        final prefsService = PrefsService();
+        final bearerToken = await prefsService.getBearerToken();
+        if (bearerToken != null) {
+          await _initializeFCMAfterLogin(bearerToken);
+        }
+      } else {
+        _updateState(
+          _state.copyWith(
+            status: AuthStatus.unauthenticated,
+            message: 'Connexion Apple annulée',
+            errorCode: 'apple_sign_in_cancelled',
+          ),
+        );
+      }
+    } on UserDisabledException {
+      log('AuthNotifier.signInWithApple: Compte désactivé');
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Votre compte a été désactivé',
+          errorCode: 'user_disabled',
+        ),
+      );
+    } catch (error) {
+      log('AuthNotifier.signInWithApple: Erreur inattendue: $error');
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Erreur lors de la connexion Apple',
+          errorCode: 'apple_sign_in_error',
+        ),
+      );
+    }
   }
 
   /// Déconnexion

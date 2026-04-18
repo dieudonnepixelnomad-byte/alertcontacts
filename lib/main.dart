@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alertcontacts/firebase_options.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -38,6 +40,14 @@ Future<void> main() async {
       );
 
       await PendingDeepLinkService.cleanupExpiredTokens();
+
+      if (Platform.isIOS) {
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
+      }
 
       if (kReleaseMode) {
         await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../errors/auth_exceptions.dart';
 
 class FirebaseAuthService {
@@ -123,6 +125,49 @@ class FirebaseAuthService {
     } catch (e) {
       if (e is GoogleSignInCancelledException) rethrow;
       throw UnknownAuthException(e.toString());
+    }
+  }
+
+  /// Connexion avec Apple
+  Future<firebase_auth.User> signInWithApple() async {
+    if (!Platform.isIOS && !Platform.isMacOS) {
+      throw const AppleSignInCancelledException();
+    }
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oauthCredential = firebase_auth.OAuthProvider(
+        'apple.com',
+      ).credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        oauthCredential,
+      );
+      final user = userCredential.user;
+
+      if (user == null) {
+        throw const SyncErrorException();
+      }
+
+      return user;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw const AppleSignInCancelledException();
+      }
+      throw AppleSignInFailedException(e.message);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _mapFirebaseException(e);
+    } catch (e) {
+      if (e is AppleSignInCancelledException) rethrow;
+      throw AppleSignInFailedException(e.toString());
     }
   }
 

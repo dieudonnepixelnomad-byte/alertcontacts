@@ -122,6 +122,12 @@ class AuthRepository {
     // L'état sera mis à jour via authStateChanges
   }
 
+  /// Connexion avec Apple
+  Future<void> signInWithApple() async {
+    await _firebaseAuth.signInWithApple();
+    // L'état sera mis à jour via authStateChanges
+  }
+
   /// Envoyer un email de réinitialisation de mot de passe
   Future<void> sendPasswordReset(String email) async {
     await _firebaseAuth.sendPasswordResetEmail(email);
