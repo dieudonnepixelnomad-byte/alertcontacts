@@ -39,11 +39,13 @@ dependencies:
   battery_plus: ^7.0.0
   connectivity_plus: ^7.0.0
   version: ^3.0.2
+  firebase_analytics: ^12.1.2
   firebase_performance: ^0.11.1+4
   firebase_crashlytics: ^5.0.7
   logger: ^2.6.2
   sign_in_with_apple: ^6.1.2
   app_tracking_transparency: ^2.0.6+1
+  confetti: ^0.8.0
 
 dev_dependencies:
   flutter_test:

@@ -26,7 +26,7 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
   // Configuration
   static const int _maxBatchSize = 50; // UC-L2: Taille batch ≤ 50 points
   static const int _maxBufferSize = 1000; // UC-R1: Buffer max offline
-  static const Duration _batchInterval = Duration(seconds: 60); // Timer 60s
+  static const Duration _batchInterval = Duration(seconds: 20); // Timer 20s
   static const Duration _retryDelay = Duration(seconds: 30);
   static const String _bufferKey = 'location_points_buffer';
   static const String _apiEndpoint = '/locations/batch';
@@ -80,6 +80,13 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
       debugPrint('📍 [BatchSenderService] Auth token updated.');
     }
     updateAuthToken(token);
+  }
+
+  /// Envoyer le batch courant immédiatement (appelé par le géofencing local sur détection de zone)
+  Future<void> flushNow() async {
+    if (_currentBatch.isNotEmpty && !_isSending) {
+      await _sendCurrentBatch();
+    }
   }
 
   /// UC-L2: Ajouter un point au batch courant

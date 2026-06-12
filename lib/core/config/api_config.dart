@@ -1,7 +1,9 @@
 /// Configuration centralisée pour l'API
 class ApiConfig {
   /// URL de base de production
-  static const String _baseUrl = 'https://mobile.alertcontacts.net';
+  ///static const String _baseUrl = 'https://mobile.alertcontacts.net';
+  /// URL de base locale
+  static const String _baseUrl = 'http://192.168.1.175:8000';
 
   /// URL de base pour l'API Laravel (avec /api)
   static String get baseUrl => '$_baseUrl/api';

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'package:alertcontacts/core/services/analytics_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../errors/auth_exceptions.dart';
@@ -42,15 +44,22 @@ class ApiAuthService {
       log('ApiAuthService.exchangeFirebaseToken: baseUrl = $baseUrl');
       log('ApiAuthService.exchangeFirebaseToken: idToken length = ${idToken.length}');
       log('ApiAuthService.exchangeFirebaseToken: userData = $userData');
-      
-      final response = await _client.post(
-        Uri.parse('$baseUrl/auth/firebase-login'),
-        headers: _headers,
-        body: jsonEncode({
-          'idToken': idToken,
-          'userData': userData,
-        }),
+
+      final metric = await AnalyticsService().startHttpTrace(
+        '$baseUrl/auth/firebase-login',
+        HttpMethod.Post,
       );
+      late final http.Response response;
+      try {
+        response = await _client.post(
+          Uri.parse('$baseUrl/auth/firebase-login'),
+          headers: _headers,
+          body: jsonEncode({'idToken': idToken, 'userData': userData}),
+        );
+        metric.httpResponseCode = response.statusCode;
+      } finally {
+        await metric.stop();
+      }
 
       log('ApiAuthService.exchangeFirebaseToken: Response status = ${response.statusCode}');
       log('ApiAuthService.exchangeFirebaseToken: Response body = ${response.body}');
@@ -87,16 +96,26 @@ class ApiAuthService {
         'Inscription avec email et mot de passe',
         name: 'ApiAuthService.register',
       );
-      final response = await _client.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: _headers,
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'password_confirmation': passwordConfirmation,
-        }),
+      final metric = await AnalyticsService().startHttpTrace(
+        '$baseUrl/auth/register',
+        HttpMethod.Post,
       );
+      late final http.Response response;
+      try {
+        response = await _client.post(
+          Uri.parse('$baseUrl/auth/register'),
+          headers: _headers,
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            'password': password,
+            'password_confirmation': passwordConfirmation,
+          }),
+        );
+        metric.httpResponseCode = response.statusCode;
+      } finally {
+        await metric.stop();
+      }
 
       log(
         'Réponse de l\'inscription',
@@ -124,11 +143,21 @@ class ApiAuthService {
   /// Connexion avec email et mot de passe
   Future<User> login({required String email, required String password}) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: _headers,
-        body: jsonEncode({'email': email, 'password': password}),
+      final metric = await AnalyticsService().startHttpTrace(
+        '$baseUrl/auth/login',
+        HttpMethod.Post,
       );
+      late final http.Response response;
+      try {
+        response = await _client.post(
+          Uri.parse('$baseUrl/auth/login'),
+          headers: _headers,
+          body: jsonEncode({'email': email, 'password': password}),
+        );
+        metric.httpResponseCode = response.statusCode;
+      } finally {
+        await metric.stop();
+      }
 
       final data = _handleResponse(response);
 

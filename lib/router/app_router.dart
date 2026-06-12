@@ -21,9 +21,18 @@ import 'package:alertcontacts/features/safezone_setup/presentation/setup_introdu
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-// === Pages (crée-les si besoin) ===
+// === Pages ===
 import '../features/user_setup/presentation/user_setup_wizard.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
+import '../features/onboarding/presentation/aha_sandbox_page.dart';
+import '../features/onboarding/presentation/aha_celebration_page.dart';
+import '../features/onboarding/presentation/personalization_page.dart';
+import '../features/onboarding/presentation/onboarding_invitation_page.dart';
+import '../features/onboarding/presentation/onboarding_notification_permission_page.dart';
+import '../features/onboarding/presentation/onboarding_location_permission_page.dart';
+import '../features/onboarding/presentation/onboarding_zone_creation_page.dart';
+import '../features/onboarding/presentation/onboarding_confirmation_page.dart';
+import '../features/onboarding/presentation/onboarding_resume_page.dart';
 import '../features/zones_securite/presentation/pages/zone_creation_success_page.dart';
 import '../features/zones_danger/presentation/danger_zone_introduction_page.dart';
 import '../features/zones_danger/presentation/danger_zone_setup_wizard.dart';
@@ -83,6 +92,17 @@ abstract class AppRoutes {
   static const debugPermissions = '/debug/permissions';
   static const debugFcm = '/debug/fcm';
   static const debugNotifications = '/debug/notifications';
+
+  // Onboarding V2
+  static const onboardingSandbox = '/onboarding/sandbox';
+  static const onboardingCelebration = '/onboarding/celebration';
+  static const onboardingPersonalization = '/onboarding/personalization';
+  static const onboardingInvitation = '/onboarding/invitation';
+  static const onboardingNotificationPermission = '/onboarding/notification-permission';
+  static const onboardingLocationPermission = '/onboarding/location-permission';
+  static const onboardingZoneCreation = '/onboarding/zone-creation';
+  static const onboardingConfirmation = '/onboarding/confirmation';
+  static const onboardingResume = '/onboarding/resume';
 }
 
 final GlobalKey<NavigatorState> _rootKey = GlobalKey<NavigatorState>();
@@ -309,94 +329,149 @@ class AppRouter {
           name: 'debugFcmTest',
           builder: (ctx, state) => const FCMTestWidget(),
         ),
-      ],
-      // Redirection:
-      // 1. Vérifier l'onboarding
-      // 2. Vérifier l'authentification
-      // 3. Vérifier les permissions (après auth, avant app shell)
-      // 4. Permettre la navigation normale
-      redirect: (ctx, state) async {
-        final prefsService = PrefsService();
-        final onboardingDone = await prefsService.isOnboardingDone();
-        final authNotifier = ctx.read<AuthNotifier>();
-        final isAuthenticated = authNotifier.state.status == AuthStatus.authenticated;
 
+        // ── Onboarding V2 ──────────────────────────────────────────────────
+        GoRoute(
+          path: AppRoutes.onboardingSandbox,
+          name: 'onboarding_sandbox',
+          builder: (ctx, state) => const AhaSandboxPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingCelebration,
+          name: 'onboarding_celebration',
+          builder: (ctx, state) => const AhaCelebrationPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingPersonalization,
+          name: 'onboarding_personalization',
+          builder: (ctx, state) => const PersonalizationPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingInvitation,
+          name: 'onboarding_invitation',
+          builder: (ctx, state) => const OnboardingInvitationPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingNotificationPermission,
+          name: 'onboarding_notification_permission',
+          builder: (ctx, state) => const OnboardingNotificationPermissionPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingLocationPermission,
+          name: 'onboarding_location_permission',
+          builder: (ctx, state) => const OnboardingLocationPermissionPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingZoneCreation,
+          name: 'onboarding_zone_creation',
+          builder: (ctx, state) => const OnboardingZoneCreationPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingConfirmation,
+          name: 'onboarding_confirmation',
+          builder: (ctx, state) => const OnboardingConfirmationPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.onboardingResume,
+          name: 'onboarding_resume',
+          builder: (ctx, state) => const OnboardingResumePage(),
+        ),
+      ],
+      redirect: (ctx, state) async {
+        final prefs = PrefsService();
+        final authNotifier = ctx.read<AuthNotifier>();
+        final isAuthenticated =
+            authNotifier.state.status == AuthStatus.authenticated;
         final location = state.uri.path;
 
-        // Autoriser l'accès inconditionnel à certaines pages
-        final allowedPaths = [
-          AppRoutes.splash,
-          AppRoutes.forcedUpdate,
+        // ── Toujours autoriser ────────────────────────────────────────────
+        if (location == AppRoutes.splash ||
+            location == AppRoutes.forcedUpdate ||
+            location.startsWith(AppRoutes.acceptInvite)) {
+          return null;
+        }
+
+        // ── Lecture groupée des flags (batch pour éviter les awaits séquentiels)
+        final results = await Future.wait([
+          prefs.isOnboardingDone(),       // [0]
+          prefs.isAhaSandboxSeen(),       // [1]
+          prefs.isUserSetupDone(),        // [2]
+          prefs.isOnboardingInviteDone(), // [3]
+          prefs.isOnboardingNotifPermAsked(), // [4]
+          prefs.isOnboardingZoneCreated(), // [5]
+        ]);
+        final onboardingDone       = results[0];
+        final sandboxSeen          = results[1];
+        final userSetupDone        = results[2];
+        final inviteDone           = results[3];
+        final notifPermAsked       = results[4];
+        final zoneCreated          = results[5];
+
+        // ── Utilisateur authentifié + onboarding terminé → accès libre ────
+        if (isAuthenticated && onboardingDone) {
+          // Rediriger hors des pages auth
+          if (location == AppRoutes.auth || location == AppRoutes.register) {
+            return AppRoutes.appShell;
+          }
+          return null;
+        }
+
+        // ── Phase 1 : pages d'onboarding pré-auth (toujours autorisées) ──
+        final phase1Routes = [
           AppRoutes.onboarding,
+          AppRoutes.onboardingSandbox,
+          AppRoutes.onboardingCelebration,
+        ];
+        if (phase1Routes.contains(location)) return null;
+
+        // ── Si onboarding pas vu → forcer les slides ─────────────────────
+        if (!sandboxSeen && !onboardingDone) {
+          return AppRoutes.onboarding;
+        }
+
+        // ── Pages auth autorisées ─────────────────────────────────────────
+        final authRoutes = [
           AppRoutes.auth,
           AppRoutes.register,
           AppRoutes.forgotPassword,
           AppRoutes.emailVerification,
         ];
-        if (allowedPaths.contains(location) || location.startsWith(AppRoutes.acceptInvite)) {
-          return null;
-        }
+        if (authRoutes.contains(location)) return null;
 
-        // 1. Onboarding
-        if (!onboardingDone) {
-          return AppRoutes.onboarding;
-        }
+        // ── Pas authentifié → auth ────────────────────────────────────────
+        if (!isAuthenticated) return AppRoutes.auth;
 
-        // 2. Authentification
-        if (!isAuthenticated) {
-          return AppRoutes.auth;
-        }
+        // ── À partir d'ici : authentifié, onboarding non terminé ──────────
 
-        // À partir d'ici, l'utilisateur est authentifié.
-
-        // Si l'utilisateur authentifié tente d'accéder aux pages d'auth, le rediriger.
+        // Utilisateur authentifié revient sur auth → resume onboarding
         if (location == AppRoutes.auth || location == AppRoutes.register) {
-          return AppRoutes.appShell;
+          return AppRoutes.onboardingResume;
         }
 
-        // 3. Permissions
-        final permissionsSetupComplete = await PermissionsService.isPermissionsSetupComplete();
-        final isGoingToPermissionPage = location.startsWith('/permission');
+        // Pages d'onboarding V2 autorisées si authentifié
+        final onboardingRoutes = [
+          AppRoutes.onboardingPersonalization,
+          AppRoutes.onboardingInvitation,
+          AppRoutes.onboardingNotificationPermission,
+          AppRoutes.onboardingLocationPermission,
+          AppRoutes.onboardingZoneCreation,
+          AppRoutes.onboardingConfirmation,
+          AppRoutes.onboardingResume,
+        ];
+        if (onboardingRoutes.contains(location)) return null;
 
-        print('Router Redirect: permissionsSetupComplete: $permissionsSetupComplete');
-        print('Router Redirect: isGoingToPermissionPage: $isGoingToPermissionPage');
-        print('Router Redirect: location: $location');
-
-        if (!permissionsSetupComplete && !isGoingToPermissionPage) {
-          final locationGranted = await PermissionsService.isLocationPermissionGranted();
-          print('Router Redirect: locationGranted: $locationGranted');
-          if (!locationGranted) return AppRoutes.permissionLocation;
-
-          final notificationGranted = await PermissionsService.isNotificationPermissionGranted();
-          print('Router Redirect: notificationGranted: $notificationGranted');
-          if (!notificationGranted) return AppRoutes.permissionNotification;
-
-          final backgroundLocationGranted = await PermissionsService.isBackgroundLocationPermissionGranted();
-          print('Router Redirect: backgroundLocationGranted: $backgroundLocationGranted');
-          if (!backgroundLocationGranted) return AppRoutes.permissionBackgroundLocation;
-
-          // Si toutes les permissions sont accordées, marquer le setup comme complet
-          await PermissionsService.markPermissionsSetupComplete();
+        // ── Cascade : étape suivante non complétée ────────────────────────
+        if (!userSetupDone) return AppRoutes.onboardingPersonalization;
+        if (!inviteDone) return AppRoutes.onboardingInvitation;
+        if (!notifPermAsked) return AppRoutes.onboardingNotificationPermission;
+        if (!zoneCreated) {
+          final locationGranted =
+              await PermissionsService.isLocationPermissionGranted();
+          return locationGranted
+              ? AppRoutes.onboardingZoneCreation
+              : AppRoutes.onboardingLocationPermission;
         }
-        
-        // Si les permissions ne sont pas complètes, mais que l'utilisateur navigue déjà vers une page de permission, autoriser.
-        if (!permissionsSetupComplete && isGoingToPermissionPage) {
-            return null;
-        }
-
-        // 4. User Setup
-        final userSetupDone = await prefsService.isUserSetupDone();
-        if (!userSetupDone && location != AppRoutes.userSetup) {
-          return AppRoutes.userSetup;
-        }
-
-        // 5. Initial SafeZone Setup
-        final initialSetupDone = await prefsService.isInitialSetupDone();
-        if (!initialSetupDone && !location.startsWith(AppRoutes.safezoneSetup)) {
-          return AppRoutes.safezoneSetup;
-        }
-
-        return null; // Pas de redirection
+        return AppRoutes.onboardingConfirmation;
       },
     );
   }

@@ -126,6 +126,20 @@ class ZonesCacheService {
     }
   }
 
+  /// Retourner toutes les zones de danger de tous les caches en mémoire (dédupliquées)
+  /// Utilisé par le géofencing local pour vérifier la proximité sans connaître la région
+  List<DangerZone> getAllCachedDangerZones() {
+    final seen = <String>{};
+    final result = <DangerZone>[];
+    for (final cached in _dangerZonesCache.values) {
+      if (cached.isExpired) continue;
+      for (final zone in cached.zones) {
+        if (seen.add(zone.id)) result.add(zone);
+      }
+    }
+    return result;
+  }
+
   /// Invalider le cache des zones de danger pour une région
   void invalidateDangerZonesCache({
     required double lat,

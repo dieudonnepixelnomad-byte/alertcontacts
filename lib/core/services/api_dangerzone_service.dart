@@ -26,6 +26,44 @@ class ApiDangerZoneService {
     _bearerToken = token;
   }
 
+  /// Récupérer les zones de danger dans un viewport (bbox) avec LOD selon le zoom.
+  /// Remplace le chargement par rayon pour la carte principale.
+  Future<List<DangerZone>> getViewportDangerZones({
+    required double south,
+    required double north,
+    required double west,
+    required double east,
+    required int zoom,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/danger-zones/viewport').replace(
+        queryParameters: {
+          'south': south.toString(),
+          'north': north.toString(),
+          'west': west.toString(),
+          'east': east.toString(),
+          'zoom': zoom.toString(),
+        },
+      );
+
+      final response = await _client.get(uri, headers: _headers);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode != 200 || body['success'] != true) {
+        throw UnknownAuthException('Viewport fetch failed: ${response.statusCode}');
+      }
+
+      return (body['data'] as List)
+          .map((z) => DangerZone.fromJson(z as Map<String, dynamic>))
+          .toList();
+    } on SocketException {
+      throw const NetworkException();
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw UnknownAuthException(e.toString());
+    }
+  }
+
   /// Récupérer les zones de danger dans un rayon donné
   Future<List<DangerZone>> getDangerZones({
     double? lat,

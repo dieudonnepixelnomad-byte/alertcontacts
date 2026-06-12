@@ -503,46 +503,46 @@ abstract class AppLocalizations {
   /// Titre du premier slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Votre sécurité. Votre sérénité.'**
+  /// **'Le danger, on ne le voit pas venir.'**
   String get onBoardingSlide_title_1;
 
   /// Corps du premier slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Anticipez les risques autour de vous et veillez sur ceux qui comptent — simplement, sans stress.'**
+  /// **'Ni pour toi. Ni pour ceux que tu aimes.'**
   String get onBoardingSlide_body_1;
 
   /// Titre du deuxième slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Évitez les zones à risques'**
+  /// **'Sois alerté avant d\'entrer dans une zone dangereuse.'**
   String get onBoardingSlide_title_2;
 
   /// Corps du deuxième slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Alerte instantanée quand vous approchez d\'un lieu signalé (vol, agression, accident).'**
+  /// **'La communauté signale les risques près de toi. Tu es prévenu vocalement, en temps réel.'**
   String get onBoardingSlide_body_2;
 
   /// Titre du troisième slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Créez des périmètres sûrs'**
+  /// **'Sache qu\'ils sont arrivés. Sans leur envoyer un message.'**
   String get onBoardingSlide_title_3;
 
   /// Corps du troisième slide d'onboarding
   ///
   /// In fr, this message translates to:
-  /// **'Maison, école, trajet… Recevez une notification si un proche sort de la zone.'**
+  /// **'Crée des zones autour des endroits qui comptent. Tu es alerté dès qu\'un proche y entre ou en sort.'**
   String get onBoardingSlide_body_3;
 
-  /// Titre du quatrième slide d'onboarding
+  /// Titre du quatrième slide d'onboarding (conservé pour rétrocompat)
   ///
   /// In fr, this message translates to:
   /// **'Vos proches, vos règles'**
   String get onBoardingSlide_title_4;
 
-  /// Corps du quatrième slide d'onboarding
+  /// Corps du quatrième slide d'onboarding (conservé pour rétrocompat)
   ///
   /// In fr, this message translates to:
   /// **'Devenir \"proches\" ne veut pas dire être suivi : vous décidez, personne d\'autre.'**
@@ -565,6 +565,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Passer'**
   String get onBoardingSkip;
+
+  /// CTA du dernier slide d'onboarding
+  ///
+  /// In fr, this message translates to:
+  /// **'Essayer maintenant'**
+  String get onBoardingTryNow;
 
   /// Titre de la page de vérification d'email
   ///

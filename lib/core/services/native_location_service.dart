@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 import '../models/location_point.dart';
 import 'batch_sender_service.dart';
+import 'local_geofencing_service.dart';
 
 class NativeLocationService {
   static const MethodChannel _methodChannel = MethodChannel(
@@ -18,13 +19,14 @@ class NativeLocationService {
   NativeLocationService._internal();
 
   final BatchSenderService _batchSender = BatchSenderService();
+  final LocalGeofencingService _localGeofencing = LocalGeofencingService();
 
   bool _isInitialized = false;
   bool _isTracking = false;
   StreamSubscription<dynamic>? _locationSubscription;
 
-  LocationPoint? _lastSentPoint;
-  final double _maxAccuracyThreshold = 5.0; // Précision maximale de 5 mètres
+  // 50m : seuil réaliste en milieu urbain (5m filtrait trop de points valides)
+  final double _maxAccuracyThreshold = 50.0;
 
   bool get isTracking => _isTracking;
 
@@ -36,6 +38,7 @@ class NativeLocationService {
     if (_isInitialized) return;
 
     await _batchSender.initialize();
+    await _localGeofencing.initialize();
     _isInitialized = true;
     developer.log(
       'NativeLocationService initialized',
@@ -111,7 +114,7 @@ class NativeLocationService {
 
       _locationController.add(locationPoint);
       _batchSender.addLocationPoint(locationPoint);
-      _lastSentPoint = locationPoint;
+      _localGeofencing.checkLocation(locationPoint);
     } catch (e) {
       developer.log(
         'Error processing location data: $e',

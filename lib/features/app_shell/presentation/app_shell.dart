@@ -1,8 +1,10 @@
 // lib/features/shell/presentation/app_shell.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer';
+import '../../../core/services/prefs_service.dart';
 import '../../../core/widgets/navbar_drawer.dart';
 import '../../../core/services/app_initialization_service.dart';
 import '../../../core/services/global_navigation_service.dart';
@@ -11,6 +13,7 @@ import '../../home_map/presentation/home_page.dart';
 import '../../zones/pages/unified_zones_page.dart';
 import '../../proches/presentation/proches_tab.dart';
 import '../../activities/presentation/activity_tab.dart';
+import '../widgets/first_launch_tooltip.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -20,11 +23,34 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _servicesInitialized = false;
+  bool _showTooltip = false;
+  bool _emailVerified = true;
 
   @override
   void initState() {
     super.initState();
     _initializeServices();
+    _checkFirstLaunch();
+    _checkEmailVerification();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = PrefsService();
+    final shown = await prefs.isFirstLaunchTooltipShown();
+    if (!shown && mounted) setState(() => _showTooltip = true);
+  }
+
+  void _checkEmailVerification() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && !user.emailVerified && user.providerData.any((p) => p.providerId == 'password')) {
+      if (mounted) setState(() => _emailVerified = false);
+    }
+  }
+
+  Future<void> _dismissTooltip() async {
+    final prefs = PrefsService();
+    await prefs.setFirstLaunchTooltipShown();
+    if (mounted) setState(() => _showTooltip = false);
   }
 
   /// Initialise automatiquement tous les services de surveillance
@@ -95,9 +121,40 @@ class _AppShellState extends State<AppShell> {
                 ),
               ],
             ),
-            body: IndexedStack(
-              index: navigationProvider.currentIndex,
-              children: _tabs,
+            body: Stack(
+              children: [
+                IndexedStack(
+                  index: navigationProvider.currentIndex,
+                  children: _tabs,
+                ),
+                if (_showTooltip)
+                  FirstLaunchTooltip(onDismiss: _dismissTooltip),
+                if (!_emailVerified)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: MaterialBanner(
+                      content: const Text(
+                        'Vérifie ton adresse e-mail pour sécuriser ton compte.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () async {
+                            await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+                            if (context.mounted) setState(() => _emailVerified = true);
+                          },
+                          child: const Text('Renvoyer'),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _emailVerified = true),
+                          child: const Text('Ignorer'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: navigationProvider.currentIndex,

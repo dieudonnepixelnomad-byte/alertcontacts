@@ -218,25 +218,27 @@ class AppLocalizationsFr extends AppLocalizations {
   String get goToSettings => 'Aller aux paramètres';
 
   @override
-  String get onBoardingSlide_title_1 => 'Votre sécurité. Votre sérénité.';
+  String get onBoardingSlide_title_1 => 'Le danger, on ne le voit pas venir.';
 
   @override
   String get onBoardingSlide_body_1 =>
-      'Anticipez les risques autour de vous et veillez sur ceux qui comptent — simplement, sans stress.';
+      'Ni pour toi. Ni pour ceux que tu aimes.';
 
   @override
-  String get onBoardingSlide_title_2 => 'Évitez les zones à risques';
+  String get onBoardingSlide_title_2 =>
+      'Sois alerté avant d\'entrer dans une zone dangereuse.';
 
   @override
   String get onBoardingSlide_body_2 =>
-      'Alerte instantanée quand vous approchez d\'un lieu signalé (vol, agression, accident).';
+      'La communauté signale les risques près de toi. Tu es prévenu vocalement, en temps réel.';
 
   @override
-  String get onBoardingSlide_title_3 => 'Créez des périmètres sûrs';
+  String get onBoardingSlide_title_3 =>
+      'Sache qu\'ils sont arrivés. Sans leur envoyer un message.';
 
   @override
   String get onBoardingSlide_body_3 =>
-      'Maison, école, trajet… Recevez une notification si un proche sort de la zone.';
+      'Crée des zones autour des endroits qui comptent. Tu es alerté dès qu\'un proche y entre ou en sort.';
 
   @override
   String get onBoardingSlide_title_4 => 'Vos proches, vos règles';
@@ -253,6 +255,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get onBoardingSkip => 'Passer';
+
+  @override
+  String get onBoardingTryNow => 'Essayer maintenant';
 
   @override
   String get emailVerificationTitle => 'Vérifiez votre email';

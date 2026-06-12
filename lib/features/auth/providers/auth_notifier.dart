@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/repositories/auth_repository.dart';
 import '../../../core/errors/auth_exceptions.dart';
 import '../../../core/models/user.dart';
@@ -88,6 +89,7 @@ class AuthNotifier extends ChangeNotifier {
             errorCode: null,
           ),
         );
+        await AnalyticsService().setUser(user.id, email: user.email);
 
         final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
@@ -156,6 +158,8 @@ class AuthNotifier extends ChangeNotifier {
             message: 'Connexion réussie',
           ),
         );
+        AnalyticsService().logLoginSuccess('email');
+        await AnalyticsService().setUser(user.id, email: user.email);
 
         // Initialiser FCM après connexion réussie
         log(
@@ -184,6 +188,7 @@ class AuthNotifier extends ChangeNotifier {
       }
     } on EmailNotVerifiedException {
       log('AuthNotifier.signInWithEmail: Email non vérifié');
+      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'email_not_verified');
       _updateState(
         _state.copyWith(
           status: AuthStatus.needsEmailVerification,
@@ -193,6 +198,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } on InvalidCredentialsException {
       log('AuthNotifier.signInWithEmail: Identifiants invalides');
+      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'invalid_credentials');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -202,6 +208,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } on UserDisabledException {
       log('AuthNotifier.signInWithEmail: Compte désactivé');
+      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'user_disabled');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -211,6 +218,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } on TooManyRequestsException {
       log('AuthNotifier.signInWithEmail: Trop de tentatives');
+      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'too_many_requests');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -220,6 +228,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } catch (error) {
       log('AuthNotifier.signInWithEmail: Erreur inattendue: $error');
+      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'unexpected_error');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -262,6 +271,7 @@ class AuthNotifier extends ChangeNotifier {
       log(
         'AuthNotifier.registerWithEmail: Email non vérifié - redirection vers vérification',
       );
+      AnalyticsService().logSignUp('email');
       _updateState(
         _state.copyWith(
           status: AuthStatus.needsEmailVerification,
@@ -328,6 +338,8 @@ class AuthNotifier extends ChangeNotifier {
             message: 'Connexion Google réussie',
           ),
         );
+        AnalyticsService().logLoginSuccess('google');
+        await AnalyticsService().setUser(user.id, email: user.email);
 
         // Initialiser FCM après connexion réussie
         log(
@@ -356,6 +368,7 @@ class AuthNotifier extends ChangeNotifier {
       }
     } on UserDisabledException {
       log('AuthNotifier.signInWithGoogle: Compte désactivé');
+      AnalyticsService().logLoginFailure(method: 'google', errorCode: 'user_disabled');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -365,6 +378,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } catch (error) {
       log('AuthNotifier.signInWithGoogle: Erreur inattendue: $error');
+      AnalyticsService().logLoginFailure(method: 'google', errorCode: 'google_sign_in_error');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -403,6 +417,8 @@ class AuthNotifier extends ChangeNotifier {
             message: 'Connexion Apple réussie',
           ),
         );
+        AnalyticsService().logLoginSuccess('apple');
+        await AnalyticsService().setUser(user.id, email: user.email);
 
         final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
@@ -420,6 +436,7 @@ class AuthNotifier extends ChangeNotifier {
       }
     } on UserDisabledException {
       log('AuthNotifier.signInWithApple: Compte désactivé');
+      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'user_disabled');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -429,6 +446,7 @@ class AuthNotifier extends ChangeNotifier {
       );
     } catch (error) {
       log('AuthNotifier.signInWithApple: Erreur inattendue: $error');
+      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'apple_sign_in_error');
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -447,6 +465,8 @@ class AuthNotifier extends ChangeNotifier {
       await _authRepository.signOut();
 
       log('AuthNotifier.signOut: Déconnexion réussie');
+      AnalyticsService().logLogout();
+      await AnalyticsService().clearUser();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -481,6 +501,7 @@ class AuthNotifier extends ChangeNotifier {
       await _authRepository.sendPasswordReset(email);
 
       log('AuthNotifier.sendPasswordReset: Email envoyé avec succès');
+      AnalyticsService().logPasswordReset();
       _updateState(
         _state.copyWith(message: 'Email de réinitialisation envoyé'),
       );

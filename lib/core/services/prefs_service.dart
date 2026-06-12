@@ -9,6 +9,16 @@ class PrefsService {
   static const _keyInitialSetupDone = 'initial_setup_done';
   static const _keyUserSetupDone = 'user_setup_done';
 
+  // Onboarding V2 keys
+  static const _keyOnboardingPhase = 'onboarding_phase';
+  static const _keyAhaSandboxSeen = 'aha_sandbox_seen';
+  static const _keyOnboardingPersona = 'onboarding_persona';
+  static const _keyOnboardingInviteeName = 'onboarding_invitee_name';
+  static const _keyOnboardingInviteDone = 'onboarding_invite_done';
+  static const _keyOnboardingNotifPermAsked = 'onboarding_notif_perm_asked';
+  static const _keyOnboardingZoneCreated = 'onboarding_zone_created';
+  static const _keyFirstLaunchTooltipShown = 'first_launch_tooltip_shown';
+
   Future<void> setOnboardingDone() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyOnboardingDone, true);
@@ -95,5 +105,87 @@ class PrefsService {
   Future<void> clearUserSetupDone() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserSetupDone);
+  }
+
+  // ── Onboarding V2 ────────────────────────────────────────────────────────
+
+  Future<void> setOnboardingPhase(int phase) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyOnboardingPhase, phase);
+  }
+
+  Future<int> getOnboardingPhase() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyOnboardingPhase) ?? 0;
+  }
+
+  Future<void> setAhaSandboxSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyAhaSandboxSeen, true);
+  }
+
+  Future<bool> isAhaSandboxSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyAhaSandboxSeen) ?? false;
+  }
+
+  Future<void> setOnboardingPersona(String persona) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyOnboardingPersona, persona);
+  }
+
+  Future<String?> getOnboardingPersona() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyOnboardingPersona);
+  }
+
+  Future<void> setOnboardingInviteeName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyOnboardingInviteeName, name);
+  }
+
+  Future<String?> getOnboardingInviteeName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyOnboardingInviteeName);
+  }
+
+  Future<void> setOnboardingInviteDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingInviteDone, true);
+  }
+
+  Future<bool> isOnboardingInviteDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingInviteDone) ?? false;
+  }
+
+  Future<void> setOnboardingNotifPermAsked() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingNotifPermAsked, true);
+  }
+
+  Future<bool> isOnboardingNotifPermAsked() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingNotifPermAsked) ?? false;
+  }
+
+  Future<void> setOnboardingZoneCreated() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingZoneCreated, true);
+  }
+
+  Future<bool> isOnboardingZoneCreated() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingZoneCreated) ?? false;
+  }
+
+  Future<void> setFirstLaunchTooltipShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyFirstLaunchTooltipShown, true);
+  }
+
+  Future<bool> isFirstLaunchTooltipShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyFirstLaunchTooltipShown) ?? false;
   }
 }

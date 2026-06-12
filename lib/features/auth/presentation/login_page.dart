@@ -26,7 +26,8 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _hasNavigated = false; // Flag pour éviter la navigation multiple
+  bool _hasNavigated = false;
+  bool _showEmailForm = false;
 
   final prefsService = PrefsService();
 
@@ -146,12 +147,10 @@ class _LoginPageState extends State<LoginPage> {
         }
       });
     } else if (authState.status == AuthStatus.needsEmailVerification) {
-      log('LoginPage User Needs Email Verification!');
+      log('LoginPage User — email verification pending, continuing to app');
       _hasNavigated = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.go(AppRoutes.emailVerification);
-        }
+        if (mounted) context.go(AppRoutes.splash);
       });
     } else if (authState.message != null &&
         authState.status != AuthStatus.authenticating) {
@@ -181,245 +180,280 @@ class _LoginPageState extends State<LoginPage> {
         _handleAuthStateChange(authState);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F6F7), // AppTheme.backgroundColor
+          backgroundColor: const Color(0xFFF3F6F7),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Lien "J'ai déjà un compte" en haut
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () {
+                                PendingDeepLinkService.clearPendingDeepLink();
+                                if (mounted) context.go(AppRoutes.register);
+                              },
+                        child: const Text(
+                          'Créer un compte',
+                          style: TextStyle(color: Color(0xFF006970)),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
                     // Logo et titre
                     Image.asset('assets/images/logo.png', height: 80),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     Text(
                       'Connexion',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: const Color(
-                              0xFF006970,
-                            ), // AppTheme.primaryColor
+                            color: const Color(0xFF006970),
                           ),
                       textAlign: TextAlign.center,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
                     Text(
                       'Connectez-vous pour protéger vos proches',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(color: Colors.grey[600]),
                       textAlign: TextAlign.center,
                     ),
 
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 36),
 
-                    // Champ email
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      enabled: !isLoading,
-                      style: const TextStyle(color: Colors.black87),
-                      decoration: InputDecoration(
-                        labelText: 'Adresse email',
-                        hintText: 'votre@email.com',
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          color: Colors.grey,
-                        ),
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                        labelStyle: TextStyle(color: Colors.grey[400]!),
-                        hintStyle: TextStyle(color: Colors.grey[400]!),
-                      ),
-                      validator: _validateEmail,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Champ mot de passe
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      enabled: !isLoading,
-                      style: const TextStyle(color: Colors.black87),
-                      decoration: InputDecoration(
-                        labelText: 'Mot de passe',
-                        hintText: 'Votre mot de passe',
-                        prefixIcon: const Icon(
-                          Icons.lock_outline,
-                          color: Colors.grey,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: Colors.grey,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                        labelStyle: TextStyle(color: Colors.grey[400]!),
-                        hintStyle: TextStyle(color: Colors.grey[400]!),
-                      ),
-                      validator: _validatePassword,
-                      onFieldSubmitted: (_) => _handleLogin(),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Options
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: isLoading
-                              ? null
-                              : (value) {
-                                  setState(() {
-                                    _rememberMe = value ?? false;
-                                  });
-                                },
-                          activeColor: const Color(
-                            0xFF006970,
-                          ), // AppTheme.primaryColor
-                        ),
-                        Text(
-                          'Se souvenir de moi',
-                          style: TextStyle(
-                            color: Color(0xFF006970), // AppTheme.primaryColor
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: isLoading ? null : _handleForgotPassword,
-                          child: const Text(
-                            'Mot de passe oublié',
-                            style: TextStyle(
-                              color: Color(0xFF006970), // AppTheme.primaryColor
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Bouton de connexion
+                    // ── Bouton Google (priorité absolue) ──────────────────
                     SizedBox(
-                      height: 48,
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: isLoading ? null : _handleLogin,
-                        style: FilledButton.styleFrom(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _handleGoogleSignIn,
+                        style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF006970),
                           foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           textStyle: const TextStyle(
                             fontWeight: FontWeight.w600,
+                            fontSize: 15,
                           ),
                         ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Se connecter'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset('assets/icons/google.png',
+                                height: 20, width: 20),
+                            const SizedBox(width: 10),
+                            const Text('Continuer avec Google'),
+                          ],
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    // ── Bouton Apple (iOS uniquement) ──────────────────────
+                    if (Platform.isIOS) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 52,
+                        child: OutlinedButton(
+                          onPressed: isLoading ? null : _handleAppleSignIn,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.black87,
+                            side: const BorderSide(color: Color(0xFFD0D0D0)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.apple, size: 22),
+                              SizedBox(width: 8),
+                              Text('Continuer avec Apple'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
-                    // Divider
+                    const SizedBox(height: 20),
+
+                    // ── Séparateur ─────────────────────────────────────────
                     Row(
                       children: [
                         const Expanded(child: Divider()),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
                           child: Text(
                             'ou',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.grey[600]),
+                            style: TextStyle(color: Colors.grey[500]),
                           ),
                         ),
                         const Expanded(child: Divider()),
                       ],
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
 
-                    // Boutons de connexion sociale
-                    Row(
-                      children: [
-                        if (Platform.isIOS) ...
-                          [
-                            Expanded(
-                              child: _SocialButton(
-                                label: 'Apple',
-                                onPressed: isLoading ? null : _handleAppleSignIn,
-                                style: _SocialStyle.apple,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                        Expanded(
-                          child: _SocialButton(
-                            label: 'Google',
-                            onPressed: isLoading ? null : _handleGoogleSignIn,
-                            style: _SocialStyle.google,
-                            iconAsset: 'assets/icons/google.png',
+                    // ── Email en option secondaire (TextButton) ────────────
+                    Center(
+                      child: TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => setState(
+                                () => _showEmailForm = !_showEmailForm),
+                        child: Text(
+                          _showEmailForm
+                              ? 'Masquer le formulaire'
+                              : 'Continuer avec un e-mail',
+                          style: const TextStyle(
+                            color: Color(0xFF006970),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
+                      ),
                     ),
 
-                    const SizedBox(height: 32),
+                    // ── Formulaire email (expandable) ─────────────────────
+                    AnimatedCrossFade(
+                      duration: const Duration(milliseconds: 250),
+                      crossFadeState: _showEmailForm
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 12),
 
-                    // Lien vers l'inscription
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Pas encore de compte ? ',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.grey[600]),
-                        ),
-                        TextButton(
-                          onPressed: isLoading
-                              ? null
-                              : () async {
-                                  // Nettoyer les deep links en attente si l'utilisateur change de page
-                                  await PendingDeepLinkService.clearPendingDeepLink();
-                                  context.go(AppRoutes.register);
-                                },
-                          child: const Text(
-                            'S\'inscrire',
-                            style: TextStyle(
-                              color: Color(0xFF006970), // AppTheme.primaryColor
-                              fontWeight: FontWeight.w600,
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            enabled: !isLoading,
+                            style: const TextStyle(color: Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Adresse email',
+                              hintText: 'votre@email.com',
+                              prefixIcon: const Icon(Icons.email_outlined,
+                                  color: Colors.grey),
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              labelStyle:
+                                  TextStyle(color: Colors.grey[400]!),
+                              hintStyle: TextStyle(color: Colors.grey[400]!),
+                            ),
+                            validator:
+                                _showEmailForm ? _validateEmail : null,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            enabled: !isLoading,
+                            style: const TextStyle(color: Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Mot de passe',
+                              hintText: 'Votre mot de passe',
+                              prefixIcon: const Icon(Icons.lock_outline,
+                                  color: Colors.grey),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              labelStyle:
+                                  TextStyle(color: Colors.grey[400]!),
+                              hintStyle: TextStyle(color: Colors.grey[400]!),
+                            ),
+                            validator:
+                                _showEmailForm ? _validatePassword : null,
+                            onFieldSubmitted: (_) => _handleLogin(),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberMe,
+                                onChanged: isLoading
+                                    ? null
+                                    : (v) => setState(
+                                        () => _rememberMe = v ?? false),
+                                activeColor: const Color(0xFF006970),
+                              ),
+                              const Text('Se souvenir de moi',
+                                  style: TextStyle(color: Color(0xFF006970))),
+                              const Spacer(),
+                              TextButton(
+                                onPressed:
+                                    isLoading ? null : _handleForgotPassword,
+                                child: const Text(
+                                  'Mot de passe oublié',
+                                  style: TextStyle(color: Color(0xFF006970)),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          SizedBox(
+                            height: 48,
+                            child: FilledButton(
+                              onPressed: isLoading ? null : _handleLogin,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF006970),
+                                foregroundColor: Colors.white,
+                                textStyle: const TextStyle(
+                                    fontWeight: FontWeight.w600),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Se connecter'),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 24),
@@ -434,55 +468,3 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-enum _SocialStyle { apple, google }
-
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final String? iconAsset;
-  final _SocialStyle style;
-  const _SocialButton({
-    required this.label,
-    required this.onPressed,
-    required this.style,
-    this.iconAsset,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isApple = style == _SocialStyle.apple;
-    final bg = isApple ? Colors.black : Colors.white;
-    final fg = isApple ? Colors.white : Colors.black87;
-    final side = isApple
-        ? BorderSide.none
-        : const BorderSide(color: Color(0xFFE0E0E0));
-
-    return SizedBox(
-      height: 48,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: side,
-          ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (iconAsset != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Image.asset(iconAsset!, height: 18, width: 18),
-              ),
-            Text(label),
-          ],
-        ),
-      ),
-    );
-  }
-}

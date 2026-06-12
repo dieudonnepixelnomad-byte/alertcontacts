@@ -29,6 +29,24 @@ class DangerZoneRepository {
     }
   }
 
+  /// Récupérer les zones de danger dans un viewport (bbox) — utilisé par la carte.
+  Future<List<DangerZone>> getViewportDangerZones({
+    required double south,
+    required double north,
+    required double west,
+    required double east,
+    required int zoom,
+  }) async {
+    await _ensureAuthenticated();
+    return _apiService.getViewportDangerZones(
+      south: south,
+      north: north,
+      west: west,
+      east: east,
+      zoom: zoom,
+    );
+  }
+
   /// Récupérer les zones de danger dans un rayon donné
   Future<List<DangerZone>> getDangerZones({
     double? lat,

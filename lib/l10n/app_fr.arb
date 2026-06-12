@@ -268,37 +268,37 @@
   "@goToSettings": {
     "description": "Bouton pour aller aux paramètres"
   },
-  "onBoardingSlide_title_1": "Votre sécurité. Votre sérénité.",
+  "onBoardingSlide_title_1": "Le danger, on ne le voit pas venir.",
   "@onBoardingSlide_title_1": {
     "description": "Titre du premier slide d'onboarding"
   },
-  "onBoardingSlide_body_1": "Anticipez les risques autour de vous et veillez sur ceux qui comptent — simplement, sans stress.",
+  "onBoardingSlide_body_1": "Ni pour toi. Ni pour ceux que tu aimes.",
   "@onBoardingSlide_body_1": {
     "description": "Corps du premier slide d'onboarding"
   },
-  "onBoardingSlide_title_2": "Évitez les zones à risques",
+  "onBoardingSlide_title_2": "Sois alerté avant d'entrer dans une zone dangereuse.",
   "@onBoardingSlide_title_2": {
     "description": "Titre du deuxième slide d'onboarding"
   },
-  "onBoardingSlide_body_2": "Alerte instantanée quand vous approchez d'un lieu signalé (vol, agression, accident).",
+  "onBoardingSlide_body_2": "La communauté signale les risques près de toi. Tu es prévenu vocalement, en temps réel.",
   "@onBoardingSlide_body_2": {
     "description": "Corps du deuxième slide d'onboarding"
   },
-  "onBoardingSlide_title_3": "Créez des périmètres sûrs",
+  "onBoardingSlide_title_3": "Sache qu'ils sont arrivés. Sans leur envoyer un message.",
   "@onBoardingSlide_title_3": {
     "description": "Titre du troisième slide d'onboarding"
   },
-  "onBoardingSlide_body_3": "Maison, école, trajet… Recevez une notification si un proche sort de la zone.",
+  "onBoardingSlide_body_3": "Crée des zones autour des endroits qui comptent. Tu es alerté dès qu'un proche y entre ou en sort.",
   "@onBoardingSlide_body_3": {
     "description": "Corps du troisième slide d'onboarding"
   },
   "onBoardingSlide_title_4": "Vos proches, vos règles",
   "@onBoardingSlide_title_4": {
-    "description": "Titre du quatrième slide d'onboarding"
+    "description": "Titre du quatrième slide d'onboarding (conservé pour rétrocompat)"
   },
   "onBoardingSlide_body_4": "Devenir \"proches\" ne veut pas dire être suivi : vous décidez, personne d'autre.",
   "@onBoardingSlide_body_4": {
-    "description": "Corps du quatrième slide d'onboarding"
+    "description": "Corps du quatrième slide d'onboarding (conservé pour rétrocompat)"
   },
   "onBoardingStart": "Commencer",
   "@onBoardingStart": {
@@ -311,6 +311,10 @@
   "onBoardingSkip": "Passer",
   "@onBoardingSkip": {
     "description": "Bouton pour passer l'onboarding"
+  },
+  "onBoardingTryNow": "Essayer maintenant",
+  "@onBoardingTryNow": {
+    "description": "CTA du dernier slide d'onboarding"
   },
   "emailVerificationTitle": "Vérifiez votre email",
   "@emailVerificationTitle": {

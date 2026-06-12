@@ -268,37 +268,37 @@
   "@goToSettings": {
     "description": "Button to go to settings"
   },
-  "onBoardingSlide_title_1": "Your security. Your serenity.",
+  "onBoardingSlide_title_1": "Danger doesn't announce itself.",
   "@onBoardingSlide_title_1": {
     "description": "First onboarding slide title"
   },
-  "onBoardingSlide_body_1": "Anticipate risks around you and watch over those who matter — simply, without stress.",
+  "onBoardingSlide_body_1": "Not for you. Not for the people you love.",
   "@onBoardingSlide_body_1": {
     "description": "First onboarding slide body"
   },
-  "onBoardingSlide_title_2": "Avoid dangerous zones",
+  "onBoardingSlide_title_2": "Be alerted before entering a dangerous area.",
   "@onBoardingSlide_title_2": {
     "description": "Second onboarding slide title"
   },
-  "onBoardingSlide_body_2": "Immediate alert when you approach a reported place (theft, assault, accident).",
+  "onBoardingSlide_body_2": "The community reports risks near you. You're warned out loud, in real time.",
   "@onBoardingSlide_body_2": {
     "description": "Second onboarding slide body"
   },
-  "onBoardingSlide_title_3": "Create safe zones",
+  "onBoardingSlide_title_3": "Know they arrived. Without texting them.",
   "@onBoardingSlide_title_3": {
     "description": "Third onboarding slide title"
   },
-  "onBoardingSlide_body_3": "Home, school, commute… Receive a notification if a relative leaves the zone.",
+  "onBoardingSlide_body_3": "Create zones around the places that matter. You're alerted when a loved one enters or leaves.",
   "@onBoardingSlide_body_3": {
     "description": "Third onboarding slide body"
   },
   "onBoardingSlide_title_4": "Your relatives, your rules",
   "@onBoardingSlide_title_4": {
-    "description": "Fourth onboarding slide title"
+    "description": "Fourth onboarding slide title (kept for backward compat)"
   },
   "onBoardingSlide_body_4": "Becoming \"relatives\" doesn't mean being followed: you decide, no one else.",
   "@onBoardingSlide_body_4": {
-    "description": "Fourth onboarding slide body"
+    "description": "Fourth onboarding slide body (kept for backward compat)"
   },
   "onBoardingStart": "Start",
   "@onBoardingStart": {
@@ -311,6 +311,10 @@
   "onBoardingSkip": "Skip",
   "@onBoardingSkip": {
     "description": "Button to skip onboarding"
+  },
+  "onBoardingTryNow": "Try it now",
+  "@onBoardingTryNow": {
+    "description": "CTA on the last onboarding slide"
   },
   "emailVerificationTitle": "Verify your email",
   "@emailVerificationTitle": {

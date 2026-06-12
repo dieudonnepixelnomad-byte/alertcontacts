@@ -121,22 +121,18 @@ class _SplashPageState extends State<SplashPage>
     if (!mounted) return;
 
     final prefs = context.read<PrefsService>();
-    final onBoardingDone = await prefs.isOnboardingDone();
+    final onboardingDone = await prefs.isOnboardingDone();
+    final sandboxSeen = await prefs.isAhaSandboxSeen();
 
-    if (onBoardingDone) {
-      log(
-        "SplashPage _handleAuthTimeout: Onboarding terminé, redirection vers la connexion",
-      );
-      if (mounted) {
-        context.go(AppRoutes.auth);
-      }
+    if (onboardingDone) {
+      log("SplashPage _handleAuthTimeout: Onboarding terminé → /auth");
+      if (mounted) context.go(AppRoutes.auth);
+    } else if (sandboxSeen) {
+      log("SplashPage _handleAuthTimeout: Sandbox vu → /auth (router redirect prend le relais)");
+      if (mounted) context.go(AppRoutes.auth);
     } else {
-      log(
-        "SplashPage _handleAuthTimeout: Onboarding non terminé, redirection vers l'onboarding",
-      );
-      if (mounted) {
-        context.go(AppRoutes.onboarding);
-      }
+      log("SplashPage _handleAuthTimeout: Pas de sandbox vu → /onboarding");
+      if (mounted) context.go(AppRoutes.onboarding);
     }
   }
 
