@@ -188,4 +188,48 @@ class PrefsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyFirstLaunchTooltipShown) ?? false;
   }
+
+  // Onboarding V4
+  static const _keyOnboardingSlidesSeen = 'onboarding_slides_seen';
+
+  Future<void> setOnboardingSlidesSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingSlidesSeen, true);
+  }
+
+  Future<bool> isOnboardingSlidesSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingSlidesSeen) ?? false;
+  }
+
+  // Flag "utilisateur déjà authentifié" — évite le flash /auth au redémarrage
+  static const _keyHasLoggedIn = 'has_logged_in';
+
+  Future<void> setHasLoggedIn(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyHasLoggedIn, value);
+  }
+
+  Future<bool> hasLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyHasLoggedIn) ?? false;
+  }
+
+  // Magic Link pending email (Firebase requirement: store email before sending link)
+  static const _keyPendingMagicLinkEmail = 'pending_magic_link_email';
+
+  Future<void> setPendingMagicLinkEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPendingMagicLinkEmail, email);
+  }
+
+  Future<String?> getPendingMagicLinkEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyPendingMagicLinkEmail);
+  }
+
+  Future<void> clearPendingMagicLinkEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyPendingMagicLinkEmail);
+  }
 }

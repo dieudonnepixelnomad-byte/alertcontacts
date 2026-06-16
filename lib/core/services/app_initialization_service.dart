@@ -1,11 +1,11 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
 import 'package:alertcontacts/core/config/api_config.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
-import 'package:alertcontacts/core/services/native_location_service.dart';
+import 'package:alertcontacts/core/services/location_service.dart';
 import 'package:alertcontacts/core/services/persistent_status_notification_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
 import 'package:alertcontacts/core/services/service_health_monitor.dart';
@@ -126,26 +126,19 @@ class AppInitializationService {
   /// Initialise les services critiques de sécurité
   Future<void> _initializeCriticalSecurityServices(BuildContext context) async {
     try {
-      // 1. Initialiser le service de redondance critique
-      final redundancyService = context
-          .read<CriticalNotificationRedundancyService>();
-      await redundancyService.initialize();
-      log('$_tag: Service de redondance critique initialisé');
-
-      // 2. Initialiser le monitoring proactif
+      final redundancyService = context.read<CriticalNotificationRedundancyService>();
       final systemMonitor = context.read<ProactiveSystemMonitor>();
-      await systemMonitor.initialize();
-      log('$_tag: Service de monitoring proactif initialisé');
-
-      // 3. Initialiser le service unifié d'alertes critiques
       final unifiedAlertService = context.read<UnifiedCriticalAlertService>();
-      await unifiedAlertService.initialize();
-      log('$_tag: Service unifié d\'alertes critiques initialisé');
+
+      await Future.wait([
+        redundancyService.initialize().then((_) => log('$_tag: Service de redondance critique initialisé')),
+        systemMonitor.initialize().then((_) => log('$_tag: Service de monitoring proactif initialisé')),
+        unifiedAlertService.initialize().then((_) => log('$_tag: Service unifié d\'alertes critiques initialisé')),
+      ]);
 
       log('$_tag: Tous les services critiques de sécurité sont initialisés');
     } catch (e) {
       log('$_tag: Erreur lors de l\'initialisation des services critiques: $e');
-      // Ne pas faire échouer l'initialisation complète pour ces services
     }
   }
 
@@ -195,10 +188,8 @@ class AppInitializationService {
   /// Initialise le service de géolocalisation intégré
   Future<void> _initializeGeolocationService(BuildContext context) async {
     try {
-      final nativeLocationService = context.read<NativeLocationService>();
-
-      // Initialiser le service de géolocalisation natif
-      await nativeLocationService.initialize();
+      final locationService = context.read<LocationService>();
+      await locationService.initialize();
       log('$_tag: Service unifié de géolocalisation initialisé');
     } catch (e) {
       log('$_tag: Erreur lors du démarrage du service de géolocalisation: $e');
@@ -216,9 +207,8 @@ class AppInitializationService {
     log('$_tag: Arrêt des services en cours...');
 
     try {
-      // Arrêter le service de géolocalisation natif
-      final nativeLocationService = context.read<NativeLocationService>();
-      await nativeLocationService.stopTracking();
+      final locationService = context.read<LocationService>();
+      await locationService.stopTracking();
       log('$_tag: Service unifié de géolocalisation arrêté');
 
       // Arrêter le service de monitoring de santé
@@ -246,9 +236,8 @@ class AppInitializationService {
     final healthStatus = <String, bool>{};
 
     try {
-      // Vérifier le service de géolocalisation natif
-      final nativeLocationService = context.read<NativeLocationService>();
-      healthStatus['native_location'] = nativeLocationService.isTracking;
+      final locationService = context.read<LocationService>();
+      healthStatus['native_location'] = locationService.isTracking;
 
       // Vérifier le service de monitoring de santé
       healthStatus['health_monitor'] = true; // Simplifier pour éviter l'erreur

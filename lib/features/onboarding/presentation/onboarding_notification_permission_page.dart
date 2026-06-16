@@ -26,13 +26,15 @@ class _OnboardingNotificationPermissionPageState
     final granted = await PermissionsService.requestNotificationPermission();
     AnalyticsService().logPermissionResult(type: 'notification', granted: granted);
     await _prefs.setOnboardingNotifPermAsked();
-    if (mounted) context.go(AppRoutes.onboardingLocationPermission);
+    // R3 : pas de permission location dans l'onboarding — aller directement à la création de zone
+    if (mounted) context.go(AppRoutes.onboardingZoneCreation);
   }
 
   void _skip() {
     AnalyticsService().logPermissionResult(type: 'notification', granted: false);
     _prefs.setOnboardingNotifPermAsked();
-    context.go(AppRoutes.onboardingLocationPermission);
+    // R3 : pas de permission location dans l'onboarding — aller directement à la création de zone
+    context.go(AppRoutes.onboardingZoneCreation);
   }
 
   @override

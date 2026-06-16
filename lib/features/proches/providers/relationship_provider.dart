@@ -5,6 +5,7 @@ import '../../../core/models/contact_relation.dart';
 import '../../../core/models/invitation.dart'; // Pour ShareLevel
 import '../../../core/services/api_relationship_service.dart';
 import '../../../core/providers/auth_aware_provider.dart';
+import '../../../core/services/analytics_service.dart';
 
 class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
   final ApiRelationshipService _apiService = ApiRelationshipService();
@@ -38,11 +39,11 @@ class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
       .toList();
 
   List<ContactRelation> get realtimeContacts => _relationships
-      .where(
-        (rel) =>
-            rel.status == RelationStatus.accepted &&
-            rel.shareLevel == ShareLevel.realtime,
-      )
+      .where((rel) => rel.status == RelationStatus.accepted && rel.canSeeContact)
+      .toList();
+
+  List<ContactRelation> get oneWayContacts => _relationships
+      .where((rel) => rel.isOneWay)
       .toList();
 
   List<ContactRelation> get alertOnlyContacts => _relationships
@@ -180,6 +181,7 @@ class RelationshipProvider extends ChangeNotifier with AuthAwareProvider {
       await _apiService.deleteRelationship(relationshipId);
       _relationships.removeWhere((rel) => rel.id == relationshipId);
       notifyListeners();
+      AnalyticsService().logContactRemoved();
 
       // Recharger les stats
       await loadStats();

@@ -290,6 +290,61 @@ class UnifiedAlertService {
     ));
   }
 
+  /// Déclenche une alerte d'entrée de zone (proche arrive dans une zone)
+  Future<void> triggerZoneEntryAlert({
+    required String zoneName,
+    required String contactName,
+  }) async {
+    final message = '$contactName est arrivé à $zoneName.';
+    await triggerAlert(AlertConfig(
+      type: AlertType.safeZone,
+      voiceMessage: message,
+      vibrationIntensity: VibrationIntensity.medium,
+      enableVoice: true,
+      enableVibration: true,
+      voiceVolume: 0.9,
+      voicePitch: 1.0,
+      voiceRate: 0.5,
+    ));
+  }
+
+  /// Déclenche une alerte communautaire (incident signalé à proximité)
+  Future<void> triggerCommunityAlert({
+    required String type,
+    required String gravity,
+    required int distanceMeters,
+  }) async {
+    final gravityLabel = switch (gravity) {
+      'high'   => 'grave',
+      'medium' => 'moyen',
+      _        => 'mineur',
+    };
+    final typeLabel = switch (type) {
+      'accident'           => 'Un accident',
+      'fire'               => 'Un incendie',
+      'aggression'         => 'Une agression',
+      'suspect'            => 'Une personne suspecte',
+      'suspicious_package' => 'Un colis suspect',
+      _                    => 'Un incident',
+    };
+    final message = '$typeLabel a été signalé à $distanceMeters mètres. Niveau $gravityLabel.';
+    final vibration = switch (gravity) {
+      'high'   => VibrationIntensity.heavy,
+      'medium' => VibrationIntensity.medium,
+      _        => VibrationIntensity.light,
+    };
+    await triggerAlert(AlertConfig(
+      type: AlertType.dangerZone,
+      voiceMessage: message,
+      vibrationIntensity: vibration,
+      enableVoice: true,
+      enableVibration: true,
+      voiceVolume: 1.0,
+      voicePitch: gravity == 'high' ? 1.2 : 1.0,
+      voiceRate: 0.45,
+    ));
+  }
+
   /// Déclenche une alerte critique
   Future<void> triggerCriticalAlert({
     required String message,

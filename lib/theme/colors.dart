@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Palette centrale (charte)
 class AppColors {
-  // Couleur principale (teal profond)
-  static const teal = Color(0xFF006970);
+  static const Color primary      = Color(0xFF1E6868);
+  static const Color primaryLight = Color(0xFFE1F5EE);
+  static const Color orange       = Color(0xFFFF8C3C);
+  static const Color pink         = Color(0xFFFF5C7A);
+  static const Color success      = Color(0xFF22C55E);
+  static const Color warning      = Color(0xFFF59E0B);
+  static const Color danger       = Color(0xFFEF4444);
+  static const Color gravityLow   = Color(0xFFEAB308);
+  static const Color gravityMid   = Color(0xFFF97316);
+  static const Color gravityHigh  = Color(0xFFEF4444);
 
-  // Accents
-  static const safe = Color(0xFF4CAF50); // vert sécurité
-  static const alert = Color(0xFFFF6B35); // orange/rouge alerte
+  static const Color gray50  = Color(0xFFF9FAFB);
+  static const Color gray100 = Color(0xFFF3F4F6);
+  static const Color gray200 = Color(0xFFE5E7EB);
+  static const Color gray400 = Color(0xFF9CA3AF);
+  static const Color gray600 = Color(0xFF4B5563);
+  static const Color gray900 = Color(0xFF111827);
 
-  // Échelle danger (pour gravité)
-  static const dangerLow = Color(0xFFFFA726); // orange
-  static const dangerMed = Color(0xFFEF5350); // rouge moyen
-  static const dangerHigh = Color(0xFFB71C1C); // rouge foncé
-
-  // Gris UI
-  static const gray50 = Color(0xFFF4F4F4);
-  static const gray100 = Color(0xFFEAEAEA);
-  static const gray700 = Color(0xFF4A4A4A);
-  static const gray900 = Color(0xFF1F1F1F);
+  // Backwards-compat aliases for code not yet migrated
+  static const Color teal      = primary;
+  static const Color safe      = success;
+  static const Color alert     = orange;
+  static const Color dangerLow = gravityLow;
+  static const Color dangerMed = gravityMid;
+  static const Color dangerHigh = gravityHigh;
 }

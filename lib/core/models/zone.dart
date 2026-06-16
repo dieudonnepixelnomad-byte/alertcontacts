@@ -62,34 +62,37 @@ class Zone extends Equatable {
 
   // Factory pour créer une Zone à partir des données JSON de l'API
   factory Zone.fromJson(Map<String, dynamic> json) {
-    final type = json['type'] == 'safe' ? ZoneType.safe : ZoneType.danger;
-    
+    // API Laravel retourne lat/lng flat + radius (pas radius_meters) + pas de champ type
+    final type = json['type'] == 'danger' ? ZoneType.danger : ZoneType.safe;
+
+    final double lat = (json['lat'] ?? json['center']?['lat'] as num?)?.toDouble() ?? 0.0;
+    final double lng = (json['lng'] ?? json['center']?['lng'] as num?)?.toDouble() ?? 0.0;
+    final double radius = (json['radius'] ?? json['radius_meters'] as num?)?.toDouble() ?? 100.0;
+    final String name = (type == ZoneType.danger ? json['title'] : json['name']) as String? ?? '';
+    final String createdAt = json['created_at'] as String? ?? DateTime.now().toIso8601String();
+    final String updatedAt = json['updated_at'] as String? ?? createdAt;
+
     return Zone(
-      id: json['id'].toString(), // Convertir en String au cas où ce serait un int
+      id: json['id'].toString(),
       type: type,
-      name: type == ZoneType.safe ? json['name'] : json['title'],
-      description: json['description'],
-      center: LatLng(
-        json['center']['lat'].toDouble(),
-        json['center']['lng'].toDouble(),
-      ),
-      radiusMeters: (json['radius_meters'] as num?)?.toDouble() ?? 100.0, // Valeur par défaut si null
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      // Propriétés spécifiques aux zones de sécurité
-      iconKey: json['icon_key'],
-      address: json['address'],
-      memberIds: json['member_ids']?.cast<String>(),
-      // Propriétés spécifiques aux zones de danger
-      severity: json['severity'] != null 
+      name: name,
+      description: json['description'] as String?,
+      center: LatLng(lat, lng),
+      radiusMeters: radius,
+      createdAt: DateTime.parse(createdAt),
+      updatedAt: DateTime.parse(updatedAt),
+      iconKey: (json['icon_key'] ?? json['icon']) as String?,
+      address: json['address'] as String?,
+      memberIds: (json['member_ids'] ?? json['contacts'])?.cast<String>(),
+      severity: json['severity'] != null
           ? DangerSeverity.values.firstWhere(
               (e) => e.name == json['severity'],
               orElse: () => DangerSeverity.medium,
             )
           : null,
-      confirmations: json['confirmations'],
-      lastReportAt: json['last_report_at'] != null 
-          ? DateTime.parse(json['last_report_at'])
+      confirmations: json['confirmations'] as int?,
+      lastReportAt: json['last_report_at'] != null
+          ? DateTime.parse(json['last_report_at'] as String)
           : null,
     );
   }

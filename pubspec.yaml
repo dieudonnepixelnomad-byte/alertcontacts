@@ -1,7 +1,7 @@
 name: alertcontacts
 description: "A new Flutter project."
 publish_to: 'none'
-version: 3.1.4+40
+version: 4.0.0+1
 
 environment:
   sdk: ^3.8.0
@@ -38,7 +38,10 @@ dependencies:
   package_info_plus: ^9.0.0
   battery_plus: ^7.0.0
   connectivity_plus: ^7.0.0
+  geolocator: ^13.0.0
+  background_fetch: ^1.2.5
   version: ^3.0.2
+  firebase_database: ^12.4.2
   firebase_analytics: ^12.1.2
   firebase_performance: ^0.11.1+4
   firebase_crashlytics: ^5.0.7
@@ -46,6 +49,8 @@ dependencies:
   sign_in_with_apple: ^6.1.2
   app_tracking_transparency: ^2.0.6+1
   confetti: ^0.8.0
+  google_fonts: ^6.2.1
+  purchases_flutter: ^8.8.0
 
 dev_dependencies:
   flutter_test:

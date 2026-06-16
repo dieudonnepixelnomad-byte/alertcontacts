@@ -4,6 +4,7 @@ import 'package:alertcontacts/core/repositories/zones_repository.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/models/zone.dart';
 import '../../../core/errors/auth_exceptions.dart';
+import '../../../core/services/analytics_service.dart';
 import 'zones_state.dart';
 
 class ZonesNotifier extends ChangeNotifier {
@@ -114,6 +115,31 @@ class ZonesNotifier extends ChangeNotifier {
     }
   }
 
+  /// Créer une nouvelle zone
+  Future<bool> createZone(Map<String, dynamic> data) async {
+    _updateState(_state.copyWith(status: ZonesStatus.loading, errorMessage: null));
+    try {
+      final zone = await _zonesRepository.createZone(data);
+      _updateState(_state.copyWith(
+        status: ZonesStatus.loaded,
+        zones: [..._state.zones, zone],
+        errorMessage: null,
+      ));
+      AnalyticsService().logZoneCreated(
+        icon: zone.iconKey ?? 'default',
+        radius: zone.radiusMeters.toInt(),
+      );
+      return true;
+    } catch (error) {
+      log('ZonesNotifier.createZone: Erreur: $error');
+      _updateState(_state.copyWith(
+        status: ZonesStatus.error,
+        errorMessage: _getErrorMessage(error),
+      ));
+      return false;
+    }
+  }
+
   /// Mettre à jour une zone
   Future<bool> updateZone(Zone zone, Map<String, dynamic> data) async {
     _updateState(
@@ -187,6 +213,19 @@ class ZonesNotifier extends ChangeNotifier {
           errorMessage: _getErrorMessage(error),
         ),
       );
+      return false;
+    }
+  }
+
+  /// Assigner des contacts à une zone (sync complète + refresh)
+  Future<bool> assignContactsToZone(Zone zone, List<String> contactIds) async {
+    try {
+      log('ZonesNotifier.assignContactsToZone: zone=${zone.id} contacts=$contactIds');
+      await _zonesRepository.syncZoneContacts(zone.id, contactIds);
+      await loadZones();
+      return true;
+    } catch (error) {
+      log('ZonesNotifier.assignContactsToZone: Erreur: $error');
       return false;
     }
   }

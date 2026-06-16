@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/services/api_invitation_service.dart';
 import '../../../core/providers/auth_aware_provider.dart';
+import '../../../core/services/analytics_service.dart';
 
 class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   final ApiInvitationService _apiService = ApiInvitationService();
@@ -71,7 +72,8 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       _invitations.insert(0, invitation);
       _setLoading(false);
       notifyListeners();
-      
+      AnalyticsService().logContactInvited();
+
       return invitation;
     } catch (e) {
       _setError('Erreur lors de la création de l\'invitation: ${e.toString()}');
@@ -120,7 +122,9 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       _setLoading(false);
       _currentInvitation = null;
       notifyListeners();
-      
+      AnalyticsService().logContactInvitationAccepted();
+      AnalyticsService().logAha1ContactAccepted();
+
       return true;
     } catch (e) {
       _setError('Erreur lors de l\'acceptation: ${e.toString()}');

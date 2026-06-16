@@ -1,9 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/services/analytics_service.dart';
-import '../../../core/services/native_location_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/services/unified_alert_service.dart';
@@ -115,7 +115,7 @@ class _AhaSandboxPageState extends State<AhaSandboxPage>
     if (_isLocating) return;
     setState(() => _isLocating = true);
 
-    final svc = NativeLocationService();
+    final svc = LocationService();
     bool received = false;
     _locationSub = svc.locationStream.listen((pt) {
       if (!mounted) return;

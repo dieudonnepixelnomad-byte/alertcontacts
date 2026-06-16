@@ -1,8 +1,8 @@
 import 'package:alertcontacts/core/services/prefs_service.dart';
-import 'package:alertcontacts/core/services/permissions_service.dart';
 import 'package:alertcontacts/features/about/presentation/about_page.dart';
 import 'package:alertcontacts/features/app_shell/presentation/app_shell.dart';
 import 'package:alertcontacts/features/auth/presentation/login_page.dart';
+import 'package:alertcontacts/features/auth/presentation/magic_link_sent_page.dart';
 import 'package:alertcontacts/features/auth/presentation/register_page.dart';
 import 'package:alertcontacts/features/auth/pages/email_verification_page.dart';
 import 'package:alertcontacts/features/auth/pages/forgot_password_page.dart';
@@ -27,6 +27,7 @@ import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/onboarding/presentation/aha_sandbox_page.dart';
 import '../features/onboarding/presentation/aha_celebration_page.dart';
 import '../features/onboarding/presentation/personalization_page.dart';
+import '../features/onboarding/presentation/onboarding_slides_page.dart';
 import '../features/onboarding/presentation/onboarding_invitation_page.dart';
 import '../features/onboarding/presentation/onboarding_notification_permission_page.dart';
 import '../features/onboarding/presentation/onboarding_location_permission_page.dart';
@@ -61,6 +62,7 @@ abstract class AppRoutes {
   static const forcedUpdate = '/forced-update';
   static const onboarding = '/onboarding';
   static const auth = '/auth';
+  static const magicLinkSent = '/auth/magic-link-sent';
   static const register = '/register';
   static const emailVerification = '/email-verification';
   static const forgotPassword = '/forgot-password';
@@ -93,7 +95,10 @@ abstract class AppRoutes {
   static const debugFcm = '/debug/fcm';
   static const debugNotifications = '/debug/notifications';
 
-  // Onboarding V2
+  // Onboarding V4
+  static const onboardingSlides = '/onboarding/slides';
+
+  // Onboarding V2 (kept for backward compat)
   static const onboardingSandbox = '/onboarding/sandbox';
   static const onboardingCelebration = '/onboarding/celebration';
   static const onboardingPersonalization = '/onboarding/personalization';
@@ -168,6 +173,16 @@ class AppRouter {
           path: AppRoutes.auth,
           name: 'auth',
           builder: (ctx, state) => const LoginPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.magicLinkSent,
+          name: 'magic_link_sent',
+          builder: (ctx, state) {
+            final email = Uri.decodeComponent(
+              state.uri.queryParameters['email'] ?? '',
+            );
+            return MagicLinkSentPage(email: email);
+          },
         ),
         GoRoute(
           path: AppRoutes.register,
@@ -330,7 +345,14 @@ class AppRouter {
           builder: (ctx, state) => const FCMTestWidget(),
         ),
 
-        // ── Onboarding V2 ──────────────────────────────────────────────────
+        // ── Onboarding V4 ─────────────────────────────────────────────────
+        GoRoute(
+          path: AppRoutes.onboardingSlides,
+          name: 'onboarding_slides',
+          builder: (ctx, state) => const OnboardingSlidesPage(),
+        ),
+
+        // ── Onboarding V2 (routes kept, V4 redirect bypasses most) ────────
         GoRoute(
           path: AppRoutes.onboardingSandbox,
           name: 'onboarding_sandbox',
@@ -385,93 +407,56 @@ class AppRouter {
         final location = state.uri.path;
 
         // ── Toujours autoriser ────────────────────────────────────────────
-        if (location == AppRoutes.splash ||
-            location == AppRoutes.forcedUpdate ||
-            location.startsWith(AppRoutes.acceptInvite)) {
-          return null;
-        }
+        if (location == AppRoutes.splash) return null;
+        if (location == AppRoutes.forcedUpdate) return null;
+        if (location.startsWith(AppRoutes.acceptInvite)) return null;
+        if (location.startsWith('/debug/')) return null;
 
-        // ── Lecture groupée des flags (batch pour éviter les awaits séquentiels)
-        final results = await Future.wait([
-          prefs.isOnboardingDone(),       // [0]
-          prefs.isAhaSandboxSeen(),       // [1]
-          prefs.isUserSetupDone(),        // [2]
-          prefs.isOnboardingInviteDone(), // [3]
-          prefs.isOnboardingNotifPermAsked(), // [4]
-          prefs.isOnboardingZoneCreated(), // [5]
-        ]);
-        final onboardingDone       = results[0];
-        final sandboxSeen          = results[1];
-        final userSetupDone        = results[2];
-        final inviteDone           = results[3];
-        final notifPermAsked       = results[4];
-        final zoneCreated          = results[5];
+        final onboardingDone = await prefs.isOnboardingDone();
 
-        // ── Utilisateur authentifié + onboarding terminé → accès libre ────
+        // ── Authentifié + onboarding terminé → accès libre ───────────────
         if (isAuthenticated && onboardingDone) {
-          // Rediriger hors des pages auth
-          if (location == AppRoutes.auth || location == AppRoutes.register) {
-            return AppRoutes.appShell;
-          }
+          if (location == AppRoutes.auth) return AppRoutes.appShell;
           return null;
         }
 
-        // ── Phase 1 : pages d'onboarding pré-auth (toujours autorisées) ──
-        final phase1Routes = [
-          AppRoutes.onboarding,
-          AppRoutes.onboardingSandbox,
-          AppRoutes.onboardingCelebration,
-        ];
-        if (phase1Routes.contains(location)) return null;
+        // ── Pages pré-auth toujours autorisées ────────────────────────────
+        if (location == AppRoutes.onboardingPersonalization) return null;
+        if (location == AppRoutes.auth) return null;
+        if (location.startsWith('/auth/')) return null;
 
-        // ── Si onboarding pas vu → forcer les slides ─────────────────────
-        if (!sandboxSeen && !onboardingDone) {
-          return AppRoutes.onboarding;
+        // ── Pas authentifié → cascade pré-auth ───────────────────────────
+        if (!isAuthenticated) {
+          // Si l'utilisateur s'était déjà connecté, ne pas forcer /auth
+          // (silentSignIn peut être encore en cours, ou offline temporaire)
+          final hadLoggedIn = await prefs.hasLoggedIn();
+          if (hadLoggedIn) return null;
+
+          final personaDone = await prefs.isUserSetupDone();
+          if (!personaDone) return AppRoutes.onboardingPersonalization;
+          return AppRoutes.auth;
         }
 
-        // ── Pages auth autorisées ─────────────────────────────────────────
-        final authRoutes = [
-          AppRoutes.auth,
-          AppRoutes.register,
-          AppRoutes.forgotPassword,
-          AppRoutes.emailVerification,
-        ];
-        if (authRoutes.contains(location)) return null;
-
-        // ── Pas authentifié → auth ────────────────────────────────────────
-        if (!isAuthenticated) return AppRoutes.auth;
-
-        // ── À partir d'ici : authentifié, onboarding non terminé ──────────
-
-        // Utilisateur authentifié revient sur auth → resume onboarding
-        if (location == AppRoutes.auth || location == AppRoutes.register) {
-          return AppRoutes.onboardingResume;
-        }
-
-        // Pages d'onboarding V2 autorisées si authentifié
-        final onboardingRoutes = [
-          AppRoutes.onboardingPersonalization,
+        // ── Authentifié, onboarding incomplet → cascade post-auth ─────────
+        const postAuthPages = [
+          AppRoutes.onboardingSlides,
           AppRoutes.onboardingInvitation,
-          AppRoutes.onboardingNotificationPermission,
-          AppRoutes.onboardingLocationPermission,
-          AppRoutes.onboardingZoneCreation,
-          AppRoutes.onboardingConfirmation,
-          AppRoutes.onboardingResume,
         ];
-        if (onboardingRoutes.contains(location)) return null;
+        if (postAuthPages.contains(location)) return null;
 
-        // ── Cascade : étape suivante non complétée ────────────────────────
-        if (!userSetupDone) return AppRoutes.onboardingPersonalization;
+        final results = await Future.wait([
+          prefs.isOnboardingSlidesSeen(),
+          prefs.isOnboardingInviteDone(),
+        ]);
+        final slidesSeen = results[0];
+        final inviteDone = results[1];
+
+        if (!slidesSeen) return AppRoutes.onboardingSlides;
         if (!inviteDone) return AppRoutes.onboardingInvitation;
-        if (!notifPermAsked) return AppRoutes.onboardingNotificationPermission;
-        if (!zoneCreated) {
-          final locationGranted =
-              await PermissionsService.isLocationPermissionGranted();
-          return locationGranted
-              ? AppRoutes.onboardingZoneCreation
-              : AppRoutes.onboardingLocationPermission;
-        }
-        return AppRoutes.onboardingConfirmation;
+
+        // Toutes les étapes faites → marquer terminé
+        await prefs.setOnboardingDone();
+        return AppRoutes.appShell;
       },
     );
   }

@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Typographies (tu peux brancher GoogleFonts si tu ajoutes la dépendance)
 class AppTypography {
-  static const String displayFont = 'Montserrat'; // optionnel si déclaré
-  static const String bodyFont = 'Roboto'; // optionnel si déclaré
+  static TextTheme get textTheme => GoogleFonts.manropeTextTheme(
+    const TextTheme(
+      // Display
+      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2),
 
-  static TextTheme textTheme =
-      const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.w700,
-          height: 1.2,
-        ),
-        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          height: 1.4,
-        ),
-        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
-        labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ).apply(
-        fontFamily: bodyFont,
-        // Tu peux affiner par style si tu déclares deux familles distinctes
-      );
+      // Titles
+      titleLarge:  TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+      titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+      titleSmall:  TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+
+      // Body
+      bodyLarge:   TextStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.5),
+      bodyMedium:  TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4),
+      bodySmall:   TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+
+      // Labels
+      labelLarge:  TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      labelMedium: TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+      labelSmall:  TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+    ),
+  );
 }

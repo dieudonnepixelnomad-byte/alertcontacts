@@ -78,6 +78,24 @@ class ApiZonesService {
     }
   }
 
+  // Créer une zone
+  Future<Zone> createZone(Map<String, dynamic> data) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/zones'),
+        headers: _headers,
+        body: json.encode(data),
+      );
+      final responseData = _handleResponse(response);
+      return Zone.fromJson(responseData['data']);
+    } on SocketException {
+      throw Exception('Pas de connexion internet');
+    } catch (e) {
+      log('Erreur createZone: $e');
+      rethrow;
+    }
+  }
+
   // Mettre à jour une zone de sécurité
   Future<Zone> updateSafeZone(String zoneId, Map<String, dynamic> data) async {
     try {
@@ -159,6 +177,24 @@ class ApiZonesService {
       return updateSafeZone(zone.id, data);
     } else {
       return updateDangerZone(zone.id, data);
+    }
+  }
+
+  // Synchroniser les contacts assignés à une zone (remplace la liste complète)
+  Future<List<String>> syncZoneContacts(String zoneId, List<String> contactIds) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$baseUrl/safe-zones/$zoneId/contacts'),
+        headers: _headers,
+        body: json.encode({'contact_ids': contactIds.map(int.parse).toList()}),
+      );
+      final data = _handleResponse(response);
+      return List<String>.from(data['data']['contact_ids']);
+    } on SocketException {
+      throw Exception('Pas de connexion internet');
+    } catch (e) {
+      log('Erreur syncZoneContacts: $e');
+      rethrow;
     }
   }
 

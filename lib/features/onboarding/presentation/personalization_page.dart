@@ -4,6 +4,7 @@ import '../../../core/services/analytics_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
+import '../../../theme/typography.dart';
 
 class PersonalizationPage extends StatefulWidget {
   const PersonalizationPage({super.key});
@@ -16,103 +17,122 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
   final _prefs = PrefsService();
   String? _selected;
 
-  static const _personas = [
+  static const _profiles = [
     (key: 'children', label: 'Mes enfants', emoji: '👶'),
     (key: 'parents', label: 'Mes parents', emoji: '👴'),
-    (key: 'partner', label: 'Mon/ma conjoint(e)', emoji: '❤️'),
-    (key: 'friends', label: 'Mes amis', emoji: '👫'),
-    (key: 'family', label: 'Toute ma famille', emoji: '🏠'),
+    (key: 'partner', label: 'Mon conjoint(e)', emoji: '❤️'),
+    (key: 'self', label: 'Moi-même', emoji: '🧘'),
   ];
 
-  Future<void> _continue(String? persona) async {
-    final p = persona ?? 'family';
+  Future<void> _continue(String? profile) async {
+    final p = profile ?? 'self';
     AnalyticsService().logOnboardingPersonaSelected(p);
     await _prefs.setOnboardingPersona(p);
     await _prefs.setUserSetupDone();
-    if (mounted) context.go(AppRoutes.onboardingInvitation);
+    if (mounted) context.go(AppRoutes.auth);
+  }
+
+  Future<void> _skip() async {
+    if (mounted) context.go(AppRoutes.auth);
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: const Color(0xFFF7F9FA),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
 
               Text(
-                'Qui veux-tu protéger en priorité ?',
-                style: text.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                'Tu protèges qui ?',
+                textAlign: TextAlign.center,
+                style: AppTypography.textTheme.titleLarge?.copyWith(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.gray900,
                   height: 1.2,
                 ),
-                textAlign: TextAlign.center,
               ),
 
               const SizedBox(height: 8),
 
               Text(
-                'On personnalise AlertContacts pour toi.',
+                'On personnalise l\'app pour toi',
                 textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.6),
+                style: AppTypography.textTheme.bodyLarge?.copyWith(
+                  color: AppColors.gray600,
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
-              // Options
+              // 2×2 grid
               Expanded(
-                child: ListView(
-                  children: _personas.map((p) {
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.1,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: _profiles.map((p) {
                     final isSelected = _selected == p.key;
                     return GestureDetector(
                       onTap: () => setState(() => _selected = p.key),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 18),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.teal.withValues(alpha: 0.08)
-                              : scheme.surfaceContainerHighest,
+                              ? AppColors.primaryLight
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isSelected
-                                ? AppColors.teal
-                                : Colors.transparent,
-                            width: 2,
+                                ? AppColors.primary
+                                : AppColors.gray200,
+                            width: isSelected ? 2 : 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Row(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(p.emoji,
-                                style: const TextStyle(fontSize: 28)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                p.label,
-                                style: text.bodyLarge?.copyWith(
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.normal,
-                                  color: isSelected
-                                      ? AppColors.teal
-                                      : scheme.onSurface,
-                                ),
+                            Text(
+                              p.emoji,
+                              style: const TextStyle(fontSize: 36),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              p.label,
+                              textAlign: TextAlign.center,
+                              style:
+                                  AppTypography.textTheme.bodyMedium?.copyWith(
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.gray900,
                               ),
                             ),
-                            if (isSelected)
-                              const Icon(Icons.check_circle,
-                                  color: AppColors.teal),
+                            if (isSelected) ...[
+                              const SizedBox(height: 6),
+                              const Icon(
+                                Icons.check_circle,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -121,38 +141,29 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-              FilledButton(
-                onPressed:
-                    _selected != null ? () => _continue(_selected) : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      AppColors.teal.withValues(alpha: 0.3),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Continuer',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _selected != null ? () => _continue(_selected) : null,
+                  child: const Text('Continuer'),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
 
               TextButton(
-                onPressed: () => _continue(null),
+                onPressed: _skip,
                 child: Text(
-                  'Je verrai plus tard',
-                  style: TextStyle(
-                    color: scheme.onSurface.withValues(alpha: 0.5),
+                  'Passer cette étape',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.gray400,
                   ),
                 ),
               ),
+
+              const SizedBox(height: 16),
             ],
           ),
         ),

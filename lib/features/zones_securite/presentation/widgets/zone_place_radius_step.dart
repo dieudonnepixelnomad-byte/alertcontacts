@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/models/safe_zone.dart' as models;
-import '../../../../core/services/native_location_service.dart';
+import '../../../alertes/services/permissions_manager_service.dart';
 import '../../../../theme/colors.dart';
 import '../../../../core/widgets/location_search_field.dart';
 import 'dart:async';
+import '../../../../core/services/location_service.dart';
 
 class ZonePlaceRadiusStep extends StatefulWidget {
   final models.LatLng center;
@@ -68,32 +69,19 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
       if (!mounted) return;
       setState(() => _isLoading = true);
 
-      // Vérifier les permissions
-      final permission = await Permission.locationWhenInUse.status;
-      if (permission.isDenied) {
-        final requestResult = await Permission.locationWhenInUse.request();
-        if (requestResult.isDenied) {
-          if (!mounted) return;
-          setState(() => _hasInitializedLocation = true);
-          return;
-        }
-      }
-
-      if (permission.isPermanentlyDenied) {
+      final permStatus = await PermissionsManagerService()
+          .requestLocationPermission(context);
+      if (!permStatus.isGranted) {
         if (!mounted) return;
         setState(() => _hasInitializedLocation = true);
         return;
       }
 
       // Obtenir la position actuelle via notre service natif
-      final nativeLocationService = NativeLocationService();
+      final locationService = LocationService();
+      final locationPoint = await locationService.getCurrentPosition();
 
-      // Écouter le stream de localisation pour obtenir la position actuelle
-      StreamSubscription? locationSubscription;
-      locationSubscription = nativeLocationService.locationStream.listen((
-        locationPoint,
-      ) {
-        if (!mounted) return;
+      if (locationPoint != null && mounted) {
         setState(() {
           _center = models.LatLng(
             locationPoint.latitude,
@@ -101,20 +89,7 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
           );
           _hasInitializedLocation = true;
         });
-
-        // Annuler l'écoute après avoir reçu la première position
-        locationSubscription?.cancel();
-      });
-
-      // Si aucune position n'est reçue dans les 10 secondes, arrêter le chargement
-      Timer(const Duration(seconds: 10), () {
-        if (!_hasInitializedLocation) {
-          locationSubscription?.cancel();
-          if (mounted) {
-            setState(() => _hasInitializedLocation = true);
-          }
-        }
-      });
+      }
 
       _updateMapCamera();
       _notifyChange();
@@ -181,7 +156,7 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
             'Touchez la carte pour définir le centre de votre zone de sécurité',
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.gray700),
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.gray100),
           ),
           const SizedBox(height: 16),
 
@@ -314,13 +289,13 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
                       '50m',
                       style: Theme.of(
                         context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray700),
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray100),
                     ),
                     Text(
                       '1000m',
                       style: Theme.of(
                         context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray700),
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.gray100),
                     ),
                   ],
                 ),

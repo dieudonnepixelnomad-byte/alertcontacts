@@ -59,6 +59,21 @@ class ZonesRepository {
     }
   }
 
+  /// Créer une nouvelle zone
+  Future<Zone> createZone(Map<String, dynamic> data) async {
+    try {
+      await _ensureAuthenticated();
+      final zone = await _apiService.createZone(data);
+      _cacheService.invalidateSafeZonesCache();
+      log('ZonesRepository.createZone: Zone created ${zone.id}');
+      return zone;
+    } catch (e) {
+      log('ZonesRepository.createZone: Error: $e');
+      if (e is AuthException) rethrow;
+      throw UnknownAuthException(e.toString());
+    }
+  }
+
   /// Mettre à jour une zone existante
   Future<Zone> updateZone(Zone zone, Map<String, dynamic> data) async {
     try {
@@ -108,6 +123,21 @@ class ZonesRepository {
       throw const InvalidCredentialsException();
     }
     _apiService.setBearerToken(token);
+  }
+
+  /// Synchroniser les contacts assignés à une zone
+  Future<List<String>> syncZoneContacts(String zoneId, List<String> contactIds) async {
+    try {
+      await _ensureAuthenticated();
+      final result = await _apiService.syncZoneContacts(zoneId, contactIds);
+      _cacheService.invalidateSafeZonesCache();
+      log('ZonesRepository.syncZoneContacts: Zone $zoneId → ${result.length} contacts');
+      return result;
+    } catch (e) {
+      log('ZonesRepository.syncZoneContacts: Error: $e');
+      if (e is AuthException) rethrow;
+      throw UnknownAuthException(e.toString());
+    }
   }
 
   /// Invalider le cache des zones unifiées

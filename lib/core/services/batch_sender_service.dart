@@ -235,7 +235,7 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
         _offlineBuffer.clear();
         
         // Filtrer les points avec des valeurs source valides
-        const validSources = {'gps', 'network', 'passive', 'fused'};
+        const validSources = {'gps', 'network', 'passive', 'fused', 'geolocator'};
         final validPoints = bufferData
             .map((item) => LocationPoint.fromJson(item))
             .where((point) => validSources.contains(point.source))

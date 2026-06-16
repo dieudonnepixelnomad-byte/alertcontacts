@@ -55,6 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '404137724655',
     projectId: 'alertcontacts',
     storageBucket: 'alertcontacts.appspot.com',
+    databaseURL: 'https://alertcontacts-default-rtdb.europe-west1.firebasedatabase.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -66,6 +67,7 @@ class DefaultFirebaseOptions {
     androidClientId: '404137724655-9pal2ujfpmqhlvosnvlctr6rpo7m414u.apps.googleusercontent.com',
     iosClientId: '404137724655-1qvu8fkdpf16suh2puoq3bdbf88av5ue.apps.googleusercontent.com',
     iosBundleId: 'com.alertcontacts.alertcontacts',
+    databaseURL: 'https://alertcontacts-default-rtdb.europe-west1.firebasedatabase.app',
   );
 
 }

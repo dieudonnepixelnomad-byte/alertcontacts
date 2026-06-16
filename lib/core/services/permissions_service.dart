@@ -105,6 +105,25 @@ class PermissionsService {
     }
   }
 
+  /// Demande la permission de géolocalisation en arrière-plan (locationAlways)
+  /// Doit être appelé APRÈS que locationWhenInUse soit déjà accordée.
+  /// Contexte in-context : création de zone (détection background requise).
+  static Future<bool> requestBackgroundLocationPermission() async {
+    try {
+      // Sur Android 10+, locationAlways ne peut être demandée qu'après locationWhenInUse
+      final whenInUse = await Permission.locationWhenInUse.status;
+      if (!whenInUse.isGranted) return false;
+
+      PermissionStatus status = await Permission.locationAlways.status;
+      if (status.isDenied) {
+        status = await Permission.locationAlways.request();
+      }
+      return status.isGranted;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Ouvre les paramètres de l'application
   static Future<void> openAppSettings() async {
     await openAppSettings();

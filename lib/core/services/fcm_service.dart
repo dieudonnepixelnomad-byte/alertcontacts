@@ -32,9 +32,6 @@ class FCMService {
       _baseUrl = baseUrl;
       _bearerToken = bearerToken;
 
-      // Demander la permission pour les notifications
-      await _requestPermission();
-
       // Récupérer le token FCM
       await _getToken();
 
@@ -49,25 +46,6 @@ class FCMService {
       log('FCMService: Initialized successfully');
     } catch (e) {
       log('FCMService: Error during initialization: $e');
-    }
-  }
-
-  /// Demander la permission pour les notifications
-  Future<void> _requestPermission() async {
-    try {
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      log('FCMService: Permission status: ${settings.authorizationStatus}');
-    } catch (e) {
-      log('FCMService: Error requesting permission: $e');
     }
   }
 
@@ -243,9 +221,6 @@ class FCMService {
       log(
         '🔥 FCMService.initializeAfterLogin: _bearerToken = ${_bearerToken?.substring(0, 10)}...',
       );
-
-      // Demander la permission pour les notifications
-      await _requestPermission();
 
       // Récupérer et envoyer le token FCM avec force update pour nouvelle connexion
       await _getTokenWithForceUpdate();
@@ -426,9 +401,13 @@ class FCMService {
           log('FCMService: Handling danger zone alert...');
           await _handleDangerZoneAlert(data, notification, notificationManager);
           break;
+        case 'safe_zone_entry':
+          log('FCMService: Handling safe zone entry...');
+          await _handleSafeZoneEntry(data, notificationManager);
+          break;
         case 'safe_zone_exit':
         case 'safe_zone_exit_reminder':
-          log('FCMService: Handling safe zone alert...');
+          log('FCMService: Handling safe zone exit...');
           await _handleSafeZoneAlert(data, notification, notificationManager);
           break;
         case 'invitation_response':
@@ -439,6 +418,8 @@ class FCMService {
             notificationManager,
           );
           break;
+        default:
+          log('FCMService: Unhandled notification type: ${data['type']}');
       }
 
       log('FCMService: Notification processing completed');
@@ -538,6 +519,28 @@ class FCMService {
       );
     } catch (e) {
       log('FCMService: Error handling safe zone alert: $e');
+    }
+  }
+
+  /// Traiter une entrée de zone de sécurité
+  static Future<void> _handleSafeZoneEntry(
+    Map<String, dynamic> data,
+    NotificationManager notificationManager,
+  ) async {
+    try {
+      final zoneName = data['zone_name']?.toString().trim();
+      final contactName = data['assigned_user_name']?.toString().trim() ?? 'Contact';
+      if (zoneName == null || zoneName.isEmpty) {
+        log('FCMService: zone_entry ignorée — zone_name manquant');
+        return;
+      }
+      log('FCMService: Zone entry — $contactName → $zoneName');
+      await notificationManager.triggerZoneEntryAlert(
+        zoneName: zoneName,
+        contactName: contactName,
+      );
+    } catch (e) {
+      log('FCMService: Error handling safe zone entry: $e');
     }
   }
 

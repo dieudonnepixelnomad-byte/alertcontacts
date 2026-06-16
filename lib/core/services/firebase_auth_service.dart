@@ -171,6 +171,56 @@ class FirebaseAuthService {
     }
   }
 
+  /// Envoyer un magic link de connexion (email sign-in link)
+  Future<void> sendSignInLink({
+    required String email,
+    required String continueUrl,
+    String? androidPackageName,
+    String? iOSBundleId,
+  }) async {
+    try {
+      final settings = firebase_auth.ActionCodeSettings(
+        url: continueUrl,
+        handleCodeInApp: true,
+        androidPackageName: androidPackageName,
+        androidInstallApp: true,
+        iOSBundleId: iOSBundleId,
+      );
+      await _firebaseAuth.sendSignInLinkToEmail(
+        email: email,
+        actionCodeSettings: settings,
+      );
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _mapFirebaseException(e);
+    } catch (e) {
+      throw UnknownAuthException(e.toString());
+    }
+  }
+
+  /// Vérifier si le lien entrant est un email sign-in link
+  bool isSignInWithEmailLink(String link) =>
+      _firebaseAuth.isSignInWithEmailLink(link);
+
+  /// Compléter la connexion via email link
+  Future<firebase_auth.User> signInWithEmailLink({
+    required String email,
+    required String emailLink,
+  }) async {
+    try {
+      final credential = await _firebaseAuth.signInWithEmailLink(
+        email: email,
+        emailLink: emailLink,
+      );
+      final user = credential.user;
+      if (user == null) throw const SyncErrorException();
+      return user;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _mapFirebaseException(e);
+    } catch (e) {
+      throw UnknownAuthException(e.toString());
+    }
+  }
+
   /// Envoyer un email de réinitialisation de mot de passe
   Future<void> sendPasswordResetEmail(String email) async {
     try {

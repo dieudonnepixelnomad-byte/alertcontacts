@@ -352,6 +352,42 @@ class ApiAuthService {
     }
   }
 
+  /// Supprimer le compte utilisateur (RGPD)
+  Future<void> deleteAccount() async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$baseUrl/user/account'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await _saveToken(null);
+        return;
+      }
+      throw Exception('Échec suppression compte: ${response.statusCode}');
+    } on SocketException {
+      throw const NetworkException();
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      rethrow;
+    }
+  }
+
+  /// Demander l'export des données personnelles
+  Future<void> exportData() async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/user/export-data'),
+        headers: _headers,
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) return;
+      throw Exception('Échec export: ${response.statusCode}');
+    } on SocketException {
+      throw const NetworkException();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Nettoyer les ressources
   void dispose() {
     _client.close();

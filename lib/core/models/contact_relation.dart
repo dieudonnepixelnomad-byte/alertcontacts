@@ -8,12 +8,16 @@ class Contact extends Equatable {
   final String name;
   final String email;
   final String avatarUrl;
+  /// Firebase Auth UID — requis pour écouter la position temps réel via Firebase RDB.
+  /// Null si l'API ne le retourne pas encore (rétrocompatibilité).
+  final String? firebaseUid;
 
   const Contact({
     required this.id,
     required this.name,
     required this.email,
     this.avatarUrl = '',
+    this.firebaseUid,
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) {
@@ -22,6 +26,7 @@ class Contact extends Equatable {
       name: json['name'] as String,
       email: json['email'] as String,
       avatarUrl: json['avatar_url'] as String? ?? '',
+      firebaseUid: json['firebase_uid'] as String?,
     );
   }
 
@@ -31,6 +36,7 @@ class Contact extends Equatable {
       'name': name,
       'email': email,
       'avatar_url': avatarUrl,
+      if (firebaseUid != null) 'firebase_uid': firebaseUid,
     };
   }
 
@@ -39,17 +45,19 @@ class Contact extends Equatable {
     String? name,
     String? email,
     String? avatarUrl,
+    String? firebaseUid,
   }) {
     return Contact(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      firebaseUid: firebaseUid ?? this.firebaseUid,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, email, avatarUrl];
+  List<Object?> get props => [id, name, email, avatarUrl, firebaseUid];
 }
 
 class ContactRelation extends Equatable {
@@ -58,9 +66,11 @@ class ContactRelation extends Equatable {
   final RelationStatus status;
   final ShareLevel shareLevel;
   final bool canSeeMe;
+  final bool canSeeContact;
   final DateTime createdAt;
   final DateTime? acceptedAt;
   final DateTime? refusedAt;
+  final int? batteryLevel; // 0-100, null si non partagé
 
   const ContactRelation({
     required this.id,
@@ -68,9 +78,11 @@ class ContactRelation extends Equatable {
     required this.status,
     required this.shareLevel,
     required this.canSeeMe,
+    this.canSeeContact = true,
     required this.createdAt,
     this.acceptedAt,
     this.refusedAt,
+    this.batteryLevel,
   });
 
   // Getters utiles
@@ -78,14 +90,15 @@ class ContactRelation extends Equatable {
   bool get isPending => status == RelationStatus.pending;
   bool get isRefused => status == RelationStatus.refused;
 
-  bool get isRealtimeSharing => 
-      isActive && shareLevel == ShareLevel.realtime && canSeeMe;
+  bool get isRealtimeSharing => isActive && canSeeContact;
 
-  bool get isAlertOnlySharing => 
+  bool get isAlertOnlySharing =>
       isActive && shareLevel == ShareLevel.alertOnly && canSeeMe;
 
-  bool get hasNoSharing => 
+  bool get hasNoSharing =>
       !isActive || shareLevel == ShareLevel.none || !canSeeMe;
+
+  bool get isOneWay => isActive && canSeeMe && !canSeeContact;
 
   factory ContactRelation.fromJson(Map<String, dynamic> json) {
     return ContactRelation(
@@ -94,13 +107,15 @@ class ContactRelation extends Equatable {
       status: _parseStatus(json['status'] as String),
       shareLevel: _parseShareLevel(json['share_level'] as String),
       canSeeMe: json['can_see_me'] as bool,
+      canSeeContact: json['can_see_contact'] as bool? ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
-      acceptedAt: json['accepted_at'] != null 
-          ? DateTime.parse(json['accepted_at'] as String) 
+      acceptedAt: json['accepted_at'] != null
+          ? DateTime.parse(json['accepted_at'] as String)
           : null,
-      refusedAt: json['refused_at'] != null 
-          ? DateTime.parse(json['refused_at'] as String) 
+      refusedAt: json['refused_at'] != null
+          ? DateTime.parse(json['refused_at'] as String)
           : null,
+      batteryLevel: json['battery_level'] as int?,
     );
   }
 
@@ -114,6 +129,7 @@ class ContactRelation extends Equatable {
       'created_at': createdAt.toIso8601String(),
       'accepted_at': acceptedAt?.toIso8601String(),
       'refused_at': refusedAt?.toIso8601String(),
+      if (batteryLevel != null) 'battery_level': batteryLevel,
     };
   }
 
@@ -171,9 +187,11 @@ class ContactRelation extends Equatable {
     RelationStatus? status,
     ShareLevel? shareLevel,
     bool? canSeeMe,
+    bool? canSeeContact,
     DateTime? createdAt,
     DateTime? acceptedAt,
     DateTime? refusedAt,
+    int? batteryLevel,
   }) {
     return ContactRelation(
       id: id ?? this.id,
@@ -181,9 +199,11 @@ class ContactRelation extends Equatable {
       status: status ?? this.status,
       shareLevel: shareLevel ?? this.shareLevel,
       canSeeMe: canSeeMe ?? this.canSeeMe,
+      canSeeContact: canSeeContact ?? this.canSeeContact,
       createdAt: createdAt ?? this.createdAt,
       acceptedAt: acceptedAt ?? this.acceptedAt,
       refusedAt: refusedAt ?? this.refusedAt,
+      batteryLevel: batteryLevel ?? this.batteryLevel,
     );
   }
 
@@ -194,9 +214,11 @@ class ContactRelation extends Equatable {
         status,
         shareLevel,
         canSeeMe,
+        canSeeContact,
         createdAt,
         acceptedAt,
         refusedAt,
+        batteryLevel,
       ];
 }
 

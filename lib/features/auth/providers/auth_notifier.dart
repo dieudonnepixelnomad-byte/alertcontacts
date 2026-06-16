@@ -9,6 +9,7 @@ import '../../../core/errors/auth_exceptions.dart';
 import '../../../core/models/user.dart';
 import '../../../core/services/deep_link_service.dart';
 import '../../../core/services/fcm_service.dart';
+import '../../../core/services/firebase_auth_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/config/api_config.dart';
 import 'auth_state.dart';
@@ -92,6 +93,7 @@ class AuthNotifier extends ChangeNotifier {
         await AnalyticsService().setUser(user.id, email: user.email);
 
         final prefsService = PrefsService();
+        await prefsService.setHasLoggedIn(true);
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
           await _initializeFCMAfterLogin(bearerToken);
@@ -161,11 +163,12 @@ class AuthNotifier extends ChangeNotifier {
         AnalyticsService().logLoginSuccess('email');
         await AnalyticsService().setUser(user.id, email: user.email);
 
+        final prefsService = PrefsService();
+        await prefsService.setHasLoggedIn(true);
         // Initialiser FCM après connexion réussie
         log(
           '🔐 AuthNotifier.signInWithEmail: Récupération du bearerToken pour FCM...',
         );
-        final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
           log(
@@ -341,11 +344,12 @@ class AuthNotifier extends ChangeNotifier {
         AnalyticsService().logLoginSuccess('google');
         await AnalyticsService().setUser(user.id, email: user.email);
 
+        final prefsService = PrefsService();
+        await prefsService.setHasLoggedIn(true);
         // Initialiser FCM après connexion réussie
         log(
           '🔐 AuthNotifier.signInWithGoogle: Récupération du bearerToken pour FCM...',
         );
-        final prefsService = PrefsService();
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
           log(
@@ -421,6 +425,7 @@ class AuthNotifier extends ChangeNotifier {
         await AnalyticsService().setUser(user.id, email: user.email);
 
         final prefsService = PrefsService();
+        await prefsService.setHasLoggedIn(true);
         final bearerToken = await prefsService.getBearerToken();
         if (bearerToken != null) {
           await _initializeFCMAfterLogin(bearerToken);
@@ -457,12 +462,119 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
+  /// Envoyer un Magic Link (email sign-in link)
+  Future<void> sendMagicLink(String email) async {
+    _updateState(_state.copyWith(
+      status: AuthStatus.authenticating,
+      message: null,
+      errorCode: null,
+    ));
+
+    try {
+      final packageInfo = await _getPackageId();
+      final continueUrl = 'https://alertcontacts.app/auth/magic-link';
+
+      final firebaseAuthService = FirebaseAuthService();
+      await firebaseAuthService.sendSignInLink(
+        email: email,
+        continueUrl: continueUrl,
+        androidPackageName: packageInfo,
+        iOSBundleId: packageInfo,
+      );
+
+      // Store email for link verification (Firebase requirement)
+      final prefs = PrefsService();
+      await prefs.setPendingMagicLinkEmail(email);
+
+      AnalyticsService().logSignUp('magic_link');
+
+      _updateState(_state.copyWith(
+        status: AuthStatus.unauthenticated,
+        message: 'magic_link_sent',
+        errorCode: null,
+      ));
+    } on TooManyRequestsException {
+      _updateState(_state.copyWith(
+        status: AuthStatus.unauthenticated,
+        message: 'Trop de tentatives. Veuillez réessayer plus tard',
+        errorCode: 'too_many_requests',
+      ));
+    } catch (e) {
+      log('AuthNotifier.sendMagicLink error: $e');
+      _updateState(_state.copyWith(
+        status: AuthStatus.unauthenticated,
+        message: 'Erreur lors de l\'envoi du lien. Vérifiez votre email.',
+        errorCode: 'magic_link_error',
+      ));
+    }
+  }
+
+  /// Compléter la connexion via un email link reçu en deep link
+  Future<void> verifyMagicLink(String emailLink) async {
+    final firebaseAuthService = FirebaseAuthService();
+    if (!firebaseAuthService.isSignInWithEmailLink(emailLink)) return;
+
+    final prefs = PrefsService();
+    final email = await prefs.getPendingMagicLinkEmail();
+    if (email == null) return;
+
+    _updateState(_state.copyWith(
+      status: AuthStatus.authenticating,
+      message: null,
+      errorCode: null,
+    ));
+
+    try {
+      await firebaseAuthService.signInWithEmailLink(
+        email: email,
+        emailLink: emailLink,
+      );
+      await prefs.clearPendingMagicLinkEmail();
+
+      final user = await _authRepository.refreshSession();
+      if (user != null) {
+        _updateState(_state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user,
+          message: null,
+        ));
+        AnalyticsService().logLoginSuccess('magic_link');
+        await AnalyticsService().setUser(user.id, email: user.email);
+        final bearerToken = await prefs.getBearerToken();
+        if (bearerToken != null) await _initializeFCMAfterLogin(bearerToken);
+      } else {
+        _updateState(_state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Lien invalide ou expiré',
+          errorCode: 'magic_link_invalid',
+        ));
+      }
+    } catch (e) {
+      log('AuthNotifier.verifyMagicLink error: $e');
+      _updateState(_state.copyWith(
+        status: AuthStatus.unauthenticated,
+        message: 'Lien invalide ou expiré',
+        errorCode: 'magic_link_invalid',
+      ));
+    }
+  }
+
+  Future<String> _getPackageId() async {
+    try {
+      // Return bundle ID — used for dynamic link routing
+      return 'com.alertcontacts.alertcontacts';
+    } catch (_) {
+      return 'com.alertcontacts.alertcontacts';
+    }
+  }
+
   /// Déconnexion
   Future<void> signOut() async {
     try {
       log('AuthNotifier.signOut: Déconnexion en cours');
 
       await _authRepository.signOut();
+      await PrefsService().setHasLoggedIn(false);
 
       log('AuthNotifier.signOut: Déconnexion réussie');
       AnalyticsService().logLogout();

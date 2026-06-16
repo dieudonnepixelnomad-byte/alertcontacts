@@ -109,7 +109,7 @@ class ZoneCreationSuccessPage extends StatelessWidget {
                 Text(
                   'Votre zone de sécurité est maintenant active.\nVous recevrez des notifications lorsque vos proches entreront ou sortiront de cette zone.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.gray700,
+                    color: AppColors.gray100,
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
@@ -193,8 +193,10 @@ class ZoneCreationSuccessPage extends StatelessWidget {
                         onPressed: () {
                           ShareService.shareApp(
                             context: context,
-                            shareContext: ShareContext.afterSuccessfulZoneCreation,
-                            customMessage: 'J\'ai créé une zone de sécurité "$zoneName" avec AlertContact ! Rejoignez-moi pour protéger nos proches ensemble.',
+                            shareContext:
+                                ShareContext.afterSuccessfulZoneCreation,
+                            customMessage:
+                                'J\'ai créé une zone de sécurité "$zoneName" avec AlertContact ! Rejoignez-moi pour protéger nos proches ensemble.',
                           );
                         },
                         icon: const Icon(Icons.share),
@@ -251,7 +253,7 @@ class ZoneCreationSuccessPage extends StatelessWidget {
                 description,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.gray700),
+                ).textTheme.bodySmall?.copyWith(color: AppColors.gray100),
               ),
             ],
           ),

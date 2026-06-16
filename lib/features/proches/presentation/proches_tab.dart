@@ -1,14 +1,21 @@
-// lib/features/proches/presentation/proches_tab.dart
 import 'dart:developer';
-import 'package:alertcontacts/router/app_router.dart';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../theme/colors.dart';
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/invitation.dart';
+import '../../../core/models/zone.dart' as zone_models;
+import '../../../core/services/paywall_trigger_service.dart';
 import '../providers/relationship_provider.dart';
-import 'assign_zones_page.dart';
-import 'contact_locations_page.dart';
+import '../../../features/onboarding/presentation/onboarding_invitation_page.dart';
+import '../../../features/paywall/presentation/paywall_page.dart';
+import '../../../features/paywall/presentation/paywall_trigger_modal.dart';
+import '../../../core/services/contact_rtdb_service.dart';
+import '../../../features/zones/providers/zones_notifier.dart';
+import '../../../features/app_shell/providers/navigation_provider.dart';
+import '../../../shared/widgets/low_battery_banner.dart';
+import 'contact_bottom_sheet.dart';
 
 class ProchesTab extends StatefulWidget {
   const ProchesTab({super.key});
@@ -20,403 +27,681 @@ class _ProchesTabState extends State<ProchesTab> {
   @override
   void initState() {
     super.initState();
-    // Initialiser l'authentification puis charger les relations
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final relationshipProvider = context.read<RelationshipProvider>();
-      await relationshipProvider.initialize();
-      await relationshipProvider.loadRelationships();
+      final provider = context.read<RelationshipProvider>();
+      await provider.initialize();
+      await provider.loadRelationships();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _invite,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Inviter'),
-      ),
+      backgroundColor: AppColors.gray50,
       body: Consumer<RelationshipProvider>(
-        builder: (context, relationshipProvider, child) {
-          if (relationshipProvider.isLoading) {
+        builder: (context, provider, _) {
+          if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (provider.error != null) {
+            return _ErrorState(
+              error: provider.error!,
+              onRetry: provider.loadRelationships,
+            );
+          }
 
-          if (relationshipProvider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Erreur de chargement',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    relationshipProvider.error!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withOpacity(0.7),
+          return Consumer<ContactRtdbService>(
+            builder: (context, rtdb, _) {
+              final accepted = provider.acceptedRelationships;
+              final pending = provider.pendingRelationships;
+              final total = accepted.length + pending.length;
+              final zones = context.read<ZonesNotifier>().safeZones;
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _Header(
+                      connectedCount: accepted.length,
+                      pendingCount: pending.length,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () => relationshipProvider.loadRelationships(),
-                    child: const Text('Réessayer'),
-                  ),
+                  // Banners batterie faible (< 20%)
+                  ...accepted
+                      .where((r) => (r.batteryLevel ?? 100) < 20)
+                      .map((r) => SliverToBoxAdapter(
+                            child: LowBatteryBanner(
+                              contactName: r.contact.name,
+                              batteryPercent: r.batteryLevel!,
+                            ),
+                          )),
+
+                  if (total == 0)
+                    const SliverFillRemaining(child: _EmptyState())
+                  else ...[
+                    if (accepted.isNotEmpty)
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (_, i) {
+                              final rel = accepted[i];
+                              final snap = rel.contact.firebaseUid != null
+                                  ? rtdb.snapshots[rel.contact.firebaseUid!]
+                                  : null;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _ContactCard(
+                                  relation: rel,
+                                  snapshot: snap,
+                                  zones: zones,
+                                  onTap: () => _openSheet(rel, snap, zones),
+                                ),
+                              );
+                            },
+                            childCount: accepted.length,
+                          ),
+                        ),
+                      ),
+                    if (pending.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(
+                            'EN ATTENTE',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.gray400,
+                              letterSpacing: 0.08,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (_, i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _ContactCard(
+                                relation: pending[i],
+                                snapshot: null,
+                                zones: zones,
+                                onTap: () => _openSheet(pending[i], null, zones),
+                              ),
+                            ),
+                            childCount: pending.length,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
-              ),
-            );
-          }
-
-          final acceptedRelationships =
-              relationshipProvider.acceptedRelationships;
-
-          if (acceptedRelationships.isEmpty) {
-            return _EmptyState(
-              icon: Icons.group_outlined,
-              title: 'Aucun proche',
-              subtitle:
-                  'Invitez un proche pour partager des alertes et des zones.\n\nUtilisez le bouton "Inviter" pour commencer.',
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => relationshipProvider.refresh(),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-              itemBuilder: (_, i) => _ProcheTile(
-                contactRelation: acceptedRelationships[i],
-                onLevelChanged: (shareLevel) =>
-                    _updateShareLevel(acceptedRelationships[i].id, shareLevel),
-                onRemove: () => _remove(acceptedRelationships[i]),
-                onManageZones: () => _manageZones(acceptedRelationships[i]),
-                onViewLocations: () => _viewLocations(acceptedRelationships[i]),
-              ),
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemCount: acceptedRelationships.length,
-            ),
+              );
+            },
           );
         },
       ),
-    );
-  }
-
-  void _invite() {
-    context.push(AppRoutes.addProche);
-  }
-
-  Future<void> _updateShareLevel(
-    String relationshipId,
-    ShareLevel shareLevel,
-  ) async {
-    final relationshipProvider = context.read<RelationshipProvider>();
-    // Log des paramètres reçus par la méthode
-    log('UI: Tentative de mise à jour du niveau de partage. RelationshipId: $relationshipId, ShareLevel: $shareLevel');
-
-    final success = await relationshipProvider.updateShareLevel(
-      relationshipId,
-      shareLevel,
-    );
-
-    if (!success && mounted) {
-      // Log de l'échec
-      log('UI: Echec de la mise à jour du niveau de partage. Erreur: ${relationshipProvider.error}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            relationshipProvider.error ?? 'Erreur lors de la mise à jour',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
-  }
-
-  void _manageZones(ContactRelation contactRelation) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AssignZonesPage(contactRelation: contactRelation),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openInvite,
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.person_add_outlined, color: Colors.white),
       ),
     );
   }
 
-  void _viewLocations(ContactRelation contactRelation) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            ContactLocationsPage(contactRelation: contactRelation),
-      ),
-    );
-  }
+  Future<void> _openInvite() async {
+    final provider = context.read<RelationshipProvider>();
+    final accepted = provider.acceptedRelationships;
 
-  void _remove(ContactRelation contactRelation) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Retirer ce proche ?'),
-        content: Text(
-          'Vous ne partagerez plus vos informations avec ${contactRelation.contact.name}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Retirer'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      final relationshipProvider = context.read<RelationshipProvider>();
-      final success = await relationshipProvider.deleteRelationship(
-        contactRelation.id,
-      );
-
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(
+    if (PaywallTriggerService.checkContactLimit(accepted.length)) {
+      final isPremium = await PaywallTriggerService.isPremium();
+      if (!isPremium) {
+        if (!mounted) return;
+        final avatars = accepted.take(3).toList().asMap().entries.map((e) {
+          final name = e.value.contact.name;
+          final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+          return ContactAvatarData(
+            initial: initial,
+            color: PaywallTriggerModal.paletteColor(e.key),
+          );
+        }).toList();
+        final wantsUpgrade = await PaywallTriggerModal.show(
+          context,
+          trigger: 'contact_limit',
+          avatars: avatars,
+        );
+        if (wantsUpgrade == true && mounted) {
+          await Navigator.push(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Proche retiré')));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                relationshipProvider.error ?? 'Erreur lors de la suppression',
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
+            MaterialPageRoute(
+              builder: (_) => const PaywallPage(trigger: 'contact_limit'),
             ),
           );
         }
+        return;
       }
+    }
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OnboardingInvitationPage()),
+    );
+  }
+
+  void _openSheet(
+    ContactRelation relation,
+    RtdbContactSnapshot? snapshot,
+    List<zone_models.Zone> zones,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => ContactBottomSheet(
+        relation: relation,
+        snapshot: snapshot,
+        safeZones: zones,
+        onRemove: () => _remove(relation),
+        onViewOnMap: () {
+          Navigator.pop(context);
+          context.read<NavigationProvider>().goToMap();
+        },
+        onSavePermissions: ({
+          required sharePosition,
+          required shareBattery,
+          required shareZoneEvents,
+          required shareSpeed,
+        }) =>
+            _savePermissions(
+          relation.id,
+          sharePosition: sharePosition,
+          shareBattery: shareBattery,
+          shareZoneEvents: shareZoneEvents,
+          shareSpeed: shareSpeed,
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _savePermissions(
+    String relationId, {
+    required bool sharePosition,
+    required bool shareBattery,
+    required bool shareZoneEvents,
+    required bool shareSpeed,
+  }) async {
+    final provider = context.read<RelationshipProvider>();
+    try {
+      await provider.updateShareLevel(relationId, ShareLevel.realtime);
+      return true;
+    } catch (e) {
+      log('permissions update error: $e');
+      return false;
+    }
+  }
+
+  Future<void> _remove(ContactRelation relation) async {
+    final provider = context.read<RelationshipProvider>();
+    final ok = await provider.deleteRelationship(relation.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Proche retiré' : (provider.error ?? 'Erreur')),
+          backgroundColor: ok ? null : AppColors.danger,
+        ),
+      );
     }
   }
 }
 
-class _ProcheTile extends StatelessWidget {
-  final ContactRelation contactRelation;
-  final ValueChanged<ShareLevel> onLevelChanged;
-  final VoidCallback onRemove;
-  final VoidCallback onManageZones;
-  final VoidCallback onViewLocations;
-  const _ProcheTile({
-    required this.contactRelation,
-    required this.onLevelChanged,
-    required this.onRemove,
-    required this.onManageZones,
-    required this.onViewLocations,
-  });
+// ─── Header ────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final int connectedCount;
+  final int pendingCount;
+  const _Header({required this.connectedCount, required this.pendingCount});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final parts = <String>[];
+    if (connectedCount > 0) parts.add('$connectedCount CONNECTÉ${connectedCount > 1 ? 'S' : ''}');
+    if (pendingCount > 0) parts.add('$pendingCount EN ATTENTE');
+    final subtitle = parts.isEmpty ? 'AUCUN PROCHE' : parts.join(' · ');
 
-    String label(ShareLevel l) => switch (l) {
-      ShareLevel.realtime => 'Temps réel',
-      ShareLevel.alertOnly => 'Uniquement alertes',
-      ShareLevel.none => 'Aucun',
-    };
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Proches', style: tt.titleLarge),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: tt.labelSmall?.copyWith(
+              color: AppColors.primary,
+              letterSpacing: 0.06,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    IconData icon(ShareLevel l) => switch (l) {
-      ShareLevel.realtime => Icons.radio_button_checked,
-      ShareLevel.alertOnly => Icons.notifications_active_outlined,
-      ShareLevel.none => Icons.block,
-    };
+// ─── Contact Card ───────────────────────────────────────────────────────────
 
-    Color color(ShareLevel l) => switch (l) {
-      ShareLevel.realtime => const Color(0xFF2E7D32),
-      ShareLevel.alertOnly => const Color(0xFF006970),
-      ShareLevel.none => cs.error,
-    };
+class _ContactCard extends StatelessWidget {
+  final ContactRelation relation;
+  final RtdbContactSnapshot? snapshot;
+  final List<zone_models.Zone> zones;
+  final VoidCallback onTap;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
+  const _ContactCard({
+    required this.relation,
+    required this.snapshot,
+    required this.zones,
+    required this.onTap,
+  });
+
+  // ── State helpers ──────────────────────────────────────────────────────
+
+  String get _cardState {
+    if (relation.isPending) return 'pending';
+    if (relation.isOneWay) return 'one-way';
+    if (snapshot == null) return 'offline';
+    if (snapshot!.isInvisible) return 'invisible';
+    if (DateTime.now().difference(snapshot!.updatedAt) > const Duration(minutes: 30)) return 'offline';
+    return 'active';
+  }
+
+  String _timeAgo(DateTime dt) {
+    final d = DateTime.now().difference(dt);
+    if (d.inMinutes < 1) return 'à l\'instant';
+    if (d.inMinutes < 60) return '${d.inMinutes} min';
+    if (d.inHours < 24) return '${d.inHours}h';
+    return '${d.inDays}j';
+  }
+
+  String? get _currentZoneName {
+    final snap = snapshot;
+    if (snap == null) return null;
+    for (final z in zones) {
+      if (_haversine(snap.latitude, snap.longitude, z.center.lat, z.center.lng) <= z.radiusMeters) {
+        return z.name;
+      }
+    }
+    return null;
+  }
+
+  double _haversine(double lat1, double lng1, double lat2, double lng2) {
+    const R = 6371000.0;
+    final phi1 = lat1 * math.pi / 180;
+    final phi2 = lat2 * math.pi / 180;
+    final dp = (lat2 - lat1) * math.pi / 180;
+    final dl = (lng2 - lng1) * math.pi / 180;
+    final a = math.sin(dp / 2) * math.sin(dp / 2) +
+        math.cos(phi1) * math.cos(phi2) * math.sin(dl / 2) * math.sin(dl / 2);
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  // ── Status text + color ───────────────────────────────────────────────
+
+  ({String text, Color color, IconData? icon}) get _statusLine {
+    switch (_cardState) {
+      case 'pending':
+        return (
+          text: 'Invitation envoyée · il y a ${_timeAgo(relation.createdAt)}',
+          color: AppColors.gray400,
+          icon: null,
+        );
+      case 'one-way':
+        return (text: 'Position non visible', color: AppColors.gray400, icon: null);
+      case 'offline':
+        final last = snapshot?.updatedAt;
+        return (
+          text: last != null ? 'Hors ligne · vue il y a ${_timeAgo(last)}' : 'Hors ligne',
+          color: AppColors.gray400,
+          icon: null,
+        );
+      case 'invisible':
+        return (
+          text: 'Position en pause',
+          color: const Color(0xFFFF8C3C),
+          icon: Icons.pause_circle_outline,
+        );
+      case 'active':
+        final zoneName = _currentZoneName;
+        if (zoneName != null) {
+          return (
+            text: '✓ $zoneName · ${_timeAgo(snapshot!.updatedAt)}',
+            color: AppColors.success,
+            icon: null,
+          );
+        }
+        final speed = snapshot!.speedKmh;
+        if (speed != null && speed > 5) {
+          return (
+            text: 'En déplacement · ${speed.toStringAsFixed(0)} km/h',
+            color: AppColors.gray600,
+            icon: null,
+          );
+        }
+        return (
+          text: 'Actif · ${_timeAgo(snapshot!.updatedAt)}',
+          color: AppColors.gray400,
+          icon: null,
+        );
+      default:
+        return (text: '', color: AppColors.gray400, icon: null);
+    }
+  }
+
+  // ── Right indicator ───────────────────────────────────────────────────
+
+  Widget _buildRightIndicator() {
+    switch (_cardState) {
+      case 'pending':
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'Renvoyer',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.primary,
+            ),
+          ),
+        );
+      case 'active':
+      case 'invisible':
+        final bat = relation.batteryLevel;
+        if (bat == null) return const SizedBox.shrink();
+        final batColor = bat < 20
+            ? AppColors.danger
+            : bat < 40
+                ? AppColors.warning
+                : AppColors.gray600;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              bat < 20 ? Icons.battery_alert_rounded : Icons.battery_full_rounded,
+              size: 14,
+              color: batColor,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              '$bat%',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: batColor,
+              ),
+            ),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // ── Avatar badge (dot or clock) ───────────────────────────────────────
+
+  Widget? _buildAvatarBadge() {
+    switch (_cardState) {
+      case 'active':
+        return Container(
+          width: 11,
+          height: 11,
+          decoration: BoxDecoration(
+            color: AppColors.success,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+          ),
+        );
+      case 'invisible':
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF8C3C),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+          ),
+          child: const Icon(Icons.pause_rounded, size: 10, color: Colors.white),
+        );
+      case 'pending':
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppColors.gray200,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+          ),
+          child: const Icon(Icons.schedule_rounded, size: 11, color: AppColors.gray400),
+        );
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final isPending = _cardState == 'pending';
+    final isOfflineOrOneWay = _cardState == 'offline' || _cardState == 'one-way';
+    final status = _statusLine;
+    final badge = _buildAvatarBadge();
+
+    Widget card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: isPending ? null : Border.all(color: AppColors.gray200),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: cs.primary.withOpacity(.12),
-            backgroundImage: NetworkImage(contactRelation.contact.avatarUrl),
-            child: null,
+          // ── Avatar + badge ─────────────────────────────────────────────
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _AvatarCircle(
+                avatarUrl: relation.contact.avatarUrl,
+                name: relation.contact.name,
+                faded: isPending || isOfflineOrOneWay,
+              ),
+              if (badge != null)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: badge,
+                ),
+            ],
           ),
           const SizedBox(width: 12),
+
+          // ── Name + status ──────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  contactRelation.contact.name,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  relation.contact.name,
+                  style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      icon(contactRelation.shareLevel),
-                      size: 16,
-                      color: color(contactRelation.shareLevel),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      label(contactRelation.shareLevel),
-                      style: TextStyle(color: cs.onSurface.withOpacity(.7)),
-                    ),
-                  ],
-                ),
+                if (status.text.isNotEmpty)
+                  Row(
+                    children: [
+                      if (status.icon != null) ...[
+                        Icon(status.icon, size: 13, color: status.color),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          status.text,
+                          style: tt.labelMedium?.copyWith(color: status.color),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'manage_zones') {
-                onManageZones();
-              } else if (value == 'view_locations') {
-                onViewLocations();
-              } else {
-                // Gestion des niveaux de partage
-                final shareLevel = ShareLevel.values.firstWhere(
-                  (level) => level.toString() == value,
-                );
-                onLevelChanged(shareLevel);
-              }
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'manage_zones',
-                child: Row(
-                  children: const [
-                    Icon(Icons.location_on, size: 18),
-                    SizedBox(width: 8),
-                    Text('Gérer les zones'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'view_locations',
-                child: Row(
-                  children: const [
-                    Icon(Icons.timeline, size: 18),
-                    SizedBox(width: 8),
-                    Text('Voir les positions'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: ShareLevel.realtime.toString(),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.radio_button_checked,
-                      size: 18,
-                      color: contactRelation.shareLevel == ShareLevel.realtime
-                          ? cs.primary
-                          : cs.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Temps réel'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: ShareLevel.alertOnly.toString(),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active,
-                      size: 18,
-                      color: contactRelation.shareLevel == ShareLevel.alertOnly
-                          ? cs.primary
-                          : cs.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Uniquement alertes'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: ShareLevel.none.toString(),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.block,
-                      size: 18,
-                      color: contactRelation.shareLevel == ShareLevel.none
-                          ? cs.primary
-                          : cs.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Aucun'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-            ],
-            icon: const Icon(Icons.more_vert),
-          ),
-          IconButton(
-            onPressed: onRemove,
-            icon: const Icon(Icons.delete_outline),
-          ),
+          const SizedBox(width: 8),
+
+          // ── Right indicator (battery / chip) ───────────────────────────
+          _buildRightIndicator(),
         ],
+      ),
+    );
+
+    // Dashed border for pending
+    if (isPending) {
+      card = CustomPaint(
+        painter: _DashedRoundedBorderPainter(),
+        child: card,
+      );
+    }
+
+    return GestureDetector(onTap: onTap, child: card);
+  }
+}
+
+// ─── Dashed border painter ──────────────────────────────────────────────────
+
+class _DashedRoundedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.gray400
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    const r = Radius.circular(14);
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
+        r,
+      ));
+    const dashLen = 6.0;
+    const gapLen = 4.0;
+    final metric = path.computeMetrics().first;
+    double dist = 0;
+    while (dist < metric.length) {
+      canvas.drawPath(metric.extractPath(dist, dist + dashLen), paint);
+      dist += dashLen + gapLen;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ─── Avatar Circle ──────────────────────────────────────────────────────────
+
+class _AvatarCircle extends StatelessWidget {
+  final String avatarUrl;
+  final String name;
+  final bool faded;
+  const _AvatarCircle({required this.avatarUrl, required this.name, this.faded = false});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget avatar = CircleAvatar(
+      radius: 22,
+      backgroundColor: AppColors.primaryLight,
+      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+      child: avatarUrl.isEmpty
+          ? Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            )
+          : null,
+    );
+    if (!faded) return avatar;
+    return Opacity(opacity: 0.4, child: avatar);
+  }
+}
+
+// ─── Empty State ────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.group_outlined, size: 36, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
+            Text('Aucun proche pour l\'instant', style: tt.titleSmall),
+            const SizedBox(height: 8),
+            Text(
+              'Invite quelqu\'un pour partager vos positions et recevoir des alertes mutuellement.',
+              textAlign: TextAlign.center,
+              style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title, subtitle;
-  final String? cta;
-  final VoidCallback? onCta;
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.cta,
-    this.onCta,
-  });
+// ─── Error State ────────────────────────────────────────────────────────────
 
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.error, required this.onRetry});
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: cs.primary),
-            const SizedBox(height: 10),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const Icon(Icons.wifi_off_outlined, size: 48, color: AppColors.gray400),
+            const SizedBox(height: 12),
+            Text('Impossible de charger', style: tt.titleSmall),
             const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: cs.onSurface.withOpacity(.7)),
+            Text(error, textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: AppColors.gray400)),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Réessayer'),
             ),
-            if (cta != null && onCta != null) ...[
-              const SizedBox(height: 14),
-              FilledButton(onPressed: onCta, child: Text(cta!)),
-            ],
           ],
         ),
       ),

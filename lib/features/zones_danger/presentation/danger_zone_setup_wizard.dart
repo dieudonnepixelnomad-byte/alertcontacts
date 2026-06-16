@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/models/danger_zone.dart';
+import '../../../features/alertes/services/permissions_manager_service.dart';
 import '../../../core/models/safe_zone.dart'; // Pour LatLng
 import '../../../core/enums/danger_type.dart';
-import '../../../core/services/native_location_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../theme/colors.dart';
 import '../providers/danger_zone_notifier.dart';
 import 'widgets/danger_zone_info_step.dart';
 import 'widgets/danger_zone_location_step.dart';
 import 'widgets/danger_zone_details_step.dart';
 import 'duplicate_zones_dialog.dart';
-import 'dart:async';
 
 class DangerZoneSetupWizard extends StatefulWidget {
   const DangerZoneSetupWizard({super.key});
@@ -31,7 +31,6 @@ class _DangerZoneSetupWizardState extends State<DangerZoneSetupWizard> {
   double _radius = 50; // Rayon par défaut plus petit pour les dangers
   DangerSeverity _severity = DangerSeverity.med;
   DangerType _dangerType = DangerType.autre;
-  bool _isLoadingLocation = true;
 
   @override
   void initState() {
@@ -41,49 +40,22 @@ class _DangerZoneSetupWizardState extends State<DangerZoneSetupWizard> {
 
   Future<void> _initializeUserLocation() async {
     try {
-      // Vérifier les permissions
-      final permission = await Permission.locationWhenInUse.status;
-      if (permission.isDenied) {
-        final requestResult = await Permission.locationWhenInUse.request();
-        if (requestResult.isDenied) {
-          setState(() => _isLoadingLocation = false);
-          return;
-        }
+      // Demande locationWhenInUse en contexte (signalement de danger)
+      final permStatus = await PermissionsManagerService()
+          .requestLocationPermission(context);
+      if (!permStatus.isGranted) return;
+
+      // Demande locationAlways en contexte — requise pour la détection de zone en arrière-plan
+      if (mounted) {
+        await PermissionsManagerService().requestLocationAlwaysPermission(context);
       }
 
-      if (permission.isPermanentlyDenied) {
-        setState(() => _isLoadingLocation = false);
-        return;
+      final point = await LocationService().getCurrentPosition();
+      if (mounted && point != null) {
+        setState(() => _center = LatLng(point.latitude, point.longitude));
       }
-
-      // Obtenir la position actuelle via notre service natif
-      final nativeLocationService = NativeLocationService();
-      
-      // Écouter le stream de localisation pour obtenir la position actuelle
-      StreamSubscription? locationSubscription;
-      locationSubscription = nativeLocationService.locationStream.listen((locationPoint) {
-        if (!mounted) return;
-        setState(() {
-          _center = LatLng(locationPoint.latitude, locationPoint.longitude);
-          _isLoadingLocation = false;
-        });
-        
-        // Annuler l'écoute après avoir reçu la première position
-        locationSubscription?.cancel();
-      });
-      
-      // Si aucune position n'est reçue dans les 10 secondes, arrêter le chargement
-      Timer(const Duration(seconds: 10), () {
-        if (_isLoadingLocation) {
-          locationSubscription?.cancel();
-          setState(() => _isLoadingLocation = false);
-        }
-      });
     } catch (e) {
       debugPrint('Erreur lors de l\'obtention de la localisation: $e');
-      if (mounted) {
-        setState(() => _isLoadingLocation = false);
-      }
     }
   }
 
@@ -190,9 +162,7 @@ class _DangerZoneSetupWizardState extends State<DangerZoneSetupWizard> {
 
             // Contenu de l'étape
             Expanded(
-              child: _isLoadingLocation && _step == 1
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildStepContent(),
+              child: _buildStepContent(),
             ),
 
             // Boutons de navigation

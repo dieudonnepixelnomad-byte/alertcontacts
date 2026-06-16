@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'pending_deep_link_service.dart';
@@ -114,16 +115,22 @@ class DeepLinkService {
       
       if (isAuthenticated) {
         log('Utilisateur authentifié, redirection directe vers l\'invitation');
-        
+
         // Construire l'URL de redirection
         String redirectUrl = '/invitations/accept?t=$token';
         if (pin != null && pin.isNotEmpty) {
           redirectUrl += '&pin=$pin';
         }
-        
+
         log('URL de redirection: $redirectUrl');
         debugPrint('🔗 DEEP LINK: Navigation vers $redirectUrl');
-        router.go(redirectUrl);
+        // Defer to next frame — deep link can fire while app is mid-foreground
+        // transition (rendering pipeline not yet active), causing GoRouter to
+        // land on the error page. addPostFrameCallback waits until the frame
+        // is stable before navigating.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          router.go(redirectUrl);
+        });
       } else {
         log('Utilisateur non authentifié, mémorisation du token et redirection vers auth');
         

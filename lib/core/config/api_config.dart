@@ -1,5 +1,12 @@
 /// Configuration centralisée pour l'API
 class ApiConfig {
+  static const String googleMapsApiKey =
+      'AIzaSyCR0M-91Tw5WfbXHXHAY9PWi5WkJ-LnE-0';
+
+  // Clé sans restriction Android — pour appels HTTP Places API web service
+  static const String googlePlacesApiKey =
+      'AIzaSyAd-CeINsEf8A-s0EqIY4aQ39Q--vkE9-8'; // Remplace par ta clé serveur
+
   /// URL de base de production
   ///static const String _baseUrl = 'https://mobile.alertcontacts.net';
   /// URL de base locale

@@ -147,6 +147,81 @@ class NotificationManager {
     }
   }
 
+  /// Déclenche une alerte d'entrée de zone (proche arrive)
+  Future<void> triggerZoneEntryAlert({
+    required String zoneName,
+    required String contactName,
+  }) async {
+    if (!_isInitialized) return;
+    if (!await _configService.canSendNotification()) return;
+    try {
+      await Future.wait([
+        _notificationService.showNotification(
+          NotificationConfig(
+            title: '✅ $contactName est arrivé(e)',
+            body: zoneName,
+            type: NotificationType.safeZone,
+            priority: NotificationPriority.normal,
+            enableVibration: true,
+            enableSound: true,
+            payload: 'zone_entry:$zoneName:$contactName',
+          ),
+        ),
+        _alertService.triggerZoneEntryAlert(
+          zoneName: zoneName,
+          contactName: contactName,
+        ),
+      ]);
+    } catch (e) {
+      debugPrint('❌ NotificationManager.triggerZoneEntryAlert: $e');
+    }
+  }
+
+  /// Déclenche une alerte communautaire (incident signalé à proximité)
+  Future<void> triggerCommunityAlert({
+    required String type,
+    required String gravity,
+    required int distanceMeters,
+  }) async {
+    if (!_isInitialized) return;
+    if (!await _configService.canSendNotification()) return;
+    final gravityEmoji = switch (gravity) {
+      'high'   => '🔴',
+      'medium' => '🟠',
+      _        => '🟡',
+    };
+    final typeLabel = switch (type) {
+      'accident'           => 'Accident',
+      'fire'               => 'Incendie',
+      'aggression'         => 'Agression',
+      'suspect'            => 'Personne suspecte',
+      'suspicious_package' => 'Colis suspect',
+      _                    => 'Incident',
+    };
+    try {
+      await Future.wait([
+        _notificationService.showNotification(
+          NotificationConfig(
+            title: '$gravityEmoji $typeLabel signalé à ${distanceMeters}m',
+            body: 'Alerte communautaire dans votre secteur',
+            type: NotificationType.dangerZone,
+            priority: gravity == 'high' ? NotificationPriority.high : NotificationPriority.normal,
+            enableVibration: true,
+            enableSound: true,
+            payload: 'community_alert:$type:$gravity:$distanceMeters',
+          ),
+        ),
+        _alertService.triggerCommunityAlert(
+          type: type,
+          gravity: gravity,
+          distanceMeters: distanceMeters,
+        ),
+      ]);
+    } catch (e) {
+      debugPrint('❌ NotificationManager.triggerCommunityAlert: $e');
+    }
+  }
+
   /// Déclenche une alerte pour une sortie de zone de sécurité
   Future<void> triggerSafeZoneExitAlert({
     required String zoneName,

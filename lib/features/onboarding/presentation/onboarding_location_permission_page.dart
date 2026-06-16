@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 
@@ -23,15 +22,11 @@ class _OnboardingLocationPermissionPageState
   }
 
   Future<void> _checkIfAlreadyGranted() async {
-    final granted = await PermissionsService.isLocationPermissionGranted();
-    if (granted && mounted) {
-      context.go(AppRoutes.onboardingZoneCreation);
-    }
+    // R3 : permission location jamais demandée dans l'onboarding — passthrough direct
+    if (mounted) context.go(AppRoutes.onboardingZoneCreation);
   }
 
   Future<void> _requestAndContinue() async {
-    setState(() => _isRequesting = true);
-    await PermissionsService.requestLocationPermission();
     if (mounted) context.go(AppRoutes.onboardingZoneCreation);
   }
 

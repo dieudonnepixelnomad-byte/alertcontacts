@@ -143,4 +143,114 @@ class AnalyticsService {
     await trace.start();
     return trace;
   }
+
+  // ── Aha Moments ───────────────────────────────────────────────────────────
+
+  void logAha1ContactAccepted() =>
+      _fire(_analytics.logEvent(name: 'aha_1_contact_accepted'));
+
+  void logAha2ContactOnMap() =>
+      _fire(_analytics.logEvent(name: 'aha_2_contact_on_map'));
+
+  void logAha3ZoneAlertReceived() =>
+      _fire(_analytics.logEvent(name: 'aha_3_zone_alert_received'));
+
+  // ── Contacts ──────────────────────────────────────────────────────────────
+
+  void logContactInvited() =>
+      _fire(_analytics.logEvent(name: 'contact_invited'));
+
+  void logContactInvitationAccepted() =>
+      _fire(_analytics.logEvent(name: 'contact_invitation_accepted'));
+
+  void logContactRemoved() =>
+      _fire(_analytics.logEvent(name: 'contact_removed'));
+
+  // ── Zones ─────────────────────────────────────────────────────────────────
+
+  void logZoneCreated({required String icon, required int radius}) =>
+      _fire(_analytics.logEvent(
+        name: 'zone_created',
+        parameters: {'icon': icon, 'radius': radius},
+      ));
+
+  void logZoneEntryDetected() =>
+      _fire(_analytics.logEvent(name: 'zone_entry_detected'));
+
+  void logZoneExitDetected() =>
+      _fire(_analytics.logEvent(name: 'zone_exit_detected'));
+
+  // ── Community alerts ──────────────────────────────────────────────────────
+
+  void logCommunityAlertViewed({required String gravity}) =>
+      _fire(_analytics.logEvent(
+        name: 'community_alert_viewed',
+        parameters: {'gravity': gravity},
+      ));
+
+  void logCommunityAlertCreated({required String gravity, required String type}) =>
+      _fire(_analytics.logEvent(
+        name: 'community_alert_created',
+        parameters: {'gravity': gravity, 'type': type},
+      ));
+
+  void logCommunityAlertConfirmed() =>
+      _fire(_analytics.logEvent(name: 'community_alert_confirmed'));
+
+  // ── Monetisation ─────────────────────────────────────────────────────────
+
+  void logPaywallDisplayed({required String trigger}) =>
+      _fire(_analytics.logEvent(
+        name: 'paywall_displayed',
+        parameters: {'trigger': trigger},
+      ));
+
+  void logPaywallDismissed() =>
+      _fire(_analytics.logEvent(name: 'paywall_dismissed'));
+
+  void logSubscriptionTrialStarted({required String tier, required String billing}) =>
+      _fire(_analytics.logEvent(
+        name: 'subscription_trial_started',
+        parameters: {'tier': tier, 'billing': billing},
+      ));
+
+  void logSubscriptionPurchased({required String tier, required String billing}) =>
+      _fire(_analytics.logEvent(
+        name: 'subscription_purchased',
+        parameters: {'tier': tier, 'billing': billing},
+      ));
+
+  void logSubscriptionCancelled({required String tier}) =>
+      _fire(_analytics.logEvent(
+        name: 'subscription_cancelled',
+        parameters: {'tier': tier},
+      ));
+
+  void setUserTier(String tier) =>
+      _fire(_analytics.setUserProperty(name: 'subscription_tier', value: tier));
+
+  // ── Géolocalisation ───────────────────────────────────────────────────────
+
+  void logLocationPermissionGranted() =>
+      _fire(_analytics.logEvent(name: 'location_permission_granted'));
+
+  void logLocationPermissionDenied() =>
+      _fire(_analytics.logEvent(name: 'location_permission_denied'));
+
+  void logInvisibleModeActivated({required int durationMinutes}) =>
+      _fire(_analytics.logEvent(
+        name: 'invisible_mode_activated',
+        parameters: {'duration': durationMinutes.toString()},
+      ));
+
+  // ── Engagement ────────────────────────────────────────────────────────────
+
+  void logNotificationOpened({required String type}) =>
+      _fire(_analytics.logEvent(
+        name: 'notification_opened',
+        parameters: {'type': type},
+      ));
+
+  void logAppOpenedFromBackground() =>
+      _fire(_analytics.logEvent(name: 'app_opened_from_background'));
 }

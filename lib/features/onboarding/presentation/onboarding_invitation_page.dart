@@ -89,12 +89,14 @@ class _OnboardingInvitationPageState extends State<OnboardingInvitationPage> {
 
       if (name.isNotEmpty) await _prefs.setOnboardingInviteeName(name);
       await _prefs.setOnboardingInviteDone();
+      await _prefs.setOnboardingDone();
 
       AnalyticsService().logOnboardingInvitationSent();
+      AnalyticsService().logOnboardingCompleted();
       if (mounted) setState(() => _sent = true);
 
       await Future.delayed(const Duration(milliseconds: 800));
-      if (mounted) context.go(AppRoutes.onboardingNotificationPermission);
+      if (mounted) context.go(AppRoutes.appShell);
     } catch (e) {
       log('OnboardingInvitationPage error: $e');
       if (mounted) {
@@ -108,8 +110,10 @@ class _OnboardingInvitationPageState extends State<OnboardingInvitationPage> {
 
   Future<void> _skip() async {
     AnalyticsService().logOnboardingInvitationSkipped();
+    AnalyticsService().logOnboardingCompleted();
     await _prefs.setOnboardingInviteDone();
-    if (mounted) context.go(AppRoutes.onboardingNotificationPermission);
+    await _prefs.setOnboardingDone();
+    if (mounted) context.go(AppRoutes.appShell);
   }
 
   @override

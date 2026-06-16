@@ -1,16 +1,34 @@
-import 'dart:async';
-import 'package:alertcontacts/core/widgets/app_fab.dart';
-import 'package:alertcontacts/core/widgets/location_search_field.dart';
+﻿import 'dart:async';
+import 'dart:developer';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:provider/provider.dart';
 
+import '../../../core/models/contact_relation.dart';
 import '../../../core/models/danger_zone.dart';
+import '../../../core/services/api_location_service.dart';
+import '../../../core/services/contact_rtdb_service.dart';
+import '../../../core/services/prefs_service.dart';
+import '../../../shared/widgets/gps_imprecise_banner.dart';
+import '../../../shared/widgets/location_permission_overlay.dart';
+import '../../../shared/widgets/low_battery_banner.dart';
+import '../../../shared/widgets/offline_banner.dart';
+import '../../../shared/widgets/offline_cache_card.dart';
+import '../../zones/presentation/zones_panel.dart';
+import 'invisible_mode_sheet.dart';
 import '../../../core/models/zone.dart' as zone_models;
 import '../../../core/repositories/dangerzone_repository.dart';
-import '../../../core/services/native_location_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
+import '../../../router/app_router.dart';
+import '../../../theme/colors.dart';
+import '../../auth/providers/auth_notifier.dart';
+import '../../proches/providers/relationship_provider.dart';
 import '../../zones/providers/zones_notifier.dart';
 import 'map_viewport_cache.dart';
 
@@ -32,13 +50,13 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   bool _loadingLocation = false;
   double _currentZoom = 14.0;
   Timer? _cameraDebounceTimer;
-  late final NativeLocationService _nativeLocationService;
+  late final LocationService _locationService;
   StreamSubscription? _locationSubscription;
-  gmaps.MapType _currentMapType = gmaps.MapType.hybrid;
+  StreamSubscription? _connectivitySubscription;
+  final gmaps.MapType _currentMapType = gmaps.MapType.hybrid;
 
-  // Filtres
-  bool _showDangers = true;
-  bool _showSafeZones = true;
+  // Connectivity
+  List<ConnectivityResult> _connectivity = const [ConnectivityResult.none];
 
   // Sélection
   DangerZone? _selectedDanger;
@@ -53,19 +71,48 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   String? _lastViewportKey;
   bool _viewportLoading = false;
 
-  // Caméra : évite de repositionner si l'utilisateur a déjà bougé
+  // Caméra
   bool _cameraMovedToZone = false;
+
+  // Mode invisible
+  bool _invisibleActive = false;
+  DateTime? _invisibleUntil;
+
+  // Custom contact markers cache
+  final Map<String, gmaps.BitmapDescriptor> _contactMarkerIcons = {};
+
+  // Proximity alert toast
+  bool _alertToastDismissed = false;
+
+  // Degraded states
+  double? _currentAccuracy;
+  DateTime? _lastSyncTime;
+  bool _locationPermissionDenied = false;
+  bool _isRetryingSync = false;
+  bool _emptyCardDismissed = false;
+  ({ContactRelation rel, RtdbContactSnapshot snap})? _selectedContactDetail;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initConnectivity();
+  }
+
+  Future<void> _initConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    if (mounted) setState(() => _connectivity = result);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
+      if (mounted) setState(() => _connectivity = result);
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _nativeLocationService = context.read<NativeLocationService>();
+    _locationService = context.read<LocationService>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _initializeServices();
     });
@@ -77,6 +124,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _cameraDebounceTimer?.cancel();
     _locationSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
@@ -85,8 +133,12 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     switch (state) {
       case AppLifecycleState.resumed:
-        _initializeServices();
-        _subscribeToLocationUpdates();
+        if (_locationPermissionDenied) {
+          _handlePermissionRetryAfterSettings();
+        } else {
+          _initializeServices();
+          _subscribeToLocationUpdates();
+        }
         break;
       case AppLifecycleState.paused:
         _locationSubscription?.cancel();
@@ -97,19 +149,13 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     }
   }
 
-  double _severityHue(DangerSeverity? severity) {
-    switch (severity) {
-      case DangerSeverity.high:
-        return gmaps.BitmapDescriptor.hueRed;
-      case DangerSeverity.med:
-        return gmaps.BitmapDescriptor.hueOrange;
-      case DangerSeverity.low:
-      default:
-        return gmaps.BitmapDescriptor.hueYellow;
-    }
-  }
+  double _severityHue(DangerSeverity? severity) => switch (severity) {
+    DangerSeverity.high => gmaps.BitmapDescriptor.hueRed,
+    DangerSeverity.med => gmaps.BitmapDescriptor.hueOrange,
+    _ => gmaps.BitmapDescriptor.hueYellow,
+  };
 
-  // ─── Viewport Loading ────────────────────────────────────────────────────────
+  // ─── Viewport ────────────────────────────────────────────────────────────────
 
   void _onCameraMove(gmaps.CameraPosition position) {
     _currentZoom = position.zoom;
@@ -155,7 +201,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       _viewportCache.set(key, zones);
       if (mounted) _applyViewportZones(zones);
     } catch (e) {
-      debugPrint('MapTab._loadViewport error: $e');
+      log('MapTab._loadViewport error: $e');
     } finally {
       _viewportLoading = false;
     }
@@ -164,19 +210,23 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   void _applyViewportZones(List<DangerZone> zones) {
     final markers = <gmaps.Marker>{};
     for (final zone in zones) {
-      markers.add(gmaps.Marker(
-        markerId: gmaps.MarkerId('danger_${zone.id}'),
-        position: gmaps.LatLng(zone.center.lat, zone.center.lng),
-        icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(_severityHue(zone.severity)),
-        infoWindow: gmaps.InfoWindow(
-          title: zone.title,
-          snippet: zone.description,
+      markers.add(
+        gmaps.Marker(
+          markerId: gmaps.MarkerId('danger_${zone.id}'),
+          position: gmaps.LatLng(zone.center.lat, zone.center.lng),
+          icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+            _severityHue(zone.severity),
+          ),
+          infoWindow: gmaps.InfoWindow(
+            title: zone.title,
+            snippet: zone.description,
+          ),
+          onTap: () => setState(() {
+            _selectedDanger = zone;
+            _selectedSafe = null;
+          }),
         ),
-        onTap: () => setState(() {
-          _selectedDanger = zone;
-          _selectedSafe = null;
-        }),
-      ));
+      );
     }
     if (mounted) {
       setState(() {
@@ -186,43 +236,79 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     }
   }
 
-  // ─── Services & Localisation ─────────────────────────────────────────────────
+  // ─── Services & Location ─────────────────────────────────────────────────────
 
   Future<void> _initializeServices() async {
     try {
-      // Zones de sécurité : indépendantes des permissions de localisation
-      if (mounted) {
-        await context.read<ZonesNotifier>().loadZones();
+      log('[MapTab] _initializeServices start');
+      if (mounted) await context.read<ZonesNotifier>().loadZones();
+      final granted = await PermissionsService.isLocationPermissionGranted();
+      final serviceEnabled = await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
+      log('[MapTab] location permission granted=$granted serviceEnabled=$serviceEnabled');
+      if (!granted || !serviceEnabled) {
+        if (mounted) await _showLocationPermissionDialog();
+        return;
       }
-
-      final permissionsGranted =
-          await PermissionsService.isPermissionsSetupComplete();
-      if (!permissionsGranted) return;
-
-      await _nativeLocationService.initialize();
-      await _nativeLocationService.startTracking();
+      await _locationService.initialize();
+      log('[MapTab] LocationService initialized');
+      await _locationService.startTracking();
+      log('[MapTab] tracking started');
     } catch (e) {
-      debugPrint('MapTab._initializeServices error: $e');
+      log('[MapTab] _initializeServices error: $e');
+    }
+  }
+
+  Future<void> _showLocationPermissionDialog() async {
+    if (mounted) setState(() => _locationPermissionDenied = true);
+  }
+
+  Future<void> _handleOpenSettings() async {
+    await ph.openAppSettings();
+    // Re-check permission when user comes back from settings
+    // didChangeAppLifecycleState handles this
+  }
+
+  Future<void> _handlePermissionRetryAfterSettings() async {
+    final granted = await PermissionsService.isLocationPermissionGranted();
+    final serviceEnabled =
+        await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
+    if (granted && serviceEnabled && mounted) {
+      setState(() => _locationPermissionDenied = false);
+      await _locationService.initialize();
+      await _locationService.startTracking();
+      _locationSubscription?.cancel();
+      _locationSubscription = null;
+      setState(() => _loadingLocation = true);
+      _subscribeToLocationUpdates();
     }
   }
 
   void _subscribeToLocationUpdates() {
-    if (_locationSubscription != null) return;
+    if (_locationSubscription != null) {
+      log('[MapTab] _subscribeToLocationUpdates: already subscribed, skip');
+      return;
+    }
+    log('[MapTab] subscribing to location stream, loadingLocation=true');
     setState(() => _loadingLocation = true);
 
-    _locationSubscription = _nativeLocationService.locationStream.listen(
+    _locationSubscription = _locationService.locationStream.listen(
       (point) {
         if (!mounted) return;
+        log('[MapTab] location received lat=${point.latitude} lng=${point.longitude} acc=${point.accuracy} loadingLocation=$_loadingLocation');
         final pos = gmaps.LatLng(point.latitude, point.longitude);
         setState(() {
           _currentPosition = pos;
+          _currentAccuracy = point.accuracy;
+          _lastSyncTime = DateTime.now();
           if (_loadingLocation) {
+            log('[MapTab] animating camera to initial position');
             _loadingLocation = false;
             _controller?.animateCamera(gmaps.CameraUpdate.newLatLng(pos));
           }
         });
       },
-      onError: (_) {
+      onError: (e) {
+        log('[MapTab] location stream error: $e');
         if (mounted) setState(() => _loadingLocation = false);
       },
     );
@@ -243,155 +329,393 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _recenterCamera() async {
+    log('[MapTab] recenter tapped, currentPosition=$_currentPosition loadingLocation=$_loadingLocation isTracking=${_locationService.isTracking}');
+    if (_currentPosition != null) {
+      log('[MapTab] animating camera to currentPosition');
+      _controller?.animateCamera(
+        gmaps.CameraUpdate.newLatLngZoom(_currentPosition!, 15.0),
+      );
+      return;
+    }
+    final granted = await PermissionsService.isLocationPermissionGranted();
+    log('[MapTab] recenter: permission granted=$granted');
+    if (!mounted) return;
+    if (!granted) {
+      await _showLocationPermissionDialog();
+    } else {
+      log('[MapTab] recenter: one-shot getCurrentPosition');
+      if (!_locationService.isTracking) {
+        await _locationService.initialize();
+        await _locationService.startTracking();
+        _locationSubscription?.cancel();
+        _locationSubscription = null;
+        _subscribeToLocationUpdates();
+      }
+      if (!mounted) return;
+      setState(() => _loadingLocation = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Localisation en cours d\'acquisition…'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      final point = await _locationService.getCurrentPosition();
+      if (!mounted) return;
+      if (point != null) {
+        final pos = gmaps.LatLng(point.latitude, point.longitude);
+        setState(() {
+          _currentPosition = pos;
+          _loadingLocation = false;
+        });
+        _controller?.animateCamera(gmaps.CameraUpdate.newLatLngZoom(pos, 15.0));
+        log('[MapTab] recenter: camera moved to $pos');
+      } else {
+        setState(() => _loadingLocation = false);
+        log('[MapTab] recenter: getCurrentPosition returned null');
+      }
+    }
+  }
+
+  void _openInvisibleSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => InvisibleModeSheet(
+        isActive: _invisibleActive,
+        invisibleUntil: _invisibleUntil,
+        onActivate: (minutes) async {
+          final prefs = context.read<PrefsService>();
+          final svc = context.read<ApiLocationService>();
+          try {
+            final token = await prefs.getBearerToken();
+            svc.setBearerToken(token);
+            await svc.pauseLocation(durationMinutes: minutes);
+            await _locationService.setInvisibleMode(true);
+          } catch (e) {
+            log('invisible mode activate error: $e');
+          }
+          if (mounted) {
+            setState(() {
+              _invisibleActive = true;
+              _invisibleUntil = minutes != null
+                  ? DateTime.now().add(Duration(minutes: minutes))
+                  : null;
+            });
+          }
+          return true;
+        },
+        onResume: () async {
+          final prefs = context.read<PrefsService>();
+          final svc = context.read<ApiLocationService>();
+          try {
+            final token = await prefs.getBearerToken();
+            svc.setBearerToken(token);
+            await svc.resumeLocation();
+            await _locationService.setInvisibleMode(false);
+          } catch (e) {
+            log('invisible mode resume error: $e');
+          }
+          _resumeInvisible();
+          return true;
+        },
+      ),
+    );
+  }
+
+  void _resumeInvisible() {
+    setState(() {
+      _invisibleActive = false;
+      _invisibleUntil = null;
+    });
+  }
+
   // ─── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ZonesNotifier>(
-      builder: (context, zonesNotifier, _) {
-        final safeZones = _showSafeZones ? zonesNotifier.safeZones : <zone_models.Zone>[];
-
-        // Repositionner la caméra vers la première zone si pas de GPS
+    return Consumer3<ZonesNotifier, RelationshipProvider, ContactRtdbService>(
+      builder: (context, zonesNotifier, relProvider, rtdbService, _) {
+        final safeZones = zonesNotifier.safeZones;
         _moveCameraToFirstSafeZone(safeZones);
 
-        final safeMarkers = _buildSafeMarkers(safeZones);
         final safeCircles = _buildSafeCircles(safeZones);
-
+        final contactMarkers = _buildContactMarkers(
+          relProvider.realtimeContacts,
+          rtdbService.snapshots,
+        );
         final allMarkers = {
-          ...safeMarkers,
-          if (_showDangers) ..._dangerMarkers,
+          ..._buildSafeMarkers(safeZones),
+          ..._dangerMarkers,
+          ...contactMarkers,
         };
+
+        final activeContacts = relProvider.acceptedRelationships.length;
+        final hasContacts = activeContacts > 0;
 
         return Stack(
           children: [
+            // ── Map ──────────────────────────────────────────────────────────
             gmaps.GoogleMap(
               initialCameraPosition: _initialPosition,
               onMapCreated: (ctrl) {
                 _controller = ctrl;
                 if (_currentPosition != null) {
                   ctrl.animateCamera(
-                      gmaps.CameraUpdate.newLatLng(_currentPosition!));
+                    gmaps.CameraUpdate.newLatLng(_currentPosition!),
+                  );
                 }
               },
               onCameraMove: _onCameraMove,
-              onCameraIdle: null,
               onTap: (_) => setState(() {
                 _selectedDanger = null;
                 _selectedSafe = null;
+                _selectedContactDetail = null;
               }),
               markers: allMarkers,
               circles: {
                 ...safeCircles,
-                if (_showDangers && _currentZoom >= 13)
-                  ..._buildDangerCircles(),
+                if (_currentZoom >= 13) ..._buildDangerCircles(),
+                if (_currentPosition != null && _currentAccuracy != null && _currentAccuracy! > 50)
+                  gmaps.Circle(
+                    circleId: const gmaps.CircleId('gps_accuracy'),
+                    center: _currentPosition!,
+                    radius: _currentAccuracy!,
+                    fillColor: const Color(0x1A1E6868),
+                    strokeColor: AppColors.primary,
+                    strokeWidth: 1,
+                  ),
               },
               myLocationEnabled: true,
-              myLocationButtonEnabled: true,
+              myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
               mapType: _currentMapType,
+              onLongPress: (_) => _openInvisibleSheet(),
             ),
 
-            // Sélecteur de type de carte
-            Positioned(
-              top: 8,
-              right: 54,
-              child: FloatingActionButton(
-                mini: true,
-                heroTag: 'map_type_selector',
-                onPressed: () {},
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                child: PopupMenuButton<gmaps.MapType>(
-                  onSelected: (t) => setState(() => _currentMapType = t),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: gmaps.MapType.normal, child: Text('Normal')),
-                    PopupMenuItem(value: gmaps.MapType.satellite, child: Text('Satellite')),
-                    PopupMenuItem(value: gmaps.MapType.hybrid, child: Text('Hybride')),
-                    PopupMenuItem(value: gmaps.MapType.terrain, child: Text('Terrain')),
-                  ],
-                  icon: Icon(Icons.layers,
-                      color: Theme.of(context).colorScheme.onSurface),
+            // ── Offline grey overlay ──────────────────────────────────────────
+            if (_connectivity.every((r) => r == ConnectivityResult.none))
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(color: Colors.grey.withValues(alpha: 0.12)),
                 ),
               ),
-            ),
 
-            // Barre de recherche
-            Positioned(
-              top: 130,
-              left: 16,
-              right: 16,
-              child: LocationSearchField(
-                hintText: 'Rechercher un lieu sur la carte...',
-                onLocationSelected: _onLocationSelected,
-                margin: EdgeInsets.zero,
-              ),
-            ),
+            // ── Offline banner (dark chip) ────────────────────────────────────
+            if (_connectivity.every((r) => r == ConnectivityResult.none))
+              Builder(builder: (context) {
+                final minutes = _lastSyncTime != null
+                    ? DateTime.now().difference(_lastSyncTime!).inMinutes
+                    : null;
+                return Positioned(
+                  top: MediaQuery.of(context).padding.top + 60,
+                  left: 0,
+                  right: 0,
+                  child: OfflineBanner(minutesSinceUpdate: minutes),
+                );
+              }),
 
-            // Filtres
-            Positioned(
-              top: 55,
-              left: 16,
-              right: 16,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        label: const Text('Dangers'),
-                        selected: _showDangers,
-                        onSelected: (v) {
-                          setState(() => _showDangers = v);
-                          if (v) _lastViewportKey = null; // force rechargement
-                        },
+            // ── Proximity alert toast ─────────────────────────────────────────
+            Builder(builder: (_) {
+              final alert = _nearestProximityAlert();
+              if (alert == null) return const SizedBox.shrink();
+              final color = alert.zone.severity == DangerSeverity.high
+                  ? AppColors.danger
+                  : AppColors.gravityMid;
+              return Positioned(
+                top: MediaQuery.of(context).padding.top + 64,
+                left: 12,
+                right: 12,
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border(
+                        left: BorderSide(color: color, width: 4),
                       ),
-                      const SizedBox(width: 8),
-                      FilterChip(
-                        label: const Text('Sécurité'),
-                        selected: _showSafeZones,
-                        onSelected: (v) => setState(() => _showSafeZones = v),
-                      ),
-                      if (_viewportLoading) ...[
-                        const SizedBox(width: 12),
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: color, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Danger signalé à ${alert.distanceM}m',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: Color(0xFF1A1A1A),
+                                ),
+                              ),
+                              Text(
+                                '${alert.zone.title} · ${alert.zone.confirmations} conf.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.gray600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _alertToastDismissed = true),
+                          child: const Icon(Icons.close,
+                              size: 18, color: AppColors.gray400),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
+              );
+            }),
+
+            // ── Invisible mode banner ─────────────────────────────────────────
+            if (_invisibleActive)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 80,
+                left: 0,
+                right: 0,
+                child: InvisibleModeBanner(
+                  invisibleUntil: _invisibleUntil,
+                  onResume: _resumeInvisible,
+                ),
+              ),
+
+            // ── GPS imprecise banner ──────────────────────────────────────────
+            if (_currentAccuracy != null && _currentAccuracy! > 100 &&
+                _connectivity.any((r) => r != ConnectivityResult.none))
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 60,
+                left: 0,
+                right: 0,
+                child: GpsImpreciseBanner(accuracyMeters: _currentAccuracy!),
+              ),
+
+            // ── Low battery banner ────────────────────────────────────────────
+            Builder(builder: (_) {
+              final lowBatteryContact = _findLowBatteryContact(
+                relProvider.realtimeContacts,
+                rtdbService.snapshots,
+              );
+              if (lowBatteryContact == null) return const SizedBox.shrink();
+              final bannerTop = _currentAccuracy != null && _currentAccuracy! > 100
+                  ? MediaQuery.of(context).padding.top + 104
+                  : MediaQuery.of(context).padding.top + 60;
+              return Positioned(
+                top: bannerTop,
+                left: 0,
+                right: 0,
+                child: LowBatteryBanner(
+                  contactName: lowBatteryContact.rel.contact.name.split(' ').first,
+                  batteryPercent: lowBatteryContact.snap.batteryLevel!,
+                  onTap: () => setState(() => _selectedContactDetail = lowBatteryContact),
+                ),
+              );
+            }),
+
+            // ── V4 Header overlay ─────────────────────────────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _MapHeader(
+                connectivity: _connectivity,
+                activeContacts: activeContacts,
+                onLayersTap: () {
+                  showGeneralDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    barrierLabel: 'zones',
+                    barrierColor: Colors.black54,
+                    transitionDuration: const Duration(milliseconds: 250),
+                    pageBuilder: (_, __, ___) => const ZonesPanel(),
+                    transitionBuilder: (_, anim, __, child) => SlideTransition(
+                      position:
+                          Tween(
+                            begin: const Offset(-1, 0),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: anim,
+                              curve: Curves.easeOut,
+                            ),
+                          ),
+                      child: child,
+                    ),
+                  );
+                },
               ),
             ),
 
-            // Boutons d'action
+            // ── Recenter FAB ─────────────────────────────────────────────────
             Positioned(
-              bottom: 16,
+              bottom: hasContacts ? 24 : 180,
               right: 16,
-              child: LabeledFloatingActionButtonColumn(
-                buttons: [
-                  LabeledFloatingActionButton(
-                    heroTag: 'danger',
-                    onPressed: () => context.go('/zone-danger/create'),
-                    backgroundColor: Colors.red,
-                    icon: Icons.warning,
-                    label: 'Signaler un danger',
-                    tooltip: 'Créer une nouvelle zone de danger',
-                    autoHideOnSmallScreen: false,
-                  ),
-                  LabeledFloatingActionButton(
-                    heroTag: 'safe',
-                    onPressed: () => context.go('/safezone/setup'),
-                    backgroundColor: Colors.green,
-                    icon: Icons.shield,
-                    label: 'Créer une zone sûre',
-                    tooltip: 'Créer une nouvelle zone de sécurité',
-                    autoHideOnSmallScreen: false,
-                  ),
-                ],
+              child: FloatingActionButton(
+                heroTag: 'recenter',
+                onPressed: _recenterCamera,
+                mini: true,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                foregroundColor: AppColors.primary,
+                child: const Icon(Icons.my_location),
               ),
             ),
+
+            // ── Empty state card (no contacts) ───────────────────────────────
+            if (!hasContacts && !_emptyCardDismissed)
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: _EmptyStateCard(
+                  onInvite: () => context.push(AppRoutes.addProche),
+                  onDiscover: () => setState(() => _emptyCardDismissed = true),
+                ),
+              ),
+
+            // ── Offline cache card ────────────────────────────────────────────
+            if (_connectivity.every((r) => r == ConnectivityResult.none) && hasContacts)
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: OfflineCacheCard(
+                  isRetrying: _isRetryingSync,
+                  onRetry: () async {
+                    setState(() => _isRetryingSync = true);
+                    await Future.delayed(const Duration(seconds: 2));
+                    if (mounted) setState(() => _isRetryingSync = false);
+                  },
+                ),
+              ),
+
+            // ── Bottom sheets ─────────────────────────────────────────────────
+            if (_selectedContactDetail != null)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _buildContactDetailSheet(
+                  _selectedContactDetail!.rel,
+                  _selectedContactDetail!.snap,
+                ),
+              ),
 
             if (_selectedDanger != null)
               Positioned(
@@ -408,76 +732,125 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                 right: 0,
                 child: _buildSafeZoneBottomSheet(_selectedSafe!),
               ),
+
+            // ── Location permission overlay (full screen) ─────────────────────
+            if (_locationPermissionDenied)
+              Positioned.fill(
+                child: LocationPermissionOverlay(
+                  isPermanentlyDenied: true,
+                  onOpenSettings: _handleOpenSettings,
+                  onContinueWithout: () =>
+                      setState(() => _locationPermissionDenied = false),
+                ),
+              ),
           ],
         );
       },
     );
   }
 
-  void _onLocationSelected(gmaps.LatLng position, String address) {
-    _controller?.animateCamera(
-        gmaps.CameraUpdate.newLatLngZoom(position, 16.0));
-  }
-
   // ─── Markers & Circles ───────────────────────────────────────────────────────
 
-  Set<gmaps.Marker> _buildSafeMarkers(List<zone_models.Zone> zones) {
-    return {
-      for (final z in zones)
+  Set<gmaps.Marker> _buildSafeMarkers(List<zone_models.Zone> zones) => {
+    for (final z in zones)
+      gmaps.Marker(
+        markerId: gmaps.MarkerId('safe_${z.id}'),
+        position: gmaps.LatLng(z.center.lat, z.center.lng),
+        icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+          gmaps.BitmapDescriptor.hueGreen,
+        ),
+        infoWindow: gmaps.InfoWindow(
+          title: z.name,
+          snippet: z.description ?? 'Zone de sécurité',
+        ),
+        onTap: () => setState(() {
+          _selectedSafe = z;
+          _selectedDanger = null;
+        }),
+      ),
+  };
+
+  Set<gmaps.Circle> _buildSafeCircles(List<zone_models.Zone> zones) => {
+    for (final z in zones)
+      gmaps.Circle(
+        circleId: gmaps.CircleId('safe_circle_${z.id}'),
+        center: gmaps.LatLng(z.center.lat, z.center.lng),
+        radius: z.radiusMeters,
+        fillColor: AppColors.success.withValues(alpha: 0.12),
+        strokeColor: AppColors.success,
+        strokeWidth: 2,
+      ),
+  };
+
+  Set<gmaps.Circle> _buildDangerCircles() => {
+    for (final zone in _dangerZones)
+      gmaps.Circle(
+        circleId: gmaps.CircleId('danger_circle_${zone.id}'),
+        center: gmaps.LatLng(zone.center.lat, zone.center.lng),
+        radius: zone.radiusMeters,
+        fillColor: _severityColor(zone.severity).withValues(alpha: 0.12),
+        strokeColor: _severityColor(zone.severity),
+        strokeWidth: 2,
+      ),
+  };
+
+  Set<gmaps.Marker> _buildContactMarkers(
+    List<ContactRelation> contacts,
+    Map<String, RtdbContactSnapshot> snapshots,
+  ) {
+    final markers = <gmaps.Marker>{};
+    final isOffline = _connectivity.every((r) => r == ConnectivityResult.none);
+
+    for (final rel in contacts) {
+      final uid = rel.contact.firebaseUid;
+      if (uid == null) continue;
+      final snap = snapshots[uid];
+      if (snap == null || snap.isInvisible) continue;
+
+      final isStale = DateTime.now().difference(snap.updatedAt) > const Duration(minutes: 15);
+      // Online + stale → skip. Offline → always show from cache.
+      if (isStale && !isOffline) continue;
+
+      final battery = snap.batteryLevel;
+      final isLowBattery = battery != null && battery < 20;
+      final showAsStale = isStale || isOffline;
+      final cacheKey = '${uid}_${battery ?? -1}_$showAsStale';
+
+      final icon = _contactMarkerIcons[cacheKey];
+      if (icon == null) {
+        _makeContactMarker(
+          rel.contact.name,
+          batteryLevel: battery,
+          stale: showAsStale,
+        ).then((desc) {
+          if (!mounted) return;
+          setState(() => _contactMarkerIcons[cacheKey] = desc);
+        });
+      }
+
+      markers.add(
         gmaps.Marker(
-          markerId: gmaps.MarkerId('safe_${z.id}'),
-          position: gmaps.LatLng(z.center.lat, z.center.lng),
-          icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
-              gmaps.BitmapDescriptor.hueGreen),
-          infoWindow: gmaps.InfoWindow(
-              title: z.name, snippet: z.description ?? 'Zone de sécurité'),
-          onTap: () => setState(() {
-            _selectedSafe = z;
-            _selectedDanger = null;
-          }),
+          markerId: gmaps.MarkerId('contact_$uid'),
+          position: gmaps.LatLng(snap.latitude, snap.longitude),
+          icon: icon ?? gmaps.BitmapDescriptor.defaultMarkerWithHue(
+            isLowBattery
+                ? gmaps.BitmapDescriptor.hueRed
+                : showAsStale
+                    ? gmaps.BitmapDescriptor.hueAzure
+                    : gmaps.BitmapDescriptor.hueCyan,
+          ),
+          onTap: () => setState(() => _selectedContactDetail = (rel: rel, snap: snap)),
         ),
-    };
-  }
-
-  Set<gmaps.Circle> _buildSafeCircles(List<zone_models.Zone> zones) {
-    return {
-      for (final z in zones)
-        gmaps.Circle(
-          circleId: gmaps.CircleId('safe_circle_${z.id}'),
-          center: gmaps.LatLng(z.center.lat, z.center.lng),
-          radius: z.radiusMeters,
-          fillColor: Colors.green.withValues(alpha: 0.15),
-          strokeColor: Colors.green,
-          strokeWidth: 2,
-        ),
-    };
-  }
-
-  /// Cercles des danger zones visibles (uniquement zoom ≥ 13).
-  Set<gmaps.Circle> _buildDangerCircles() {
-    return {
-      for (final zone in _dangerZones)
-        gmaps.Circle(
-          circleId: gmaps.CircleId('danger_circle_${zone.id}'),
-          center: gmaps.LatLng(zone.center.lat, zone.center.lng),
-          radius: zone.radiusMeters,
-          fillColor: _severityColor(zone.severity).withValues(alpha: 0.15),
-          strokeColor: _severityColor(zone.severity),
-          strokeWidth: 2,
-        ),
-    };
-  }
-
-  Color _severityColor(DangerSeverity severity) {
-    switch (severity) {
-      case DangerSeverity.high:
-        return Colors.red;
-      case DangerSeverity.med:
-        return Colors.orange;
-      case DangerSeverity.low:
-        return Colors.yellow.shade700;
+      );
     }
+    return markers;
   }
+
+  Color _severityColor(DangerSeverity severity) => switch (severity) {
+    DangerSeverity.high => AppColors.danger,
+    DangerSeverity.med => AppColors.gravityMid,
+    DangerSeverity.low => AppColors.gravityLow,
+  };
 
   // ─── Bottom Sheets ───────────────────────────────────────────────────────────
 
@@ -487,49 +860,64 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Expanded(
-              child: Text(zone.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-            ),
-            _SeverityChip(zone.severity),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  zone.title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              _SeverityChip(zone.severity),
+            ],
+          ),
           if (zone.description != null && zone.description!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(zone.description!,
-                style: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              zone.description!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
           const SizedBox(height: 12),
-          Row(children: [
-            Icon(Icons.verified, size: 16, color: Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text('${zone.confirmations} confirmation${zone.confirmations > 1 ? 's' : ''}',
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(width: 16),
-            Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text(_formatTimeAgo(zone.lastReportAt),
-                style: Theme.of(context).textTheme.bodySmall),
-          ]),
+          Row(
+            children: [
+              Icon(Icons.verified, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 4),
+              Text(
+                '${zone.confirmations} confirmation${zone.confirmations > 1 ? 's' : ''}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(width: 16),
+              Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 4),
+              Text(
+                _formatTimeAgo(zone.lastReportAt),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
                   onPressed: () => setState(() => _selectedDanger = null),
-                  child: const Text('Fermer')),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
+                  child: const Text('Fermer'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
                   onPressed: () => context.go('/zone-danger/detail/${zone.id}'),
-                  child: const Text('Voir détails')),
-            ),
-          ]),
+                  child: const Text('Voir détails'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -541,38 +929,215 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.shield, color: Colors.green, size: 24),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(zone.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-            ),
-          ]),
+          Row(
+            children: [
+              const Icon(Icons.shield, color: AppColors.success, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  zone.name,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
           if (zone.description != null && zone.description!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(zone.description!,
-                style: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              zone.description!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
           const SizedBox(height: 12),
-          Row(children: [
-            Icon(Icons.radio_button_checked, size: 16, color: Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text('Rayon : ${zone.radiusMeters.toInt()} m',
-                style: Theme.of(context).textTheme.bodySmall),
-          ]),
+          Row(
+            children: [
+              Icon(
+                Icons.radio_button_checked,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Rayon : ${zone.radiusMeters.toInt()} m',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-                onPressed: () => setState(() => _selectedSafe = null),
-                child: const Text('Fermer')),
+              onPressed: () => setState(() => _selectedSafe = null),
+              child: const Text('Fermer'),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactDetailSheet(ContactRelation rel, RtdbContactSnapshot snap) {
+    final isLowBattery = (snap.batteryLevel ?? 100) < 20;
+    final isImprecise = snap.accuracy > 100;
+    final tt = Theme.of(context).textTheme;
+
+    return _BottomSheet(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isLowBattery ? AppColors.danger : AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  rel.contact.name.isNotEmpty ? rel.contact.name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          rel.contact.name.split(' ').first,
+                          style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (isImprecise) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'localisation imprécise',
+                              style: tt.bodySmall?.copyWith(color: AppColors.warning),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '±${snap.accuracy.toInt()} m',
+                            style: tt.bodySmall?.copyWith(color: AppColors.warning, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatTimeAgo(snap.updatedAt),
+                      style: tt.bodySmall?.copyWith(color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
+              if (isLowBattery && snap.batteryLevel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.battery_alert_rounded, color: AppColors.danger, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${snap.batteryLevel}%',
+                        style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          if (isImprecise) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb_outline_rounded, color: AppColors.warning, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'La précision revient automatiquement en extérieur.',
+                      style: tt.bodySmall?.copyWith(color: const Color(0xFF92600A)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (isLowBattery) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Avise-le ou propose un point de rendez-vous',
+              style: tt.bodySmall?.copyWith(color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.edit_rounded, size: 16),
+                    label: const Text('Lui écrire'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.phone_rounded, size: 16),
+                    label: const Text('L\'appeler'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (!isLowBattery && !isImprecise)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _selectedContactDetail = null),
+                  child: const Text('Fermer'),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -585,9 +1150,450 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     if (d.inMinutes > 0) return 'Il y a ${d.inMinutes}min';
     return 'À l\'instant';
   }
+
+  // ─── Custom contact marker bitmap ────────────────────────────────────────────
+
+  Future<gmaps.BitmapDescriptor> _makeContactMarker(
+    String name, {
+    int? batteryLevel,
+    bool stale = false,
+  }) async {
+    const circleR = 26.0;
+    const circleD = circleR * 2;
+    const labelH = 20.0;
+    const gap = 4.0;
+    const totalW = 90.0;
+    const totalH = circleD + gap + labelH;
+
+    final isLowBattery = batteryLevel != null && batteryLevel < 20;
+    final circleColor = stale
+        ? const Color(0xFFB0B0B0)
+        : isLowBattery
+            ? AppColors.danger
+            : AppColors.primary;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, totalW, totalH));
+
+    final cx = totalW / 2;
+    const cy = circleR;
+
+    // Shadow
+    canvas.drawCircle(
+      Offset(cx, cy + 2),
+      circleR,
+      Paint()
+        ..color = const Color(0x33000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    // Circle fill
+    canvas.drawCircle(Offset(cx, cy), circleR, Paint()..color = circleColor);
+
+    // Border: dashed for stale, solid for normal
+    if (stale) {
+      const dashCount = 12;
+      const dashAngle = 2 * math.pi / dashCount;
+      final borderPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke;
+      for (int i = 0; i < dashCount; i += 2) {
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(cx, cy), radius: circleR - 1),
+          i * dashAngle - math.pi / 2,
+          dashAngle * 0.65,
+          false,
+          borderPaint,
+        );
+      }
+    } else {
+      canvas.drawCircle(
+        Offset(cx, cy),
+        circleR - 1,
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke,
+      );
+    }
+
+    // Initial letter
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final tp = TextPainter(
+      text: TextSpan(
+        text: initial,
+        style: TextStyle(
+          color: stale ? Colors.white70 : Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+
+    // Battery badge (bottom-right of circle)
+    if (isLowBattery) {
+      const badgeR = 10.0;
+      final bx = cx + circleR * 0.65;
+      final by = cy + circleR * 0.65;
+      canvas.drawCircle(Offset(bx, by), badgeR, Paint()..color = AppColors.danger);
+      canvas.drawCircle(
+        Offset(bx, by),
+        badgeR,
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke,
+      );
+      final btp = TextPainter(
+        text: const TextSpan(
+          text: '🔋',
+          style: TextStyle(fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      btp.paint(canvas, Offset(bx - btp.width / 2, by - btp.height / 2));
+    }
+
+    // Name label pill
+    const labelY = circleD + gap;
+    final rr = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(cx, labelY + labelH / 2),
+        width: totalW - 8,
+        height: labelH,
+      ),
+      const Radius.circular(10),
+    );
+    canvas.drawRRect(
+      rr,
+      Paint()..color = stale ? Colors.grey[300]! : Colors.white,
+    );
+
+    final firstName = name.split(' ').first;
+    final baseLabel = firstName.length > 8 ? '${firstName.substring(0, 6)}…' : firstName;
+    final label = isLowBattery ? '$baseLabel · $batteryLevel%' : baseLabel;
+    final ltp = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: isLowBattery ? AppColors.danger : const Color(0xFF1A1A1A),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: totalW - 8);
+    ltp.paint(
+      canvas,
+      Offset(cx - ltp.width / 2, labelY + (labelH - ltp.height) / 2),
+    );
+
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(totalW.toInt(), totalH.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return gmaps.BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+  }
+
+  // ─── Haversine ───────────────────────────────────────────────────────────────
+
+  double _haversine(double lat1, double lng1, double lat2, double lng2) {
+    const R = 6371000.0;
+    final phi1 = lat1 * math.pi / 180;
+    final phi2 = lat2 * math.pi / 180;
+    final dp = (lat2 - lat1) * math.pi / 180;
+    final dl = (lng2 - lng1) * math.pi / 180;
+    final a = math.sin(dp / 2) * math.sin(dp / 2) +
+        math.cos(phi1) * math.cos(phi2) * math.sin(dl / 2) * math.sin(dl / 2);
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  ({ContactRelation rel, RtdbContactSnapshot snap})? _findLowBatteryContact(
+    List<ContactRelation> contacts,
+    Map<String, RtdbContactSnapshot> snapshots,
+  ) {
+    for (final rel in contacts) {
+      final uid = rel.contact.firebaseUid;
+      if (uid == null) continue;
+      final snap = snapshots[uid];
+      if (snap == null || snap.isInvisible) continue;
+      final battery = snap.batteryLevel;
+      if (battery != null && battery < 20) return (rel: rel, snap: snap);
+    }
+    return null;
+  }
+
+  // Nearest medium/high danger zone within its radius from current position
+  ({DangerZone zone, int distanceM})? _nearestProximityAlert() {
+    if (_currentPosition == null || _alertToastDismissed) return null;
+    DangerZone? best;
+    double bestDist = double.infinity;
+    for (final z in _dangerZones) {
+      if (z.severity == DangerSeverity.low) continue;
+      final d = _haversine(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        z.center.lat,
+        z.center.lng,
+      );
+      if (d <= z.radiusMeters && d < bestDist) {
+        best = z;
+        bestDist = d;
+      }
+    }
+    if (best == null) return null;
+    return (zone: best, distanceM: bestDist.round());
+  }
 }
 
-// ─── Widgets locaux ──────────────────────────────────────────────────────────
+// ─── V4 Map Header ────────────────────────────────────────────────────────────
+
+class _MapHeader extends StatelessWidget {
+  final List<ConnectivityResult> connectivity;
+  final int activeContacts;
+  final VoidCallback onLayersTap;
+
+  const _MapHeader({
+    required this.connectivity,
+    required this.activeContacts,
+    required this.onLayersTap,
+  });
+
+  Color get _dotColor {
+    if (connectivity.contains(ConnectivityResult.none) &&
+        connectivity.length == 1) {
+      return AppColors.danger;
+    }
+    if (connectivity.contains(ConnectivityResult.wifi) ||
+        connectivity.contains(ConnectivityResult.mobile) ||
+        connectivity.contains(ConnectivityResult.ethernet)) {
+      return AppColors.success;
+    }
+    return AppColors.warning;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthNotifier>().user;
+    final initials = user != null && user.name.isNotEmpty
+        ? user.name
+              .trim()
+              .split(' ')
+              .map((p) => p[0])
+              .take(2)
+              .join()
+              .toUpperCase()
+        : '?';
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // ── Layers button ───────────────────────────────────────
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onLayersTap,
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(14),
+                      ),
+                      child: SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: Icon(
+                          Icons.layers_outlined,
+                          color: AppColors.primary,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── Center: status dot + count ──────────────────────────
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _dotColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _dotColor.withValues(alpha: 0.4),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          activeContacts > 0
+                              ? '$activeContacts connecté${activeContacts > 1 ? 's' : ''}'
+                              : 'Aucun proche',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Avatar ──────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: GestureDetector(
+                      onTap: () => context.push('/settings'),
+                      child: user?.photoUrl != null
+                          ? CircleAvatar(
+                              radius: 18,
+                              backgroundImage: NetworkImage(user!.photoUrl!),
+                            )
+                          : CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppColors.primary,
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Empty State Card ─────────────────────────────────────────────────────────
+
+class _EmptyStateCard extends StatelessWidget {
+  final VoidCallback onInvite;
+  final VoidCallback? onDiscover;
+
+  const _EmptyStateCard({required this.onInvite, this.onDiscover});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.people_outline,
+              color: AppColors.primary,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Tes proches apparaîtront ici',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'L\'app prend tout son sens quand un proche est connecté avec toi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.black.withValues(alpha: 0.5),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onInvite,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Inviter un proche →'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onDiscover,
+            child: Text(
+              'Découvrir l\'app d\'abord',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.black.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared Widgets ───────────────────────────────────────────────────────────
 
 class _BottomSheet extends StatelessWidget {
   final Widget child;
@@ -601,21 +1607,23 @@ class _BottomSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2)),
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 4,
+            width: 32,
+            height: 3,
             margin: const EdgeInsets.only(top: 12),
             decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2)),
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
           Padding(padding: const EdgeInsets.all(20), child: child),
         ],
@@ -631,9 +1639,9 @@ class _SeverityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color color, String text) = switch (severity) {
-      DangerSeverity.low  => (Colors.orange, 'FAIBLE'),
-      DangerSeverity.med  => (Colors.deepOrange, 'MOYEN'),
-      DangerSeverity.high => (Colors.red, 'ÉLEVÉ'),
+      DangerSeverity.low => (AppColors.gravityLow, 'FAIBLE'),
+      DangerSeverity.med => (AppColors.gravityMid, 'MOYEN'),
+      DangerSeverity.high => (AppColors.danger, 'ÉLEVÉ'),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -642,9 +1650,14 @@ class _SeverityChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(text,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w600, fontSize: 10)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 10,
+        ),
+      ),
     );
   }
 }

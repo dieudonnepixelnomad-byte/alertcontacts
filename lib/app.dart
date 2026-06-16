@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +25,8 @@ import 'package:alertcontacts/core/services/api_invitation_service.dart';
 import 'package:alertcontacts/core/services/api_relationship_service.dart';
 import 'package:alertcontacts/core/services/api_activities_service.dart';
 import 'package:alertcontacts/core/services/api_ignored_danger_zones_service.dart';
+import 'package:alertcontacts/core/services/api_alerts_service.dart';
+import 'package:alertcontacts/core/services/api_location_service.dart';
 import 'package:alertcontacts/features/activities/repositories/activities_repository.dart';
 import 'package:alertcontacts/features/settings/providers/activities_provider.dart';
 import 'package:alertcontacts/core/config/api_config.dart';
@@ -41,11 +43,12 @@ import 'package:alertcontacts/core/services/app_initialization_service.dart';
 import 'package:alertcontacts/features/alertes/services/permissions_manager_service.dart';
 import 'package:alertcontacts/core/services/persistent_status_notification_service.dart';
 import 'package:alertcontacts/core/services/service_health_monitor.dart';
-import 'package:alertcontacts/core/services/native_location_service.dart';
+import 'package:alertcontacts/core/services/location_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
+import 'package:alertcontacts/core/services/contact_rtdb_service.dart';
 import 'package:alertcontacts/core/services/device_info_service.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -59,37 +62,15 @@ class AlertContactApp extends StatefulWidget {
 
 class _AlertContactAppState extends State<AlertContactApp> {
   late final GoRouter _router;
-  bool _isApiConfigInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _router = AppRouter.create();
-    _initializeApiConfig();
 
-    // Initialiser le service de deep links après la création du routeur
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService.initialize(_router);
     });
-  }
-
-  Future<void> _initializeApiConfig() async {
-    try {
-      await ApiConfig.initialize();
-      if (mounted) {
-        setState(() {
-          _isApiConfigInitialized = true;
-        });
-      }
-    } catch (e) {
-      print('❌ Erreur lors de l\'initialisation d\'ApiConfig: $e');
-      // En cas d'erreur, continuer avec les valeurs par défaut
-      if (mounted) {
-        setState(() {
-          _isApiConfigInitialized = true;
-        });
-      }
-    }
   }
 
   @override
@@ -109,32 +90,6 @@ class _AlertContactAppState extends State<AlertContactApp> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
-
-    // Attendre l'initialisation d'ApiConfig
-    if (!_isApiConfigInitialized) {
-      return MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: Color(0xFF006970),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Initialisation...',
-                  style: TextStyle(
-                    color: Color(0xFF006970),
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return MultiProvider(
       providers: [
@@ -174,6 +129,18 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<ApiIgnoredDangerZonesService>(
           create: (_) => ApiIgnoredDangerZonesService(),
         ),
+        Provider<ApiAlertsService>(
+          create: (context) => ApiAlertsService(
+            baseUrl: ApiConfig.baseUrlSync,
+            client: context.read<http.Client>(),
+          ),
+        ),
+        Provider<ApiLocationService>(
+          create: (context) => ApiLocationService(
+            baseUrl: ApiConfig.baseUrlSync,
+            client: context.read<http.Client>(),
+          ),
+        ),
         // Services
         Provider<FCMService>(create: (_) => FCMService()),
         Provider<PermissionsManagerService>(
@@ -183,8 +150,8 @@ class _AlertContactAppState extends State<AlertContactApp> {
           create: (_) => PersistentStatusNotificationService(),
         ),
         Provider<ServiceHealthMonitor>(create: (_) => ServiceHealthMonitor()),
-        Provider<NativeLocationService>(
-                create: (_) => NativeLocationService(),
+        Provider<LocationService>(
+                create: (_) => LocationService(),
         ),
         Provider<AppInitializationService>(
           create: (_) => AppInitializationService(),
@@ -278,8 +245,19 @@ class _AlertContactAppState extends State<AlertContactApp> {
         ChangeNotifierProvider<RelationshipProvider>(
           create: (_) => RelationshipProvider(),
         ),
+        ChangeNotifierProxyProvider<RelationshipProvider, ContactRtdbService>(
+          create: (_) => ContactRtdbService(),
+          update: (_, relProvider, rtdbService) {
+            (rtdbService ?? ContactRtdbService())
+                .updateContacts(relProvider.acceptedRelationships);
+            return rtdbService ?? ContactRtdbService();
+          },
+        ),
         ChangeNotifierProvider<AlertProvider>(
-          create: (context) => AlertProvider(),
+          create: (context) => AlertProvider(
+            context.read<ApiAlertsService>(),
+            context.read<PrefsService>(),
+          ),
         ),
         ChangeNotifierProvider<ActivitiesProvider>(
           create: (context) => ActivitiesProvider(

@@ -1,11 +1,11 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/safe_zone.dart';
 import '../../../core/repositories/safezone_repository.dart';
-import '../../../core/services/native_location_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/errors/auth_exceptions.dart';
 import '../../../router/app_router.dart';
@@ -67,7 +67,7 @@ class _OnboardingZoneCreationPageState
       final permission = await Permission.locationWhenInUse.status;
       if (permission.isDenied) return;
 
-      final svc = NativeLocationService();
+      final svc = LocationService();
       StreamSubscription? sub;
       bool received = false;
       sub = svc.locationStream.listen((pt) {

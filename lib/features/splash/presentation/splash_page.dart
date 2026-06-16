@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:alertcontacts/core/services/app_initialization_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
+import 'package:alertcontacts/core/utils/app_logger.dart';
 import 'package:alertcontacts/features/auth/providers/auth_notifier.dart';
 import 'package:alertcontacts/features/auth/providers/auth_state.dart';
 import 'package:alertcontacts/router/app_router.dart';
@@ -19,152 +20,177 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ac;
-  late final Animation<double> _fade;
-  late final Animation<double> _scale;
+    with TickerProviderStateMixin {
+  late final AnimationController _logoAc;
+  late final AnimationController _taglineAc;
+  late final AnimationController _loaderAc;
+  late final AnimationController _blobAc;
+
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoFade;
+  late final Animation<double> _taglineFade;
+  late final Animation<double> _loaderSlide;
+
   Timer? _timeoutTimer;
-  late final AuthNotifier authNotifier;
+  bool _navigated = false;
+  late final AuthNotifier _authNotifier;
+
+  static const _splashBg = Color(0xFF1E6868);
+  static const _totalDuration = Duration(milliseconds: 1800);
 
   @override
   void initState() {
     super.initState();
+    _authNotifier = Provider.of<AuthNotifier>(context, listen: false);
+    _authNotifier.addListener(_onAuthStateChanged);
 
-    // Récupération de l'instance de AuthNotifier
-    authNotifier = Provider.of<AuthNotifier>(context, listen: false);
-
-    // Ajouter le listener pour les changements d'état d'authentification
-    authNotifier.addListener(_onAuthStateChanged);
-
-    // Status bar & nav bar lisibles sur fond sombre
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFF006970),
+        systemNavigationBarColor: _splashBg,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
 
-    _ac = AnimationController(
+    // Blob rotation (slow, continuous)
+    _blobAc = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
+    // Logo: scale 0.8→1.0 (300ms ease-out)
+    _logoAc = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _logoScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAc, curve: Curves.easeOut),
+    );
+    _logoFade = CurvedAnimation(parent: _logoAc, curve: Curves.easeOut);
+
+    // Tagline: fade in starting at +150ms
+    _taglineAc = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _taglineFade = CurvedAnimation(parent: _taglineAc, curve: Curves.easeOut);
+
+    // Loader: slide in
+    _loaderAc = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _loaderSlide = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _loaderAc, curve: Curves.easeOutCubic),
     );
 
-    _fade = CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic);
-    _scale = Tween<double>(
-      begin: 0.96,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ac, curve: Curves.easeOutBack));
+    _runAnimations();
 
-    _ac.forward();
-
-    log('SplashPage initState');
-
-    // Initialiser l'authentification une seule fois dans initState
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _initializeAuth();
-      }
+      if (mounted) _initializeAuth();
     });
   }
 
-  void _onAuthStateChanged() {
-    if (mounted) {
-      _handleAuthState(authNotifier.state);
-    }
+  Future<void> _runAnimations() async {
+    await _logoAc.forward();
+    await Future.delayed(const Duration(milliseconds: 50));
+    _taglineAc.forward();
+    _loaderAc.forward();
   }
 
-  void _initializeAuth() async {
-    log('SplashPage _initializeAuth');
+  void _onAuthStateChanged() {
+    if (mounted) _handleAuthState(_authNotifier.state);
+  }
 
+  Future<void> _initializeAuth() async {
     try {
-      // Lancer l'initialisation des services (qui inclut la vérification de la version)
-      await context.read<AppInitializationService>().initializeServices(
-        context,
-      );
+      await context.read<AppInitializationService>().initializeServices(context);
 
-      // Si l'initialisation réussit, continuer avec la logique d'authentification
-      if (authNotifier.isAuthenticated) {
-        log("SplashPage _initializeAuth: Utilisateur déjà authentifié");
-        _handleAuthState(authNotifier.state);
+      if (_authNotifier.isAuthenticated) {
+        _handleAuthState(_authNotifier.state);
       } else {
-        log(
-          "SplashPage _initializeAuth: Tentative d'authentification silencieuse",
-        );
-        authNotifier.silentSignIn();
+        _authNotifier.silentSignIn();
       }
 
-      // Timer de sécurité pour éviter un blocage infini
-      _timeoutTimer = Timer(const Duration(seconds: 20), () {
-        if (mounted) {
-          debugPrint('SplashPage _handleAuthTimeout timeout');
-          _handleAuthTimeout();
-        }
-      });
-    } on ForcedUpdateException catch (e) {
-      log("SplashPage: Mise à jour forcée requise. URL: ${e.storeUrl}");
-      if (mounted) {
-        // Remplacer la page actuelle par la page de mise à jour forcée
-        context.go(AppRoutes.forcedUpdate, extra: e.storeUrl);
+      // Fix race: if silentSignIn completed synchronously before this line,
+      // _navigated is already true — don't arm the timeout.
+      if (!_navigated) {
+        _timeoutTimer = Timer(const Duration(seconds: 20), () {
+          if (mounted) _handleAuthTimeout();
+        });
       }
+    } on ForcedUpdateException catch (e) {
+      AppLogger.i.warning('Forced update required', {'url': e.storeUrl});
+      if (mounted) context.go(AppRoutes.forcedUpdate, extra: e.storeUrl);
     } catch (e) {
-      log("SplashPage: Erreur inattendue lors de l'initialisation: $e");
-      // En cas d'autre erreur, on peut décider de rediriger vers une page d'erreur
-      // ou de tenter la redirection par défaut.
+      AppLogger.i.error('Splash init error', {'error': e.toString()});
       _handleAuthTimeout();
     }
   }
 
-  void _handleAuthTimeout() async {
-    if (!mounted) return;
-
+  Future<void> _handleAuthTimeout() async {
+    if (!mounted || _navigated) return;
     final prefs = context.read<PrefsService>();
-    final onboardingDone = await prefs.isOnboardingDone();
-    final sandboxSeen = await prefs.isAhaSandboxSeen();
 
+    final hadLoggedIn = await prefs.hasLoggedIn();
+    if (!mounted || _navigated) return;
+
+    if (hadLoggedIn) {
+      _navigated = true;
+      context.go(AppRoutes.appShell);
+      return;
+    }
+
+    final onboardingDone = await prefs.isOnboardingDone();
+    if (!mounted || _navigated) return;
+    _navigated = true;
     if (onboardingDone) {
-      log("SplashPage _handleAuthTimeout: Onboarding terminé → /auth");
-      if (mounted) context.go(AppRoutes.auth);
-    } else if (sandboxSeen) {
-      log("SplashPage _handleAuthTimeout: Sandbox vu → /auth (router redirect prend le relais)");
-      if (mounted) context.go(AppRoutes.auth);
+      context.go(AppRoutes.auth);
     } else {
-      log("SplashPage _handleAuthTimeout: Pas de sandbox vu → /onboarding");
-      if (mounted) context.go(AppRoutes.onboarding);
+      context.go(AppRoutes.onboardingPersonalization);
     }
   }
 
-  void _handleAuthState(AuthState state) async {
-    log('SplashPage _handleAuthState: $state');
+  Future<void> _handleAuthState(AuthState state) async {
     _timeoutTimer?.cancel();
 
+    // Ensure minimum splash duration
+    final elapsed = _logoAc.lastElapsedDuration ?? Duration.zero;
+    final remaining = _totalDuration - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
+    if (!mounted || _navigated) return;
+
     if (state.status == AuthStatus.authenticated) {
-      log('SplashPage _handleAuthState: Authenticated');
-      if (mounted) {
-        context.go(AppRoutes.appShell);
-      }
+      _navigated = true;
+      context.go(AppRoutes.appShell);
     } else if (state.status == AuthStatus.error ||
         state.status == AuthStatus.unauthenticated) {
-      log('SplashPage _handleAuthState: AuthError or AuthUnauthenticated');
       final prefs = context.read<PrefsService>();
-      final onBoardingDone = await prefs.isOnboardingDone();
 
-      if (onBoardingDone) {
-        log(
-          "SplashPage _handleAuthState: Onboarding terminé, redirection vers la connexion",
-        );
-        if (mounted) {
-          context.go(AppRoutes.auth);
-        }
+      // Si l'utilisateur s'était déjà connecté, on l'envoie à l'app-shell
+      // même en cas d'échec réseau — l'app gère le mode offline.
+      // Évite le flash de la page login au redémarrage.
+      final hadLoggedIn = await prefs.hasLoggedIn();
+      if (!mounted || _navigated) return;
+
+      if (hadLoggedIn) {
+        _navigated = true;
+        context.go(AppRoutes.appShell);
+        return;
+      }
+
+      final onboardingDone = await prefs.isOnboardingDone();
+      if (!mounted || _navigated) return;
+      _navigated = true;
+      if (onboardingDone) {
+        context.go(AppRoutes.auth);
       } else {
-        log(
-          "SplashPage _handleAuthState: Onboarding non terminé, redirection vers l'onboarding",
-        );
-        if (mounted) {
-          context.go(AppRoutes.onboarding);
-        }
+        context.go(AppRoutes.onboardingPersonalization);
       }
     }
   }
@@ -172,130 +198,93 @@ class _SplashPageState extends State<SplashPage>
   @override
   void dispose() {
     _timeoutTimer?.cancel();
-    authNotifier.removeListener(_onAuthStateChanged);
-    _ac.dispose();
+    _authNotifier.removeListener(_onAuthStateChanged);
+    _logoAc.dispose();
+    _taglineAc.dispose();
+    _loaderAc.dispose();
+    _blobAc.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Couleurs de la charte
-    const teal = Color(0xFF006970);
-
     return Scaffold(
-      backgroundColor: teal,
+      backgroundColor: _splashBg,
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
-          systemNavigationBarColor: teal,
+          systemNavigationBarColor: _splashBg,
           systemNavigationBarIconBrightness: Brightness.light,
         ),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1) IMAGE DE FOND
-            //    Si l'image manque ou échoue → fallback gradient uni (voir errorBuilder)
-            Image.asset(
-              'assets/images/bg.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        teal,
-                        Color(
-                          0xFF0A7F87,
-                        ), // teal plus clair pour un léger relief
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // 2) OVERLAY DÉGRADÉ (lisibilité + tonalité de marque)
-            Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.0, -0.15),
-                  radius: 1.0,
-                  colors: [
-                    teal.withOpacity(0.10),
-                    Colors.black.withOpacity(0.25), // assombrit les bords
-                  ],
-                  stops: const [0.0, 1.0],
-                ),
+            // Animated blobs background
+            AnimatedBuilder(
+              animation: _blobAc,
+              builder: (_, __) => CustomPaint(
+                painter: _BlobPainter(_blobAc.value),
               ),
             ),
 
-            // 4) CONTENU (logo/nom + baseline + loader) avec animation
+            // Main content
             SafeArea(
-              child: FadeTransition(
-                opacity: _fade,
-                child: ScaleTransition(
-                  scale: _scale,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Stack(
-                      children: [
-                        // Nom / Logo centré
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/images/logo.png',
-                                width: 100,
-                                height: 100,
-                              ),
-                              SizedBox(height: 16),
-                              _BrandTitle(),
-                            ],
-                          ),
-                        ),
-                        // Baseline + loader en bas
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 36,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Text(
-                                'Votre sécurité. Votre sérénité.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  // fontFamily: 'Roboto', // active si tu as la font
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                              SizedBox(height: 16),
-                              SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white70,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+
+                  // Logo + title block
+                  ScaleTransition(
+                    scale: _logoScale,
+                    child: FadeTransition(
+                      opacity: _logoFade,
+                      child: const _LogoBlock(),
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+
+                  // Tagline
+                  FadeTransition(
+                    opacity: _taglineFade,
+                    child: Text(
+                      'la sérénité en toutes circonstances',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withValues(alpha:0.60),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(flex: 3),
+
+                  // Loader bar
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 48),
+                    child: AnimatedBuilder(
+                      animation: _loaderSlide,
+                      builder: (_, __) => SizedBox(
+                        width: 100,
+                        height: 2,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(1),
+                          child: LinearProgressIndicator(
+                            value: _loaderSlide.value < 1.0 ? _loaderSlide.value : null,
+                            backgroundColor: Colors.white.withValues(alpha:0.20),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white.withValues(alpha:0.50),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -305,23 +294,119 @@ class _SplashPageState extends State<SplashPage>
   }
 }
 
-/// Titre de marque (remplace par ton logo si tu préfères)
-class _BrandTitle extends StatelessWidget {
-  const _BrandTitle();
+class _LogoBlock extends StatelessWidget {
+  const _LogoBlock();
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'ALERTCONTACTS',
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 32,
-        fontWeight: FontWeight.w700,
-        // fontFamily: 'Montserrat', // active si tu as la font
-        letterSpacing: 1.2,
-        height: 1.2,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Logo with gradient shader mask
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFF8C3C), Color(0xFFFF5C7A)],
+          ).createShader(bounds),
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 80,
+              height: 80,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.shield_outlined,
+                size: 80,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // App name
+        const Text(
+          'ALERTCONTACTS',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Manrope',
+            fontSize: 22,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            letterSpacing: 0.06 * 22,
+          ),
+        ),
+      ],
     );
   }
+}
+
+class _BlobPainter extends CustomPainter {
+  final double t;
+  const _BlobPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // Blob 1 — orange, top-right
+    _drawBlob(
+      canvas,
+      center: Offset(
+        cx + size.width * 0.35 + math.sin(t * math.pi * 2) * 20,
+        cy - size.height * 0.25 + math.cos(t * math.pi * 2) * 15,
+      ),
+      radius: size.width * 0.45,
+      color: const Color(0xFFFF8C3C),
+      opacity: 0.35,
+    );
+
+    // Blob 2 — green, bottom-left
+    _drawBlob(
+      canvas,
+      center: Offset(
+        cx - size.width * 0.30 + math.cos(t * math.pi * 2) * 18,
+        cy + size.height * 0.30 + math.sin(t * math.pi * 2 + 1) * 12,
+      ),
+      radius: size.width * 0.40,
+      color: const Color(0xFF32D282),
+      opacity: 0.28,
+    );
+
+    // Blob 3 — light teal, center
+    _drawBlob(
+      canvas,
+      center: Offset(
+        cx + math.sin(t * math.pi * 2 + 2) * 10,
+        cy - size.height * 0.10 + math.cos(t * math.pi * 2 + 2) * 10,
+      ),
+      radius: size.width * 0.30,
+      color: const Color(0xFF7ECECE),
+      opacity: 0.15,
+    );
+  }
+
+  void _drawBlob(
+    Canvas canvas, {
+    required Offset center,
+    required double radius,
+    required Color color,
+    required double opacity,
+  }) {
+    final paint = Paint()
+      ..color = color.withValues(alpha:opacity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(_BlobPainter old) => old.t != t;
 }

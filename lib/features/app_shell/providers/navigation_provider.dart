@@ -13,7 +13,6 @@ class NavigationProvider extends ChangeNotifier {
   }
 
   void goToMap() => setIndex(0);
-  void goToZones() => setIndex(1);
-  void goToProches() => setIndex(2);
-  void goToActivity() => setIndex(3);
+  void goToProches() => setIndex(1);
+  void goToAlertes() => setIndex(2);
 }
