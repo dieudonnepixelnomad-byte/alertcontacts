@@ -418,6 +418,10 @@ class FCMService {
             notificationManager,
           );
           break;
+        case 'community_alert':
+          log('FCMService: Handling community alert...');
+          await _handleCommunityAlert(data, notification, notificationManager);
+          break;
         default:
           log('FCMService: Unhandled notification type: ${data['type']}');
       }
@@ -570,6 +574,34 @@ class FCMService {
       );
     } catch (e) {
       log('FCMService: Error handling invitation response notification: $e');
+    }
+  }
+
+  /// Traiter une alerte communautaire reçue via FCM
+  /// Le FCM hybride affiche la notification automatiquement — ce handler
+  /// sert uniquement à la navigation on tap (onglet Alertes).
+  static Future<void> _handleCommunityAlert(
+    Map<String, dynamic> data,
+    RemoteNotification? notification,
+    NotificationManager notificationManager,
+  ) async {
+    try {
+      final alertId = data['alert_id']?.toString();
+      final gravity = data['gravity']?.toString() ?? 'medium';
+      log('FCMService: Community alert received — id=$alertId gravity=$gravity');
+
+      // Le payload notification (title/body) est affiché par l'OS automatiquement.
+      // On enregistre un simple payload de navigation pour le tap.
+      await notificationManager.sendSimpleNotification(
+        title: notification?.title ?? 'Alerte signalée à proximité',
+        body: notification?.body ?? 'Touchez pour voir les détails',
+        payload: jsonEncode({
+          ...data,
+          'navigate_to': 'alertes',
+        }),
+      );
+    } catch (e) {
+      log('FCMService: Error handling community alert: $e');
     }
   }
 

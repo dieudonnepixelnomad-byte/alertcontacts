@@ -38,7 +38,7 @@ import '../features/zones_securite/presentation/pages/zone_creation_success_page
 import '../features/zones_danger/presentation/danger_zone_introduction_page.dart';
 import '../features/zones_danger/presentation/danger_zone_setup_wizard.dart';
 import '../features/zones_danger/presentation/danger_zone_creation_success_page.dart';
-import '../features/zones_danger/presentation/danger_detail_page.dart';
+import '../features/alertes/presentation/alert_detail_page.dart';
 // Imports supprimés car navigation interne :
 // import '../features/proches/screens/proches_screen.dart';
 // import '../features/proches/screens/create_invitation_screen.dart';
@@ -265,7 +265,7 @@ class AppRouter {
           path: '${AppRoutes.dangerDetail}/:zoneId',
           name: 'danger_detail',
           builder: (ctx, state) =>
-              DangerDetailPage(zoneId: state.pathParameters['zoneId']!),
+              AlertDetailPage(zoneId: state.pathParameters['zoneId']!),
         ),
         GoRoute(
           path: AppRoutes.addProche,

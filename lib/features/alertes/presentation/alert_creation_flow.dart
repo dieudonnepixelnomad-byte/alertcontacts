@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:provider/provider.dart';
@@ -394,23 +395,80 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
   }
 
   Future<void> _fetchCurrentLocation() async {
+    log('_fetchCurrentLocation: début');
     setState(() => _loadingLocation = true);
     try {
+      // Vérif permission avant d'appeler getCurrentPosition
+      LocationPermission perm = await Geolocator.checkPermission();
+      log('_fetchCurrentLocation: permission=$perm');
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+        log('_fetchCurrentLocation: permission après demande=$perm');
+      }
+      if (perm == LocationPermission.deniedForever ||
+          perm == LocationPermission.denied) {
+        log('_fetchCurrentLocation: permission refusée → fallback Paris');
+        if (mounted) {
+          setState(() {
+            _pickedAddress = 'Position non disponible — appuie pour choisir';
+          });
+        }
+        return;
+      }
+
+      // Timeout 10s pour éviter le hang infini
+      log('_fetchCurrentLocation: appel getCurrentPosition...');
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
         ),
       );
-      if (mounted) {
+      log('_fetchCurrentLocation: position obtenue lat=${pos.latitude} lng=${pos.longitude}');
+
+      if (!mounted) return;
+      setState(() {
+        _pickedLocation = gmaps.LatLng(pos.latitude, pos.longitude);
+        _pickedAddress = 'Chargement adresse…';
+      });
+
+      // Reverse geocoding
+      log('_fetchCurrentLocation: reverse geocoding...');
+      final placemarks = await placemarkFromCoordinates(
+        pos.latitude,
+        pos.longitude,
+      ).timeout(const Duration(seconds: 8));
+      log('_fetchCurrentLocation: placemarks=${placemarks.length}');
+
+      if (!mounted) return;
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        log('_fetchCurrentLocation: placemark street=${p.street} locality=${p.locality}');
+        final parts = [
+          if ((p.street ?? '').isNotEmpty) p.street,
+          if ((p.locality ?? '').isNotEmpty) p.locality,
+          if ((p.postalCode ?? '').isNotEmpty) p.postalCode,
+        ];
         setState(() {
-          _pickedLocation = gmaps.LatLng(pos.latitude, pos.longitude);
-          _pickedAddress = 'Position actuelle';
+          _pickedAddress =
+              parts.isNotEmpty ? parts.join(', ') : 'Position actuelle';
+        });
+      } else {
+        setState(() {
+          _pickedAddress =
+              '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
         });
       }
-    } catch (_) {
-      // keep default label
+    } catch (e, st) {
+      log('_fetchCurrentLocation: erreur=$e\n$st');
+      if (mounted) {
+        setState(() {
+          _pickedAddress = 'Erreur GPS — appuie pour choisir manuellement';
+        });
+      }
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
+      log('_fetchCurrentLocation: fin, loadingLocation=false');
     }
   }
 

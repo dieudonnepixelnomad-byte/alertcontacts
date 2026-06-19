@@ -31,6 +31,15 @@ class _AppShellState extends State<AppShell> {
       log('AppShell: initialisation services...');
       final appInitService = context.read<AppInitializationService>();
       await appInitService.initializeServices(context);
+
+      // Initialise AlertProvider : charge acquittements, init NotificationManager,
+      // et démarre le timer de polling périodique des alertes communautaires.
+      if (mounted) {
+        log('AppShell: initialisation AlertProvider...');
+        await context.read<AlertProvider>().initialize();
+        log('AppShell: AlertProvider initialisé');
+      }
+
       if (mounted) setState(() => _servicesInitialized = true);
     } catch (e) {
       log('AppShell: erreur init services: $e');

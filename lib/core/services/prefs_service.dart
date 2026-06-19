@@ -204,6 +204,33 @@ class PrefsService {
 
   // Flag "utilisateur déjà authentifié" — évite le flash /auth au redémarrage
   static const _keyHasLoggedIn = 'has_logged_in';
+  static const _keyFirebaseUid = 'firebase_uid';
+  static const _keyBaseUrl = 'base_url';
+
+  Future<void> setFirebaseUid(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyFirebaseUid, uid);
+  }
+
+  Future<String?> getFirebaseUid() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyFirebaseUid);
+  }
+
+  Future<void> clearFirebaseUid() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyFirebaseUid);
+  }
+
+  Future<void> setBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyBaseUrl, url);
+  }
+
+  Future<String?> getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyBaseUrl);
+  }
 
   Future<void> setHasLoggedIn(bool value) async {
     final prefs = await SharedPreferences.getInstance();

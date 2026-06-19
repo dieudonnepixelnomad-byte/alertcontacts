@@ -7,7 +7,7 @@ import '../models/zone.dart';
 import '../errors/auth_exceptions.dart';
 
 class ApiZonesService {
-  final String baseUrl;
+  final String baseUrl; // public pour les logs
   final http.Client _client;
   String? _bearerToken;
 
@@ -53,27 +53,36 @@ class ApiZonesService {
 
   // Récupérer toutes les zones de l'utilisateur
   Future<List<Zone>> getMyZones() async {
-    log('ApiZoneService: getMyZones - tentative de récupération des zones');
+    final url = '$baseUrl/my-zones';
+    final hasToken = _bearerToken != null;
+    log('[ApiZonesService] GET $url — token=${hasToken ? "${_bearerToken!.substring(0, 8)}..." : "NULL ⚠️"}');
     try {
       final response = await _client.get(
-        Uri.parse('$baseUrl/my-zones'),
+        Uri.parse(url),
         headers: _headers,
       );
 
-      log('ApiZoneService: getMyZones - réponse reçue: ${response.body}');
+      log('[ApiZonesService] réponse HTTP ${response.statusCode}');
+      log('[ApiZonesService] body: ${response.body}');
 
       final data = _handleResponse(response);
-
-      log('ApiZoneService: getMyZones - données reçues: $data');
-
       final List<dynamic> zonesData = data['data']['zones'];
-      log('ApiZoneService: getMyZones - zones reçues: $zonesData');
+      log('[ApiZonesService] zones parsées: ${zonesData.length}');
 
-      return zonesData.map((zoneJson) => Zone.fromJson(zoneJson)).toList();
-    } on SocketException {
+      final zones = <Zone>[];
+      for (final zoneJson in zonesData) {
+        try {
+          zones.add(Zone.fromJson(zoneJson as Map<String, dynamic>));
+        } catch (e) {
+          log('[ApiZonesService] ERREUR parse zone: $e — json=$zoneJson');
+        }
+      }
+      return zones;
+    } on SocketException catch (e) {
+      log('[ApiZonesService] SocketException: $e');
       throw Exception('Pas de connexion internet');
     } catch (e) {
-      log('Erreur getMyZones: $e');
+      log('[ApiZonesService] ERREUR: $e');
       rethrow;
     }
   }

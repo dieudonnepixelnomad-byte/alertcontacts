@@ -27,6 +27,7 @@ import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
+import '../../alertes/providers/alert_provider.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../proches/providers/relationship_provider.dart';
 import '../../zones/providers/zones_notifier.dart';
@@ -51,6 +52,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   double _currentZoom = 14.0;
   Timer? _cameraDebounceTimer;
   late final LocationService _locationService;
+  late final AlertProvider _alertProvider;
+  bool _alertListenerAttached = false;
   StreamSubscription? _locationSubscription;
   StreamSubscription? _connectivitySubscription;
   final gmaps.MapType _currentMapType = gmaps.MapType.hybrid;
@@ -70,6 +73,10 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   final MapViewportCache _viewportCache = MapViewportCache();
   String? _lastViewportKey;
   bool _viewportLoading = false;
+  gmaps.CameraPosition? _lastCameraPosition;
+
+  // Suivi création d'alertes pour invalidation cache
+  int _lastAlertCreatedCount = 0;
 
   // Caméra
   bool _cameraMovedToZone = false;
@@ -113,6 +120,11 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _locationService = context.read<LocationService>();
+    _alertProvider = context.read<AlertProvider>();
+    if (!_alertListenerAttached) {
+      _alertProvider.addListener(_onAlertCreated);
+      _alertListenerAttached = true;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _initializeServices();
     });
@@ -125,6 +137,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     _cameraDebounceTimer?.cancel();
     _locationSubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _alertProvider.removeListener(_onAlertCreated);
     super.dispose();
   }
 
@@ -159,10 +172,22 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
   void _onCameraMove(gmaps.CameraPosition position) {
     _currentZoom = position.zoom;
+    _lastCameraPosition = position;
     _cameraDebounceTimer?.cancel();
     _cameraDebounceTimer = Timer(const Duration(milliseconds: 600), () {
       _loadViewport(position);
     });
+  }
+
+  void _onAlertCreated() {
+    final ap = context.read<AlertProvider>();
+    if (ap.createdCount > _lastAlertCreatedCount) {
+      _lastAlertCreatedCount = ap.createdCount;
+      _viewportCache.invalidate();
+      _lastViewportKey = null;
+      final cam = _lastCameraPosition;
+      if (cam != null) _loadViewport(cam);
+    }
   }
 
   Future<void> _loadViewport(gmaps.CameraPosition position) async {

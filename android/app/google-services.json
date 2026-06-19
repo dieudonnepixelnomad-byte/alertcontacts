@@ -2,7 +2,8 @@
   "project_info": {
     "project_number": "404137724655",
     "project_id": "alertcontacts",
-    "storage_bucket": "alertcontacts.appspot.com"
+    "storage_bucket": "alertcontacts.appspot.com",
+    "firebase_url": "https://alertcontacts-default-rtdb.europe-west1.firebasedatabase.app"
   },
   "client": [
     {

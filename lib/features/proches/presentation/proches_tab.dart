@@ -142,6 +142,7 @@ class _ProchesTabState extends State<ProchesTab> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'proches_invite_fab',
         onPressed: _openInvite,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.person_add_outlined, color: Colors.white),

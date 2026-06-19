@@ -153,7 +153,7 @@ class NotificationManager {
     required String contactName,
   }) async {
     if (!_isInitialized) return;
-    if (!await _configService.canSendNotification()) return;
+    if (!_configService.canSendNotification()) return;
     try {
       await Future.wait([
         _notificationService.showNotification(
@@ -183,8 +183,21 @@ class NotificationManager {
     required String gravity,
     required int distanceMeters,
   }) async {
-    if (!_isInitialized) return;
-    if (!await _configService.canSendNotification()) return;
+    debugPrint('[NotificationManager] triggerCommunityAlert: type=$type gravity=$gravity dist=${distanceMeters}m');
+
+    if (!_isInitialized) {
+      debugPrint('[NotificationManager] BLOQUÉ: non initialisé (_isInitialized=false) — appeler initialize() avant');
+      return;
+    }
+
+    final canSend = _configService.canSendNotification();
+    if (!canSend) {
+      debugPrint('[NotificationManager] BLOQUÉ: canSendNotification=false (heures calmes ou notifications désactivées)');
+      return;
+    }
+
+    debugPrint('[NotificationManager] feu vert — déclenchement voix + notification');
+
     final gravityEmoji = switch (gravity) {
       'high'   => '🔴',
       'medium' => '🟠',
@@ -217,8 +230,9 @@ class NotificationManager {
           distanceMeters: distanceMeters,
         ),
       ]);
+      debugPrint('[NotificationManager] triggerCommunityAlert: OK');
     } catch (e) {
-      debugPrint('❌ NotificationManager.triggerCommunityAlert: $e');
+      debugPrint('[NotificationManager] triggerCommunityAlert ERROR: $e');
     }
   }
 

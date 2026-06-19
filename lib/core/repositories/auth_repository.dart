@@ -203,6 +203,11 @@ class AuthRepository {
       await _prefs.setBearerToken(bearerToken);
     }
     await _prefs.setUserProfile(user);
+    // Persiste l'UID Firebase pour les isolates headless et Swift
+    final uid = _firebaseAuth.currentUser?.uid;
+    if (uid != null) {
+      await _prefs.setFirebaseUid(uid);
+    }
   }
 
   /// Récupérer le token Bearer sauvegardé
@@ -212,7 +217,11 @@ class AuthRepository {
 
   /// Nettoyer l'état d'authentification local
   Future<void> _clearAuthState() async {
-    await Future.wait([_prefs.clearBearerToken(), _prefs.clearUserProfile()]);
+    await Future.wait([
+      _prefs.clearBearerToken(),
+      _prefs.clearUserProfile(),
+      _prefs.clearFirebaseUid(),
+    ]);
   }
 
   /// Extraire les données utilisateur Firebase pour l'API

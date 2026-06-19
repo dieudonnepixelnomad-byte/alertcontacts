@@ -118,6 +118,15 @@ class CommunityAlert extends Equatable {
     AlertType.other    => 'other',
   };
 
+  CommunityAlert copyWith({int? confirmations, int? denials}) => CommunityAlert(
+    id: id, type: type, gravity: gravity, lat: lat, lng: lng,
+    description: description, isAnonymous: isAnonymous,
+    visibility: visibility,
+    confirmations: confirmations ?? this.confirmations,
+    denials: denials ?? this.denials,
+    createdAt: createdAt, expiresAt: expiresAt, creatorName: creatorName,
+  );
+
   @override
   List<Object?> get props => [id, type, gravity, lat, lng, confirmations, denials, createdAt];
 }

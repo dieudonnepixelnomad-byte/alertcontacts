@@ -20,8 +20,17 @@ class _ZonesPanelState extends State<ZonesPanel> {
   @override
   void initState() {
     super.initState();
+    log('[ZonesPanel] initState — panneau ouvert');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ZonesNotifier>().loadZones();
+      if (!mounted) return;
+      final notifier = context.read<ZonesNotifier>();
+      log('[ZonesPanel] postFrameCallback — status=${notifier.status}, isLoading=${notifier.isLoading}');
+      if (!notifier.isLoading) {
+        log('[ZonesPanel] → appel loadZones()');
+        notifier.loadZones();
+      } else {
+        log('[ZonesPanel] → loadZones() déjà en cours, skip');
+      }
     });
   }
 
@@ -43,6 +52,7 @@ class _ZonesPanelState extends State<ZonesPanel> {
               builder: (context, zonesNotifier, relProvider, _) {
                 final safeZones = zonesNotifier.safeZones;
                 final contacts = relProvider.acceptedRelationships;
+                log('[ZonesPanel] build — status=${zonesNotifier.status} isLoading=${zonesNotifier.isLoading} hasError=${zonesNotifier.hasError} safeZones=${safeZones.length} allZones=${zonesNotifier.zones.length}');
 
                 // Compute header subtitle
                 final uniqueMembers = <String>{};

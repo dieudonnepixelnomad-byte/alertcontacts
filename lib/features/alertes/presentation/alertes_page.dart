@@ -66,9 +66,11 @@ class _AlertesPageState extends State<AlertesPage> {
         'date': dateLabel,
         'filter': _AlertFilter.community,
         'alert_data': {
+          'id': a.id,
           'gravity': gravityStr,
           'type': a.type.toString().split('.').last,
           'confirmations': a.confirmations,
+          'description': a.description,
         },
       };
     }).toList();
@@ -261,6 +263,7 @@ class _AlertesPageState extends State<AlertesPage> {
             ),
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'alertes_create_fab',
             onPressed: _openCreation,
             backgroundColor: AppColors.danger,
             child: const Icon(Icons.add_alert_outlined, color: Colors.white),

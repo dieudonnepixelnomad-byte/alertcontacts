@@ -35,7 +35,7 @@ class ZonesNotifier extends ChangeNotifier {
   String? get errorMessage => _state.errorMessage;
 
   // Getters utilitaires
-  bool get isLoading => _state.status == ZonesStatus.loading;
+  bool get isLoading => _state.status == ZonesStatus.loading || _state.status == ZonesStatus.initial;
   bool get isUpdating => _state.status == ZonesStatus.updating;
   bool get isDeleting => _state.status == ZonesStatus.deleting;
   bool get hasError => _state.status == ZonesStatus.error;
@@ -65,11 +65,14 @@ class ZonesNotifier extends ChangeNotifier {
     );
 
     try {
-      log('ZonesNotifier.loadZones: Chargement des zones');
+      log('[ZonesNotifier] loadZones: début appel API');
 
       final zones = await _zonesRepository.getMyZones(forceRefresh: true);
 
-      log('ZonesNotifier.loadZones: ${zones.length} zones chargées');
+      log('[ZonesNotifier] loadZones: ${zones.length} zones reçues');
+      for (final z in zones) {
+        log('[ZonesNotifier]   → zone id=${z.id} type=${z.type} name="${z.name}" memberIds=${z.memberIds}');
+      }
       _updateState(
         _state.copyWith(
           status: ZonesStatus.loaded,
@@ -78,7 +81,7 @@ class ZonesNotifier extends ChangeNotifier {
         ),
       );
     } catch (error) {
-      log('ZonesNotifier.loadZones: Erreur: $error');
+      log('[ZonesNotifier] loadZones: ERREUR $error');
       _updateState(
         _state.copyWith(
           status: ZonesStatus.error,

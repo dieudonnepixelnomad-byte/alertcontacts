@@ -44,13 +44,13 @@ class ZonesRepository {
         }
       }
       
-      log('ZonesRepository.getMyZones: Fetching zones from API');
+      log('[ZonesRepository] getMyZones: appel API baseUrl=${_apiService.baseUrl}');
       final zones = await _apiService.getMyZones();
-      
+
       // Mettre en cache les zones récupérées
       _cacheService.cacheUnifiedZones(zones);
-      
-      log('ZonesRepository.getMyZones: Retrieved ${zones.length} zones from API');
+
+      log('[ZonesRepository] getMyZones: ${zones.length} zones retournées');
       return zones;
     } catch (e) {
       log('ZonesRepository.getMyZones: Error: $e');

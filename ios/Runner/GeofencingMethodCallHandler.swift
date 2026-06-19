@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import CoreLocation
 import UserNotifications
+import FirebaseDatabase
 
 class GeofencingMethodCallHandler: NSObject, CLLocationManagerDelegate {
     private let binaryMessenger: FlutterBinaryMessenger
@@ -109,21 +110,41 @@ class GeofencingMethodCallHandler: NSObject, CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
-        // Envoyer la position à Flutter
+
+        let lat = location.coordinate.latitude
+        let lng = location.coordinate.longitude
+        let timestamp = location.timestamp.timeIntervalSince1970 * 1000 // ms
+
         let locationData: [String: Any] = [
-            "latitude": location.coordinate.latitude,
-            "longitude": location.coordinate.longitude,
+            "latitude": lat,
+            "longitude": lng,
             "accuracy": location.horizontalAccuracy,
-            "timestamp": location.timestamp.timeIntervalSince1970 * 1000, // en millisecondes
+            "timestamp": timestamp,
             "speed": location.speed,
             "heading": location.course
         ]
-        
+
+        // Envoyer à Flutter via method channel (quand Dart est actif)
         let channel = FlutterMethodChannel(name: "com.alertcontacts/location_updates", binaryMessenger: binaryMessenger)
         channel.invokeMethod("onLocationUpdate", arguments: locationData)
-        
-        print("iOS GeofencingHandler: Location update sent - \(location.coordinate.latitude), \(location.coordinate.longitude)")
+
+        // Écrire directement sur Firebase RTDB — fonctionne même quand Dart est suspendu/fermé.
+        // shared_preferences iOS stocke avec le préfixe "flutter."
+        let uid = UserDefaults.standard.string(forKey: "flutter.firebase_uid")
+            ?? UserDefaults.standard.string(forKey: "firebase_uid")
+
+        if let uid = uid, !uid.isEmpty {
+            let ref = Database.database().reference().child("locations/\(uid)")
+            ref.updateChildValues([
+                "lat": lat,
+                "lng": lng,
+                "accuracy": location.horizontalAccuracy,
+                "updated_at": Int(timestamp),
+                "is_invisible": false
+            ])
+        }
+
+        print("iOS GeofencingHandler: Location update sent - \(lat), \(lng)")
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

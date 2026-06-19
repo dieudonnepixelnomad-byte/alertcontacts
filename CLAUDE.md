@@ -813,3 +813,5 @@ Toute décision UX/produit doit se demander : _"Est-ce que ça aide à atteindre
 | Offline             | Jamais bloquant — cache avec timestamp              |
 | Bidirectionnalité   | Invitation retour requise pour voir mutuellement    |
 | Paywall             | Après Aha Moment vécu — jamais avant                |
+
+NB: Toujours repondre en Francais
