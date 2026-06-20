@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import '../models/user.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/api_auth_service.dart';
@@ -19,103 +18,6 @@ class AuthRepository {
        _apiAuth = apiAuth,
        _prefs = prefs;
 
-  /// Inscription avec email et mot de passe (via Firebase)
-  Future<void> registerWithEmail({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
-    final firebaseUser = await _firebaseAuth.registerWithEmailAndPassword(
-      email: email,
-      password: password,
-      name: name,
-    );
-
-    // Après l'inscription, l'utilisateur doit vérifier son email
-    // On déclenche explicitement l'exception pour passer à l'état needsEmailVerification
-    if (!firebaseUser.emailVerified) {
-      throw const EmailNotVerifiedException();
-    }
-  }
-
-  /// Inscription directe via l'API Laravel (sans Firebase)
-  Future<User> registerWithApi({
-    required String name,
-    required String email,
-    required String password,
-    required String passwordConfirmation,
-  }) async {
-    try {
-      log(
-        'Inscription directe via l\'API Laravel',
-        name: 'AuthRepository.registerWithApi',
-      );
-      final user = await _apiAuth.register(
-        name: name,
-        email: email,
-        password: password,
-        passwordConfirmation: passwordConfirmation,
-      );
-
-      log(
-        'Utilisateur créé via l\'API Laravel',
-        name: 'AuthRepository.registerWithApi',
-      );
-
-      // Sauvegarder le token pour la persistance
-      await _saveAuthState(user, _apiAuth.bearerToken);
-
-      log(
-        'Token sauvegardé localement',
-        name: 'AuthRepository.registerWithApi',
-      );
-
-      return user;
-    } catch (e) {
-      if (e is AuthException) rethrow;
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
-  /// Connexion avec email et mot de passe (via Firebase)
-  Future<void> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    log(
-      'Connexion avec email et mot de passe (via Firebase)',
-      name: 'AuthRepository.signInWithEmail',
-    );
-    await _firebaseAuth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    // L'état sera mis à jour via authStateChanges qui gérera la vérification d'email
-    log(
-      'Connexion réussie avec email: $email',
-      name: 'AuthRepository.signInWithEmail',
-    );
-  }
-
-  /// Connexion directe via l'API Laravel (sans Firebase)
-  Future<User> signInWithApi({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final user = await _apiAuth.login(email: email, password: password);
-
-      // Sauvegarder le token pour la persistance
-      await _saveAuthState(user, _apiAuth.bearerToken);
-
-      return user;
-    } catch (e) {
-      if (e is AuthException) rethrow;
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
   /// Connexion avec Google
   Future<void> signInWithGoogle() async {
     await _firebaseAuth.signInWithGoogle();
@@ -126,21 +28,6 @@ class AuthRepository {
   Future<void> signInWithApple() async {
     await _firebaseAuth.signInWithApple();
     // L'état sera mis à jour via authStateChanges
-  }
-
-  /// Envoyer un email de réinitialisation de mot de passe
-  Future<void> sendPasswordReset(String email) async {
-    await _firebaseAuth.sendPasswordResetEmail(email);
-  }
-
-  /// Renvoyer l'email de vérification
-  Future<void> sendEmailVerification() async {
-    await _firebaseAuth.sendEmailVerification();
-  }
-
-  /// Vérifier si l'email est vérifié
-  Future<bool> checkEmailVerification() async {
-    return await _firebaseAuth.checkEmailVerification();
   }
 
   /// Rafraîchir la session (en cas d'erreur 401)

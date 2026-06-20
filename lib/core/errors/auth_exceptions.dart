@@ -9,28 +9,13 @@ abstract class AuthException implements Exception {
 }
 
 class InvalidCredentialsException extends AuthException {
-  const InvalidCredentialsException() 
-      : super('Vérifiez vos identifiants', 'invalid-credentials');
+  const InvalidCredentialsException()
+      : super('Session expirée ou invalide', 'invalid-credentials');
 }
 
 class UserNotFoundException extends AuthException {
-  const UserNotFoundException() 
+  const UserNotFoundException()
       : super('Utilisateur introuvable', 'user-not-found');
-}
-
-class EmailAlreadyInUseException extends AuthException {
-  const EmailAlreadyInUseException() 
-      : super('Un compte existe déjà avec cet email', 'email-already-in-use');
-}
-
-class WeakPasswordException extends AuthException {
-  const WeakPasswordException() 
-      : super('Le mot de passe doit contenir au moins 8 caractères', 'weak-password');
-}
-
-class EmailNotVerifiedException extends AuthException {
-  const EmailNotVerifiedException() 
-      : super('Veuillez vérifier votre email avant de continuer', 'email-not-verified');
 }
 
 class UserDisabledException extends AuthException {

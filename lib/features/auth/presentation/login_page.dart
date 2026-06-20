@@ -18,22 +18,13 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _hasNavigated = false;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
   void dispose() {
-    _tabController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -134,41 +125,6 @@ class _LoginPageState extends State<LoginPage>
 
                   const SizedBox(height: 32),
 
-                  // Tabs
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.gray100,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicator: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      labelColor: AppColors.gray900,
-                      unselectedLabelColor: AppColors.gray400,
-                      labelStyle: AppTypography.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      tabs: const [
-                        Tab(text: "S'inscrire"),
-                        Tab(text: 'Se connecter'),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
                   // Auth buttons (same for both tabs)
                   _AuthButtons(
                     isLoading: isLoading,
@@ -260,71 +216,63 @@ class _LoginPageState extends State<LoginPage>
 
                   const SizedBox(height: 20),
 
-                  // CGU — register tab only
-                  AnimatedBuilder(
-                    animation: _tabController,
-                    builder: (_, __) {
-                      if (_tabController.index != 0) {
-                        return const SizedBox.shrink();
-                      }
-                      return Column(
+                  // CGU
+                  Column(
+                    children: [
+                      Text(
+                        'En continuant, tu acceptes nos',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.textTheme.bodySmall?.copyWith(
+                          color: AppColors.gray400,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'En continuant, tu acceptes nos',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.textTheme.bodySmall?.copyWith(
-                              color: AppColors.gray400,
+                          TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                            ),
+                            child: Text(
+                              'CGU',
+                              style: AppTypography.textTheme.bodySmall
+                                  ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TextButton(
-                                onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                ),
-                                child: Text(
-                                  'CGU',
-                                  style: AppTypography.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                          Text(
+                            'et notre',
+                            style: AppTypography.textTheme.bodySmall
+                                ?.copyWith(color: AppColors.gray400),
+                          ),
+                          TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
                               ),
-                              Text(
-                                'et notre',
-                                style: AppTypography.textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.gray400),
+                            ),
+                            child: Text(
+                              'Politique de confidentialité',
+                              style: AppTypography.textTheme.bodySmall
+                                  ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
                               ),
-                              TextButton(
-                                onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                ),
-                                child: Text(
-                                  'Politique de confidentialité',
-                                  style: AppTypography.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 32),

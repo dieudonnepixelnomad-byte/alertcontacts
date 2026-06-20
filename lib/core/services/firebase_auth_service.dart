@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -22,79 +20,6 @@ class FirebaseAuthService {
 
   /// Utilisateur Firebase actuellement connecté
   firebase_auth.User? get currentUser => _firebaseAuth.currentUser;
-
-  /// Inscription avec email et mot de passe
-  Future<firebase_auth.User> registerWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String name,
-  }) async {
-    try {
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final user = credential.user;
-      if (user == null) {
-        throw const SyncErrorException();
-      }
-
-      // Mettre à jour le nom d'affichage
-      await user.updateDisplayName(name);
-
-      // Envoyer l'email de vérification
-      await user.sendEmailVerification();
-
-      return user;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseException(e);
-    } catch (e) {
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
-  /// Connexion avec email et mot de passe
-  Future<firebase_auth.User> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      log(
-        'Connexion avec email et mot de passe (via Firebase)',
-        name: 'FirebaseAuthService.signInWithEmailAndPassword',
-      );
-      final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      // Vérifier si l'email est vérifié
-      if (!credential.user!.emailVerified) {
-        log(
-          'Email non vérifié, lançant EmailNotVerifiedException',
-          name: 'FirebaseAuthService.signInWithEmailAndPassword',
-        );
-        throw const EmailNotVerifiedException();
-      }
-
-      final user = credential.user;
-      if (user == null) {
-        throw const SyncErrorException();
-      }
-
-      log(
-        'Connexion réussie avec email: $email',
-        name: 'FirebaseAuthService.signInWithEmailAndPassword',
-      );
-
-      return user;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseException(e);
-    } catch (e) {
-      throw UnknownAuthException(e.toString());
-    }
-  }
 
   /// Connexion avec Google
   Future<firebase_auth.User> signInWithGoogle() async {
@@ -172,19 +97,15 @@ class FirebaseAuthService {
   }
 
   /// Envoyer un magic link de connexion (email sign-in link)
+  /// Firebase Dynamic Links est fermé depuis août 2025 — on utilise App Links / Universal Links
   Future<void> sendSignInLink({
     required String email,
     required String continueUrl,
-    String? androidPackageName,
-    String? iOSBundleId,
   }) async {
     try {
       final settings = firebase_auth.ActionCodeSettings(
         url: continueUrl,
         handleCodeInApp: true,
-        androidPackageName: androidPackageName,
-        androidInstallApp: true,
-        iOSBundleId: iOSBundleId,
       );
       await _firebaseAuth.sendSignInLinkToEmail(
         email: email,
@@ -214,49 +135,6 @@ class FirebaseAuthService {
       final user = credential.user;
       if (user == null) throw const SyncErrorException();
       return user;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseException(e);
-    } catch (e) {
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
-  /// Envoyer un email de réinitialisation de mot de passe
-  Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseException(e);
-    } catch (e) {
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
-  /// Renvoyer l'email de vérification
-  Future<void> sendEmailVerification() async {
-    try {
-      final user = _firebaseAuth.currentUser;
-      if (user == null) {
-        throw const UserNotFoundException();
-      }
-      await user.sendEmailVerification();
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseException(e);
-    } catch (e) {
-      throw UnknownAuthException(e.toString());
-    }
-  }
-
-  /// Vérifier si l'email est vérifié (recharge les données utilisateur)
-  Future<bool> checkEmailVerification() async {
-    try {
-      final user = _firebaseAuth.currentUser;
-      if (user == null) {
-        throw const UserNotFoundException();
-      }
-
-      await user.reload();
-      return _firebaseAuth.currentUser?.emailVerified ?? false;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
@@ -298,13 +176,6 @@ class FirebaseAuthService {
     switch (e.code) {
       case 'user-not-found':
         return const UserNotFoundException();
-      case 'wrong-password':
-      case 'invalid-credential':
-        return const InvalidCredentialsException();
-      case 'email-already-in-use':
-        return const EmailAlreadyInUseException();
-      case 'weak-password':
-        return const WeakPasswordException();
       case 'user-disabled':
         return const UserDisabledException();
       case 'too-many-requests':

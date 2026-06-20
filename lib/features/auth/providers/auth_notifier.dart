@@ -36,9 +36,6 @@ class AuthNotifier extends ChangeNotifier {
   // Getters utilitaires
   bool get isAuthenticated => _state.status == AuthStatus.authenticated;
   bool get isAuthenticating => _state.status == AuthStatus.authenticating;
-  bool get needsEmailVerification =>
-      _state.status == AuthStatus.needsEmailVerification;
-
   // Méthode privée pour mettre à jour l'état
   void _updateState(AuthState newState) {
     _state = newState;
@@ -126,187 +123,6 @@ class AuthNotifier extends ChangeNotifier {
           user: null,
           message: null,
           errorCode: null,
-        ),
-      );
-    }
-  }
-
-  /// Connexion avec email et mot de passe
-  Future<void> signInWithEmail(String email, String password) async {
-    _updateState(
-      _state.copyWith(
-        status: AuthStatus.authenticating,
-        message: null,
-        errorCode: null,
-      ),
-    );
-
-    try {
-      log('AuthNotifier.signInWithEmail: Tentative de connexion pour $email');
-
-      await _authRepository.signInWithEmail(email: email, password: password);
-
-      // Après la connexion Firebase, récupérer les données utilisateur via l'API
-      final user = await _authRepository.refreshSession();
-
-      if (user != null) {
-        log(
-          'AuthNotifier.signInWithEmail: Connexion réussie pour ${user.email}',
-        );
-        _updateState(
-          _state.copyWith(
-            status: AuthStatus.authenticated,
-            user: user,
-            message: 'Connexion réussie',
-          ),
-        );
-        AnalyticsService().logLoginSuccess('email');
-        await AnalyticsService().setUser(user.id, email: user.email);
-
-        final prefsService = PrefsService();
-        await prefsService.setHasLoggedIn(true);
-        // Initialiser FCM après connexion réussie
-        log(
-          '🔐 AuthNotifier.signInWithEmail: Récupération du bearerToken pour FCM...',
-        );
-        final bearerToken = await prefsService.getBearerToken();
-        if (bearerToken != null) {
-          log(
-            '🔐 AuthNotifier.signInWithEmail: bearerToken récupéré, initialisation FCM...',
-          );
-          await _initializeFCMAfterLogin(bearerToken);
-        } else {
-          log(
-            '❌ AuthNotifier.signInWithEmail: bearerToken null, FCM non initialisé',
-          );
-        }
-      } else {
-        _updateState(
-          _state.copyWith(
-            status: AuthStatus.unauthenticated,
-            message: 'Échec de la connexion',
-            errorCode: 'sign_in_failed',
-          ),
-        );
-      }
-    } on EmailNotVerifiedException {
-      log('AuthNotifier.signInWithEmail: Email non vérifié');
-      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'email_not_verified');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.needsEmailVerification,
-          message: 'Veuillez vérifier votre email avant de vous connecter',
-          errorCode: 'email_not_verified',
-        ),
-      );
-    } on InvalidCredentialsException {
-      log('AuthNotifier.signInWithEmail: Identifiants invalides');
-      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'invalid_credentials');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Email ou mot de passe incorrect',
-          errorCode: 'invalid_credentials',
-        ),
-      );
-    } on UserDisabledException {
-      log('AuthNotifier.signInWithEmail: Compte désactivé');
-      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'user_disabled');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Votre compte a été désactivé',
-          errorCode: 'user_disabled',
-        ),
-      );
-    } on TooManyRequestsException {
-      log('AuthNotifier.signInWithEmail: Trop de tentatives');
-      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'too_many_requests');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Trop de tentatives. Veuillez réessayer plus tard',
-          errorCode: 'too_many_requests',
-        ),
-      );
-    } catch (error) {
-      log('AuthNotifier.signInWithEmail: Erreur inattendue: $error');
-      AnalyticsService().logLoginFailure(method: 'email', errorCode: 'unexpected_error');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Une erreur inattendue s\'est produite',
-          errorCode: 'unexpected_error',
-        ),
-      );
-    }
-  }
-
-  /// Inscription avec email et mot de passe
-  Future<void> registerWithEmail(
-    String name,
-    String email,
-    String password,
-  ) async {
-    _updateState(
-      _state.copyWith(
-        status: AuthStatus.authenticating,
-        message: null,
-        errorCode: null,
-      ),
-    );
-
-    try {
-      log(
-        'AuthNotifier.registerWithEmail: Tentative d\'inscription pour $email',
-      );
-
-      await _authRepository.registerWithEmail(
-        name: name,
-        email: email,
-        password: password,
-      );
-
-      // Note: Cette ligne ne devrait jamais être atteinte car EmailNotVerifiedException
-      // est toujours lancée après inscription (email non vérifié)
-      log('AuthNotifier.registerWithEmail: Inscription réussie pour $email');
-    } on EmailNotVerifiedException {
-      log(
-        'AuthNotifier.registerWithEmail: Email non vérifié - redirection vers vérification',
-      );
-      AnalyticsService().logSignUp('email');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.needsEmailVerification,
-          message: 'Inscription réussie. Veuillez vérifier votre email',
-          errorCode: 'email_not_verified',
-        ),
-      );
-    } on EmailAlreadyInUseException {
-      log('AuthNotifier.registerWithEmail: Email déjà utilisé');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Cette adresse email est déjà utilisée',
-          errorCode: 'email_already_in_use',
-        ),
-      );
-    } on WeakPasswordException {
-      log('AuthNotifier.registerWithEmail: Mot de passe trop faible');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Le mot de passe est trop faible',
-          errorCode: 'weak_password',
-        ),
-      );
-    } catch (error) {
-      log('AuthNotifier.registerWithEmail: Erreur inattendue: $error');
-      _updateState(
-        _state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Une erreur inattendue s\'est produite',
-          errorCode: 'unexpected_error',
         ),
       );
     }
@@ -471,15 +287,12 @@ class AuthNotifier extends ChangeNotifier {
     ));
 
     try {
-      final packageInfo = await _getPackageId();
-      final continueUrl = 'https://alertcontacts.app/auth/magic-link';
+      const continueUrl = 'https://alertcontacts.web.app/magic-link';
 
       final firebaseAuthService = FirebaseAuthService();
       await firebaseAuthService.sendSignInLink(
         email: email,
         continueUrl: continueUrl,
-        androidPackageName: packageInfo,
-        iOSBundleId: packageInfo,
       );
 
       // Store email for link verification (Firebase requirement)
@@ -559,15 +372,6 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<String> _getPackageId() async {
-    try {
-      // Return bundle ID — used for dynamic link routing
-      return 'com.alertcontacts.alertcontacts';
-    } catch (_) {
-      return 'com.alertcontacts.alertcontacts';
-    }
-  }
-
   /// Déconnexion
   Future<void> signOut() async {
     try {
@@ -601,100 +405,4 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// Envoi d'un email de réinitialisation de mot de passe
-  Future<void> sendPasswordReset(String email) async {
-    _updateState(_state.copyWith(message: null, errorCode: null));
-
-    try {
-      log(
-        'AuthNotifier.sendPasswordReset: Envoi email de réinitialisation pour $email',
-      );
-
-      await _authRepository.sendPasswordReset(email);
-
-      log('AuthNotifier.sendPasswordReset: Email envoyé avec succès');
-      AnalyticsService().logPasswordReset();
-      _updateState(
-        _state.copyWith(message: 'Email de réinitialisation envoyé'),
-      );
-    } on UserNotFoundException {
-      log('AuthNotifier.sendPasswordReset: Utilisateur non trouvé');
-      _updateState(
-        _state.copyWith(
-          message: 'Aucun compte associé à cette adresse email',
-          errorCode: 'user_not_found',
-        ),
-      );
-    } catch (error) {
-      log('AuthNotifier.sendPasswordReset: Erreur inattendue: $error');
-      _updateState(
-        _state.copyWith(
-          message: 'Erreur lors de l\'envoi de l\'email',
-          errorCode: 'password_reset_error',
-        ),
-      );
-    }
-  }
-
-  /// Vérification de l'email
-  Future<void> checkEmailVerification() async {
-    try {
-      log('AuthNotifier.checkEmailVerification: Vérification du statut email');
-
-      final isVerified = await _authRepository.checkEmailVerification();
-
-      if (isVerified) {
-        log(
-          'AuthNotifier.checkEmailVerification: Email vérifié, utilisateur authentifié',
-        );
-
-        // Récupérer les données utilisateur via l'API
-        final user = await _authRepository.refreshSession();
-
-        _updateState(
-          _state.copyWith(
-            status: AuthStatus.authenticated,
-            user: user,
-            message: 'Email vérifié avec succès',
-          ),
-        );
-      } else {
-        log('AuthNotifier.checkEmailVerification: Email non encore vérifié');
-        _updateState(
-          _state.copyWith(
-            message: 'Email non encore vérifié',
-            errorCode: 'email_not_verified',
-          ),
-        );
-      }
-    } catch (error) {
-      log('AuthNotifier.checkEmailVerification: Erreur: $error');
-      _updateState(
-        _state.copyWith(
-          message: 'Erreur lors de la vérification',
-          errorCode: 'verification_error',
-        ),
-      );
-    }
-  }
-
-  /// Renvoi de l'email de vérification
-  Future<void> resendEmailVerification() async {
-    try {
-      log('AuthNotifier.resendEmailVerification: Renvoi email de vérification');
-
-      await _authRepository.sendEmailVerification();
-
-      log('AuthNotifier.resendEmailVerification: Email renvoyé avec succès');
-      _updateState(_state.copyWith(message: 'Email de vérification renvoyé'));
-    } catch (error) {
-      log('AuthNotifier.resendEmailVerification: Erreur: $error');
-      _updateState(
-        _state.copyWith(
-          message: 'Erreur lors du renvoi de l\'email',
-          errorCode: 'resend_verification_error',
-        ),
-      );
-    }
-  }
 }

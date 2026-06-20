@@ -68,9 +68,6 @@ class _AlertContactAppState extends State<AlertContactApp> {
     super.initState();
     _router = AppRouter.create();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      DeepLinkService.initialize(_router);
-    });
   }
 
   @override
@@ -222,9 +219,9 @@ class _AlertContactAppState extends State<AlertContactApp> {
         ChangeNotifierProvider<AuthNotifier>(
           create: (context) {
             final authNotifier = AuthNotifier(context.read<AuthRepository>());
-            // Passer le router à AuthNotifier après sa création
             WidgetsBinding.instance.addPostFrameCallback((_) {
               authNotifier.setRouter(_router);
+              DeepLinkService.initialize(_router, authNotifier: authNotifier);
             });
             return authNotifier;
           },

@@ -5,7 +5,6 @@ enum AuthStatus {
   unknown,
   unauthenticated,
   authenticating,
-  needsEmailVerification,
   authenticated,
   error,
 }

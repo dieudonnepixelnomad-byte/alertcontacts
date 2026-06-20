@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlertContacts — Connexion</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0; background: #f7f9fa; }
+    .card { text-align: center; padding: 40px 24px; max-width: 360px; }
+    .logo { font-size: 32px; font-weight: 700; color: #1E6868; margin-bottom: 8px; }
+    p { color: #666; font-size: 15px; line-height: 1.5; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0;
+               border-top-color: #1E6868; border-radius: 50%;
+               animation: spin 0.8s linear infinite; margin: 24px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fallback { display: none; margin-top: 16px; }
+    a { color: #1E6868; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">AlertContacts</div>
+    <div class="spinner"></div>
+    <p>Ouverture de l'application…</p>
+    <div class="fallback" id="fallback">
+      <p>L'application ne s'est pas ouverte automatiquement.</p>
+      <p><a href="#" onclick="redirect()">Réessayer</a></p>
+    </div>
+  </div>
+  <script>
+    function redirect() {
+      const link = encodeURIComponent(window.location.href);
+      window.location.href = 'alertcontact://magic-link?link=' + link;
+    }
+
+    redirect();
+
+    // Afficher fallback si l'app ne s'ouvre pas après 3s
+    setTimeout(function () {
+      document.getElementById('fallback').style.display = 'block';
+    }, 3000);
+  </script>
+</body>
+</html>

@@ -4,15 +4,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/providers/auth_notifier.dart';
 import 'pending_deep_link_service.dart';
 import 'prefs_service.dart';
 
 class DeepLinkService {
   static const MethodChannel _channel = MethodChannel('alertcontact/deep_links');
   static StreamSubscription<String>? _linkSubscription;
-  
+  static AuthNotifier? _authNotifier;
+
   /// Initialise le service de deep links
-  static Future<void> initialize(GoRouter router) async {
+  static Future<void> initialize(GoRouter router, {AuthNotifier? authNotifier}) async {
+    _authNotifier = authNotifier;
     try {
       log('Initialisation du DeepLinkService');
       
@@ -97,9 +100,33 @@ class DeepLinkService {
         }
       }
       
+      // alertcontact://magic-link?link=ENCODED_FIREBASE_URL
+      if (uri.host == 'magic-link') {
+        final encodedLink = uri.queryParameters['link'];
+        if (encodedLink != null && encodedLink.isNotEmpty) {
+          final firebaseLink = Uri.decodeComponent(encodedLink);
+          log('Magic link reçu: $firebaseLink');
+          await _handleMagicLink(firebaseLink);
+          return;
+        }
+      }
+
       log('Deep link AlertContact non supporté: $uri');
     } catch (e) {
       log('Erreur lors du traitement du lien AlertContact: $e');
+    }
+  }
+
+  /// Traite un magic link Firebase email sign-in
+  static Future<void> _handleMagicLink(String emailLink) async {
+    try {
+      if (_authNotifier == null) {
+        log('AuthNotifier non disponible pour traiter le magic link');
+        return;
+      }
+      await _authNotifier!.verifyMagicLink(emailLink);
+    } catch (e) {
+      log('Erreur lors du traitement du magic link: $e');
     }
   }
   

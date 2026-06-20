@@ -3,9 +3,6 @@ import 'package:alertcontacts/features/about/presentation/about_page.dart';
 import 'package:alertcontacts/features/app_shell/presentation/app_shell.dart';
 import 'package:alertcontacts/features/auth/presentation/login_page.dart';
 import 'package:alertcontacts/features/auth/presentation/magic_link_sent_page.dart';
-import 'package:alertcontacts/features/auth/presentation/register_page.dart';
-import 'package:alertcontacts/features/auth/pages/email_verification_page.dart';
-import 'package:alertcontacts/features/auth/pages/forgot_password_page.dart';
 import 'package:alertcontacts/features/auth/providers/auth_notifier.dart';
 import 'package:alertcontacts/features/auth/providers/auth_state.dart';
 import 'package:alertcontacts/features/permissions/presentation/permission_location_page.dart';
@@ -63,9 +60,6 @@ abstract class AppRoutes {
   static const onboarding = '/onboarding';
   static const auth = '/auth';
   static const magicLinkSent = '/auth/magic-link-sent';
-  static const register = '/register';
-  static const emailVerification = '/email-verification';
-  static const forgotPassword = '/forgot-password';
   static const userSetup = '/user-setup';
   static const permissionLocation = '/permission/location';
   static const permissionNotification = '/permission/notification';
@@ -184,21 +178,7 @@ class AppRouter {
             return MagicLinkSentPage(email: email);
           },
         ),
-        GoRoute(
-          path: AppRoutes.register,
-          name: 'register',
-          builder: (ctx, state) => const RegisterPage(),
-        ),
-        GoRoute(
-          path: AppRoutes.emailVerification,
-          name: 'email_verification',
-          builder: (ctx, state) => const EmailVerificationPage(),
-        ),
-        GoRoute(
-          path: AppRoutes.forgotPassword,
-          name: 'forgot_password',
-          builder: (ctx, state) => const ForgotPasswordPage(),
-        ),
+
         GoRoute(
           path: AppRoutes.permissionLocation,
           name: 'permission_location',
