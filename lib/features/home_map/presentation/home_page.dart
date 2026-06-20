@@ -28,6 +28,7 @@ import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../alertes/providers/alert_provider.dart';
+import '../../app_shell/providers/navigation_provider.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../proches/providers/relationship_provider.dart';
 import '../../zones/providers/zones_notifier.dart';
@@ -116,6 +117,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     });
   }
 
+  NavigationProvider? _navigationProvider;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -125,10 +128,33 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       _alertProvider.addListener(_onAlertCreated);
       _alertListenerAttached = true;
     }
+
+    final nav = context.read<NavigationProvider>();
+    if (_navigationProvider != nav) {
+      _navigationProvider?.removeListener(_onNavigationChanged);
+      _navigationProvider = nav;
+      nav.addListener(_onNavigationChanged);
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _initializeServices();
     });
     _subscribeToLocationUpdates();
+  }
+
+  void _onNavigationChanged() {
+    final focus = _navigationProvider?.pendingFocus;
+    if (focus == null) return;
+    _navigationProvider?.clearFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _controller?.animateCamera(
+        gmaps.CameraUpdate.newLatLngZoom(
+          gmaps.LatLng(focus.lat, focus.lng),
+          17.0,
+        ),
+      );
+    });
   }
 
   @override
@@ -138,6 +164,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     _locationSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _alertProvider.removeListener(_onAlertCreated);
+    _navigationProvider?.removeListener(_onNavigationChanged);
     super.dispose();
   }
 
@@ -268,8 +295,11 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       log('[MapTab] _initializeServices start');
       if (mounted) await context.read<ZonesNotifier>().loadZones();
       final granted = await PermissionsService.isLocationPermissionGranted();
-      final serviceEnabled = await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
-      log('[MapTab] location permission granted=$granted serviceEnabled=$serviceEnabled');
+      final serviceEnabled =
+          await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
+      log(
+        '[MapTab] location permission granted=$granted serviceEnabled=$serviceEnabled',
+      );
       if (!granted || !serviceEnabled) {
         if (mounted) await _showLocationPermissionDialog();
         return;
@@ -319,7 +349,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     _locationSubscription = _locationService.locationStream.listen(
       (point) {
         if (!mounted) return;
-        log('[MapTab] location received lat=${point.latitude} lng=${point.longitude} acc=${point.accuracy} loadingLocation=$_loadingLocation');
+        log(
+          '[MapTab] location received lat=${point.latitude} lng=${point.longitude} acc=${point.accuracy} loadingLocation=$_loadingLocation',
+        );
         final pos = gmaps.LatLng(point.latitude, point.longitude);
         setState(() {
           _currentPosition = pos;
@@ -355,7 +387,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   }
 
   Future<void> _recenterCamera() async {
-    log('[MapTab] recenter tapped, currentPosition=$_currentPosition loadingLocation=$_loadingLocation isTracking=${_locationService.isTracking}');
+    log(
+      '[MapTab] recenter tapped, currentPosition=$_currentPosition loadingLocation=$_loadingLocation isTracking=${_locationService.isTracking}',
+    );
     if (_currentPosition != null) {
       log('[MapTab] animating camera to currentPosition');
       _controller?.animateCamera(
@@ -506,7 +540,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               circles: {
                 ...safeCircles,
                 if (_currentZoom >= 13) ..._buildDangerCircles(),
-                if (_currentPosition != null && _currentAccuracy != null && _currentAccuracy! > 50)
+                if (_currentPosition != null &&
+                    _currentAccuracy != null &&
+                    _currentAccuracy! > 50)
                   gmaps.Circle(
                     circleId: const gmaps.CircleId('gps_accuracy'),
                     center: _currentPosition!,
@@ -534,81 +570,93 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
             // ── Offline banner (dark chip) ────────────────────────────────────
             if (_connectivity.every((r) => r == ConnectivityResult.none))
-              Builder(builder: (context) {
-                final minutes = _lastSyncTime != null
-                    ? DateTime.now().difference(_lastSyncTime!).inMinutes
-                    : null;
-                return Positioned(
-                  top: MediaQuery.of(context).padding.top + 60,
-                  left: 0,
-                  right: 0,
-                  child: OfflineBanner(minutesSinceUpdate: minutes),
-                );
-              }),
+              Builder(
+                builder: (context) {
+                  final minutes = _lastSyncTime != null
+                      ? DateTime.now().difference(_lastSyncTime!).inMinutes
+                      : null;
+                  return Positioned(
+                    top: MediaQuery.of(context).padding.top + 60,
+                    left: 0,
+                    right: 0,
+                    child: OfflineBanner(minutesSinceUpdate: minutes),
+                  );
+                },
+              ),
 
             // ── Proximity alert toast ─────────────────────────────────────────
-            Builder(builder: (_) {
-              final alert = _nearestProximityAlert();
-              if (alert == null) return const SizedBox.shrink();
-              final color = alert.zone.severity == DangerSeverity.high
-                  ? AppColors.danger
-                  : AppColors.gravityMid;
-              return Positioned(
-                top: MediaQuery.of(context).padding.top + 64,
-                left: 12,
-                right: 12,
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border(
-                        left: BorderSide(color: color, width: 4),
+            Builder(
+              builder: (_) {
+                final alert = _nearestProximityAlert();
+                if (alert == null) return const SizedBox.shrink();
+                final color = alert.zone.severity == DangerSeverity.high
+                    ? AppColors.danger
+                    : AppColors.gravityMid;
+                return Positioned(
+                  top: MediaQuery.of(context).padding.top + 64,
+                  left: 12,
+                  right: 12,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border(
+                          left: BorderSide(color: color, width: 4),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: color,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Danger signalé à ${alert.distanceM}m',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: Color(0xFF1A1A1A),
+                                  ),
+                                ),
+                                Text(
+                                  '${alert.zone.title} · ${alert.zone.confirmations} conf.',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.gray600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () =>
+                                setState(() => _alertToastDismissed = true),
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: AppColors.gray400,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: color, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Danger signalé à ${alert.distanceM}m',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
-                              Text(
-                                '${alert.zone.title} · ${alert.zone.confirmations} conf.',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.gray600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () =>
-                              setState(() => _alertToastDismissed = true),
-                          child: const Icon(Icons.close,
-                              size: 18, color: AppColors.gray400),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              },
+            ),
 
             // ── Invisible mode banner ─────────────────────────────────────────
             if (_invisibleActive)
@@ -623,7 +671,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
 
             // ── GPS imprecise banner ──────────────────────────────────────────
-            if (_currentAccuracy != null && _currentAccuracy! > 100 &&
+            if (_currentAccuracy != null &&
+                _currentAccuracy! > 100 &&
                 _connectivity.any((r) => r != ConnectivityResult.none))
               Positioned(
                 top: MediaQuery.of(context).padding.top + 60,
@@ -633,26 +682,33 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
 
             // ── Low battery banner ────────────────────────────────────────────
-            Builder(builder: (_) {
-              final lowBatteryContact = _findLowBatteryContact(
-                relProvider.realtimeContacts,
-                rtdbService.snapshots,
-              );
-              if (lowBatteryContact == null) return const SizedBox.shrink();
-              final bannerTop = _currentAccuracy != null && _currentAccuracy! > 100
-                  ? MediaQuery.of(context).padding.top + 104
-                  : MediaQuery.of(context).padding.top + 60;
-              return Positioned(
-                top: bannerTop,
-                left: 0,
-                right: 0,
-                child: LowBatteryBanner(
-                  contactName: lowBatteryContact.rel.contact.name.split(' ').first,
-                  batteryPercent: lowBatteryContact.snap.batteryLevel!,
-                  onTap: () => setState(() => _selectedContactDetail = lowBatteryContact),
-                ),
-              );
-            }),
+            Builder(
+              builder: (_) {
+                final lowBatteryContact = _findLowBatteryContact(
+                  relProvider.realtimeContacts,
+                  rtdbService.snapshots,
+                );
+                if (lowBatteryContact == null) return const SizedBox.shrink();
+                final bannerTop =
+                    _currentAccuracy != null && _currentAccuracy! > 100
+                    ? MediaQuery.of(context).padding.top + 104
+                    : MediaQuery.of(context).padding.top + 60;
+                return Positioned(
+                  top: bannerTop,
+                  left: 0,
+                  right: 0,
+                  child: LowBatteryBanner(
+                    contactName: lowBatteryContact.rel.contact.name
+                        .split(' ')
+                        .first,
+                    batteryPercent: lowBatteryContact.snap.batteryLevel!,
+                    onTap: () => setState(
+                      () => _selectedContactDetail = lowBatteryContact,
+                    ),
+                  ),
+                );
+              },
+            ),
 
             // ── V4 Header overlay ─────────────────────────────────────────────
             Positioned(
@@ -715,7 +771,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
 
             // ── Offline cache card ────────────────────────────────────────────
-            if (_connectivity.every((r) => r == ConnectivityResult.none) && hasContacts)
+            if (_connectivity.every((r) => r == ConnectivityResult.none) &&
+                hasContacts)
               Positioned(
                 bottom: 16,
                 left: 16,
@@ -827,12 +884,15 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     final isOffline = _connectivity.every((r) => r == ConnectivityResult.none);
 
     for (final rel in contacts) {
+      if (!rel.canSeeContact) continue;
       final uid = rel.contact.firebaseUid;
       if (uid == null) continue;
       final snap = snapshots[uid];
       if (snap == null || snap.isInvisible) continue;
 
-      final isStale = DateTime.now().difference(snap.updatedAt) > const Duration(minutes: 15);
+      final isStale =
+          DateTime.now().difference(snap.updatedAt) >
+          const Duration(minutes: 15);
       // Online + stale → skip. Offline → always show from cache.
       if (isStale && !isOffline) continue;
 
@@ -857,14 +917,17 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         gmaps.Marker(
           markerId: gmaps.MarkerId('contact_$uid'),
           position: gmaps.LatLng(snap.latitude, snap.longitude),
-          icon: icon ?? gmaps.BitmapDescriptor.defaultMarkerWithHue(
-            isLowBattery
-                ? gmaps.BitmapDescriptor.hueRed
-                : showAsStale
+          icon:
+              icon ??
+              gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                isLowBattery
+                    ? gmaps.BitmapDescriptor.hueRed
+                    : showAsStale
                     ? gmaps.BitmapDescriptor.hueAzure
                     : gmaps.BitmapDescriptor.hueCyan,
-          ),
-          onTap: () => setState(() => _selectedContactDetail = (rel: rel, snap: snap)),
+              ),
+          onTap: () =>
+              setState(() => _selectedContactDetail = (rel: rel, snap: snap)),
         ),
       );
     }
@@ -1005,7 +1068,10 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildContactDetailSheet(ContactRelation rel, RtdbContactSnapshot snap) {
+  Widget _buildContactDetailSheet(
+    ContactRelation rel,
+    RtdbContactSnapshot snap,
+  ) {
     final isLowBattery = (snap.batteryLevel ?? 100) < 20;
     final isImprecise = snap.accuracy > 100;
     final tt = Theme.of(context).textTheme;
@@ -1027,7 +1093,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  rel.contact.name.isNotEmpty ? rel.contact.name[0].toUpperCase() : '?',
+                  rel.contact.name.isNotEmpty
+                      ? rel.contact.name[0].toUpperCase()
+                      : '?',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -1044,25 +1112,35 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                       children: [
                         Text(
                           rel.contact.name.split(' ').first,
-                          style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          style: tt.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         if (isImprecise) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'localisation imprécise',
-                              style: tt.bodySmall?.copyWith(color: AppColors.warning),
+                              style: tt.bodySmall?.copyWith(
+                                color: AppColors.warning,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '±${snap.accuracy.toInt()} m',
-                            style: tt.bodySmall?.copyWith(color: AppColors.warning, fontWeight: FontWeight.w600),
+                            style: tt.bodySmall?.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ],
@@ -1077,7 +1155,10 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
               if (isLowBattery && snap.batteryLevel != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.danger.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(8),
@@ -1085,11 +1166,19 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.battery_alert_rounded, color: AppColors.danger, size: 14),
+                      const Icon(
+                        Icons.battery_alert_rounded,
+                        color: AppColors.danger,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${snap.batteryLevel}%',
-                        style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -1106,12 +1195,18 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.lightbulb_outline_rounded, color: AppColors.warning, size: 16),
+                  const Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: AppColors.warning,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'La précision revient automatiquement en extérieur.',
-                      style: tt.bodySmall?.copyWith(color: const Color(0xFF92600A)),
+                      style: tt.bodySmall?.copyWith(
+                        color: const Color(0xFF92600A),
+                      ),
                     ),
                   ),
                 ],
@@ -1158,7 +1253,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => setState(() => _selectedContactDetail = null),
+                  onPressed: () =>
+                      setState(() => _selectedContactDetail = null),
                   child: const Text('Fermer'),
                 ),
               ),
@@ -1194,8 +1290,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     final circleColor = stale
         ? const Color(0xFFB0B0B0)
         : isLowBattery
-            ? AppColors.danger
-            : AppColors.primary;
+        ? AppColors.danger
+        : AppColors.primary;
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, totalW, totalH));
@@ -1263,7 +1359,11 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       const badgeR = 10.0;
       final bx = cx + circleR * 0.65;
       final by = cy + circleR * 0.65;
-      canvas.drawCircle(Offset(bx, by), badgeR, Paint()..color = AppColors.danger);
+      canvas.drawCircle(
+        Offset(bx, by),
+        badgeR,
+        Paint()..color = AppColors.danger,
+      );
       canvas.drawCircle(
         Offset(bx, by),
         badgeR,
@@ -1273,10 +1373,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
           ..style = PaintingStyle.stroke,
       );
       final btp = TextPainter(
-        text: const TextSpan(
-          text: '🔋',
-          style: TextStyle(fontSize: 10),
-        ),
+        text: const TextSpan(text: '🔋', style: TextStyle(fontSize: 10)),
         textDirection: TextDirection.ltr,
       )..layout();
       btp.paint(canvas, Offset(bx - btp.width / 2, by - btp.height / 2));
@@ -1298,7 +1395,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
 
     final firstName = name.split(' ').first;
-    final baseLabel = firstName.length > 8 ? '${firstName.substring(0, 6)}…' : firstName;
+    final baseLabel = firstName.length > 8
+        ? '${firstName.substring(0, 6)}…'
+        : firstName;
     final label = isLowBattery ? '$baseLabel · $batteryLevel%' : baseLabel;
     final ltp = TextPainter(
       text: TextSpan(
@@ -1330,7 +1429,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     final phi2 = lat2 * math.pi / 180;
     final dp = (lat2 - lat1) * math.pi / 180;
     final dl = (lng2 - lng1) * math.pi / 180;
-    final a = math.sin(dp / 2) * math.sin(dp / 2) +
+    final a =
+        math.sin(dp / 2) * math.sin(dp / 2) +
         math.cos(phi1) * math.cos(phi2) * math.sin(dl / 2) * math.sin(dl / 2);
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }

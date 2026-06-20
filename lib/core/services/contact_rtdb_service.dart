@@ -58,6 +58,11 @@ class ContactRtdbService extends ChangeNotifier {
           r.contact.firebaseUid!,
     };
 
+    developer.log(
+      'updateContacts: relations=${relations.length} activeUids=$activeUids',
+      name: 'ContactRtdbService',
+    );
+
     // Fermer les listeners des proches qui ne sont plus actifs
     for (final uid in [..._subs.keys]) {
       if (!activeUids.contains(uid)) {
@@ -70,10 +75,11 @@ class ContactRtdbService extends ChangeNotifier {
     // Ouvrir les nouveaux listeners
     for (final uid in activeUids) {
       if (_subs.containsKey(uid)) continue;
+      developer.log('opening listener for uid=$uid', name: 'ContactRtdbService');
       _subs[uid] = _db.ref('locations/$uid').onValue.listen(
         (event) => _onData(uid, event),
         onError: (e) => developer.log(
-          'ContactRtdbService: listener error uid=$uid: $e',
+          'listener error uid=$uid: $e',
           name: 'ContactRtdbService',
         ),
       );
@@ -84,6 +90,7 @@ class ContactRtdbService extends ChangeNotifier {
 
   void _onData(String uid, DatabaseEvent event) {
     final raw = event.snapshot.value;
+    developer.log('_onData uid=$uid raw=${raw?.runtimeType} value=$raw', name: 'ContactRtdbService');
     if (raw == null) {
       _snapshots.remove(uid);
       notifyListeners();
@@ -103,10 +110,11 @@ class ContactRtdbService extends ChangeNotifier {
         isInvisible: map['is_invisible'] as bool? ?? false,
         batteryLevel: (map['battery'] as num?)?.toInt(),
       );
+      developer.log('snapshot stored for uid=$uid lat=${map['lat']} lng=${map['lng']}', name: 'ContactRtdbService');
       notifyListeners();
     } catch (e) {
       developer.log(
-        'ContactRtdbService: parse error uid=$uid: $e',
+        'parse error uid=$uid: $e',
         name: 'ContactRtdbService',
       );
     }

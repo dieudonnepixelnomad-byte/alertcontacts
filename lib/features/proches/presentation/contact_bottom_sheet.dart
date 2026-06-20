@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:provider/provider.dart';
 import '../../../theme/colors.dart';
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/zone.dart' as zone_models;
@@ -13,6 +14,7 @@ class ContactBottomSheet extends StatefulWidget {
   final List<zone_models.Zone> safeZones;
   final VoidCallback? onViewOnMap;
   final VoidCallback? onResendInvitation;
+  final VoidCallback? onActivateSharing;
   final VoidCallback onRemove;
   final Future<bool> Function({
     required bool sharePosition,
@@ -30,6 +32,7 @@ class ContactBottomSheet extends StatefulWidget {
     this.safeZones = const [],
     this.onViewOnMap,
     this.onResendInvitation,
+    this.onActivateSharing,
   });
 
   @override
@@ -103,7 +106,10 @@ class _ContactBottomSheetState extends State<ContactBottomSheet> {
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final rel = widget.relation;
-    final snap = widget.snapshot;
+    final liveSnap = rel.contact.firebaseUid != null
+        ? context.watch<ContactRtdbService>().snapshots[rel.contact.firebaseUid!]
+        : null;
+    final snap = liveSnap ?? widget.snapshot;
     final isPending = rel.status == RelationStatus.pending;
     final battery = rel.batteryLevel;
     final speed = snap?.speedKmh;
@@ -263,16 +269,42 @@ class _ContactBottomSheetState extends State<ContactBottomSheet> {
                     child: Column(
                       children: [
                         if (!isPending) ...[
-                          _ActionTile(
-                            icon: Icons.map_outlined,
-                            label: 'Voir sur la carte',
-                            subtitle: 'Centre la carte sur $firstName',
-                            onTap: () {
-                              Navigator.pop(context);
-                              widget.onViewOnMap?.call();
-                            },
-                          ),
+                          if (rel.canSeeContact) ...[
+                            _ActionTile(
+                              icon: Icons.map_outlined,
+                              label: 'Voir sur la carte',
+                              subtitle: snap != null
+                                  ? 'Centre la carte sur $firstName'
+                                  : '$firstName est hors ligne',
+                              onTap: snap != null && widget.onViewOnMap != null
+                                  ? () {
+                                      Navigator.pop(context);
+                                      widget.onViewOnMap!();
+                                    }
+                                  : () {},
+                            ),
+                          ] else ...[
+                            _ActionTile(
+                              icon: Icons.location_off_outlined,
+                              label: 'Position non visible',
+                              subtitle: '$firstName n\'a pas activé le partage',
+                              showChevron: false,
+                              onTap: () {},
+                            ),
+                          ],
                           _TileDivider(),
+                          if (!rel.canSeeMe) ...[
+                            _ActionTile(
+                              icon: Icons.share_location_outlined,
+                              label: 'Partager ma position avec $firstName',
+                              subtitle: '$firstName ne peut pas te voir pour le moment',
+                              onTap: () {
+                                Navigator.pop(context);
+                                widget.onActivateSharing?.call();
+                              },
+                            ),
+                            _TileDivider(),
+                          ],
                           _ActionTile(
                             icon: Icons.notifications_outlined,
                             label: 'Gérer les alertes',
@@ -519,6 +551,7 @@ class _ActionTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final bool isDestructive;
+  final bool showChevron;
 
   const _ActionTile({
     required this.icon,
@@ -526,6 +559,7 @@ class _ActionTile extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.isDestructive = false,
+    this.showChevron = true,
   });
 
   @override
@@ -572,7 +606,7 @@ class _ActionTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isDestructive)
+            if (!isDestructive && showChevron)
               const Icon(Icons.chevron_right, color: AppColors.gray400, size: 18),
           ],
         ),

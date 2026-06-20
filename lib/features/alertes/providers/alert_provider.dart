@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/models/community_alert.dart';
+import '../../../core/services/alert_event_store.dart';
 import '../../../core/services/api_alerts_service.dart';
 import '../../../core/services/notification_manager.dart';
 import '../../../core/services/unified_alert_service.dart';
@@ -41,8 +42,12 @@ class AlertProvider extends ChangeNotifier {
 
   AlertProvider(this._apiAlertsService, this._prefs) {
     _alertService.addListener(_onAlertServiceChanged);
+    AlertEventStore().addListener(_onEventStoreChanged);
     _initToken();
+    AlertEventStore().load();
   }
+
+  void _onEventStoreChanged() => notifyListeners();
 
   Future<void> _initToken() async {
     final token = await _prefs.getBearerToken();
@@ -65,7 +70,11 @@ class AlertProvider extends ChangeNotifier {
   bool get isInitialized => _alertService.isInitialized;
   List<CommunityAlert> get alerts => _alerts;
   int get createdCount => _createdCount;
-  int get unreadCount => _alerts.where((a) => !_readIds.contains(a.id)).length;
+  List<AlertEvent> get zoneEvents => AlertEventStore().zoneEvents;
+  List<AlertEvent> get contactEvents => AlertEventStore().contactEvents;
+  int get unreadCount =>
+      _alerts.where((a) => !_readIds.contains(a.id)).length +
+      AlertEventStore().unreadCount;
 
   void _onAlertServiceChanged() => notifyListeners();
 
@@ -237,8 +246,13 @@ class AlertProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markReadEvent(String eventId) {
+    AlertEventStore().markRead(eventId);
+  }
+
   void markAllRead() {
     _readIds.addAll(_alerts.map((a) => a.id));
+    AlertEventStore().markAllRead();
     notifyListeners();
   }
 
@@ -298,6 +312,7 @@ class AlertProvider extends ChangeNotifier {
   void dispose() {
     _fetchTimer?.cancel();
     _alertService.removeListener(_onAlertServiceChanged);
+    AlertEventStore().removeListener(_onEventStoreChanged);
     _alertService.dispose();
     super.dispose();
   }

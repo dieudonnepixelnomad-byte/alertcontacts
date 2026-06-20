@@ -208,9 +208,17 @@ class _ProchesTabState extends State<ProchesTab> {
         safeZones: zones,
         onRemove: () => _remove(relation),
         onViewOnMap: () {
-          Navigator.pop(context);
-          context.read<NavigationProvider>().goToMap();
+          final uid = relation.contact.firebaseUid;
+          if (uid == null) return;
+          final liveSnap = context.read<ContactRtdbService>().snapshots[uid];
+          if (liveSnap == null) return;
+          context.read<NavigationProvider>().focusContact(
+            uid: uid,
+            lat: liveSnap.latitude,
+            lng: liveSnap.longitude,
+          );
         },
+        onActivateSharing: () => _activateSharing(relation),
         onSavePermissions: ({
           required sharePosition,
           required shareBattery,
@@ -242,6 +250,30 @@ class _ProchesTabState extends State<ProchesTab> {
     } catch (e) {
       log('permissions update error: $e');
       return false;
+    }
+  }
+
+  Future<void> _activateSharing(ContactRelation relation) async {
+    final provider = context.read<RelationshipProvider>();
+    try {
+      await provider.updateShareLevel(relation.id, ShareLevel.realtime);
+      await provider.loadRelationships();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Position partagée avec ${relation.contact.name.split(' ').first}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Impossible d\'activer le partage'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
     }
   }
 

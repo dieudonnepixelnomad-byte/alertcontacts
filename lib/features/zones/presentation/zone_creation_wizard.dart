@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import '../../../core/config/api_config.dart';
 import '../../../core/services/paywall_trigger_service.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../features/paywall/presentation/paywall_trigger_modal.dart';
@@ -239,10 +238,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
   bool _locating = false;
   String? _apiError;
 
-  static const _autocompleteUrl =
-      'https://maps.googleapis.com/maps/api/place/autocomplete/json';
-  static const _detailsUrl =
-      'https://maps.googleapis.com/maps/api/place/details/json';
+  static const _nominatimUrl = 'https://nominatim.openstreetmap.org/search';
 
   @override
   void dispose() {
@@ -293,12 +289,12 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return;
     if (_suggestions.isNotEmpty) {
-      await _selectPlace(_suggestions.first);
+      _selectPlace(_suggestions.first);
       return;
     }
     await _fetchSuggestions(trimmed);
     if (_suggestions.isNotEmpty) {
-      await _selectPlace(_suggestions.first);
+      _selectPlace(_suggestions.first);
     }
   }
 
@@ -315,73 +311,51 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
   }
 
   Future<void> _fetchSuggestions(String input) async {
-    log('[Places] autocomplete query="$input"');
+    log('[Nominatim] search query="$input"');
     setState(() { _searching = true; _apiError = null; });
     try {
-      final uri = Uri.parse(_autocompleteUrl).replace(queryParameters: {
-        'input': input,
-        'key': ApiConfig.googlePlacesApiKey,
-        'language': 'fr',
+      final uri = Uri.parse(_nominatimUrl).replace(queryParameters: {
+        'q': input,
+        'format': 'json',
+        'limit': '5',
+        'accept-language': 'fr',
       });
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
-      log('[Places] autocomplete http=${response.statusCode}');
+      final response = await http.get(uri, headers: {
+        'User-Agent': 'AlertContacts/1.0',
+      }).timeout(const Duration(seconds: 8));
+      log('[Nominatim] http=${response.statusCode}');
       if (!mounted) return;
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final apiStatus = data['status'] as String? ?? 'UNKNOWN';
-      final errorMessage = data['error_message'] as String? ?? '';
-      log('[Places] autocomplete api_status=$apiStatus count=${(data['predictions'] as List?)?.length ?? 0} error_message="$errorMessage"');
-      if (apiStatus != 'OK' && apiStatus != 'ZERO_RESULTS') {
-        setState(() => _apiError = '$apiStatus — $errorMessage');
-        return;
-      }
-      final predictions = (data['predictions'] as List? ?? [])
-          .map((p) => _PlacePrediction(
-                placeId: p['place_id'] as String,
-                description: p['description'] as String,
-                mainText: (p['structured_formatting']?['main_text'] as String?) ?? '',
-                secondaryText: (p['structured_formatting']?['secondary_text'] as String?) ?? '',
-              ))
-          .toList();
+      final results = jsonDecode(response.body) as List<dynamic>;
+      log('[Nominatim] count=${results.length}');
+      final predictions = results.map((r) {
+        final displayName = r['display_name'] as String? ?? '';
+        final parts = displayName.split(', ');
+        final mainText = parts.isNotEmpty ? parts.first : displayName;
+        final secondaryText = parts.length > 1 ? parts.skip(1).join(', ') : '';
+        return _PlacePrediction(
+          mainText: mainText,
+          secondaryText: secondaryText,
+          lat: double.parse(r['lat'] as String),
+          lng: double.parse(r['lon'] as String),
+        );
+      }).toList();
       setState(() => _suggestions = predictions);
     } catch (e) {
-      log('[Places] autocomplete error: $e');
+      log('[Nominatim] error: $e');
       if (mounted) setState(() => _apiError = e.toString());
     } finally {
       if (mounted) setState(() => _searching = false);
     }
   }
 
-  Future<void> _selectPlace(_PlacePrediction place) async {
-    log('[Places] selected place_id=${place.placeId} desc="${place.description}"');
+  void _selectPlace(_PlacePrediction place) {
+    log('[Nominatim] selected lat=${place.lat} lng=${place.lng}');
     _searchController.text = place.mainText;
     setState(() => _suggestions = []);
     FocusScope.of(context).unfocus();
-
-    try {
-      final uri = Uri.parse(_detailsUrl).replace(queryParameters: {
-        'place_id': place.placeId,
-        'fields': 'geometry',
-        'key': ApiConfig.googlePlacesApiKey,
-      });
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
-      log('[Places] details status=${response.statusCode}');
-      if (!mounted) return;
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      log('[Places] details api_status=${data['status']}');
-      final location = data['result']?['geometry']?['location'];
-      if (location == null) {
-        log('[Places] details: no geometry in response');
-        return;
-      }
-      final lat = (location['lat'] as num).toDouble();
-      final lng = (location['lng'] as num).toDouble();
-      log('[Places] details: lat=$lat lng=$lng → animating camera');
-      final pos = gmaps.LatLng(lat, lng);
-      widget.onPositionSelected(pos);
-      _mapController?.animateCamera(gmaps.CameraUpdate.newLatLngZoom(pos, 16));
-    } catch (e) {
-      log('[Places] details error: $e');
-    }
+    final pos = gmaps.LatLng(place.lat, place.lng);
+    widget.onPositionSelected(pos);
+    _mapController?.animateCamera(gmaps.CameraUpdate.newLatLngZoom(pos, 16));
   }
 
   @override
@@ -624,16 +598,16 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
 }
 
 class _PlacePrediction {
-  final String placeId;
-  final String description;
   final String mainText;
   final String secondaryText;
+  final double lat;
+  final double lng;
 
   const _PlacePrediction({
-    required this.placeId,
-    required this.description,
     required this.mainText,
     required this.secondaryText,
+    required this.lat,
+    required this.lng,
   });
 }
 

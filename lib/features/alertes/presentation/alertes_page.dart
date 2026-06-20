@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/community_alert.dart';
+import '../../../core/services/alert_event_store.dart';
 import '../../../shared/widgets/offline_banner.dart';
 import '../../../theme/colors.dart';
 import '../providers/alert_provider.dart';
@@ -41,16 +42,21 @@ class _AlertesPageState extends State<AlertesPage> {
   bool get _isOffline =>
       _connectivity.every((r) => r == ConnectivityResult.none);
 
+  String _timeLabel(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes}min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours}h';
+    return 'hier';
+  }
+
+  String _dateLabel(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt);
+    return diff.inDays == 0 ? "Aujourd'hui" : "Hier";
+  }
+
   List<Map<String, dynamic>> _communityToMap(
       List<CommunityAlert> alerts, AlertProvider provider) {
     return alerts.map((a) {
-      final diff = DateTime.now().difference(a.createdAt);
-      final timeLabel = diff.inMinutes < 60
-          ? 'il y a ${diff.inMinutes}min'
-          : diff.inHours < 24
-              ? 'il y a ${diff.inHours}h'
-              : 'hier';
-      final dateLabel = diff.inDays == 0 ? "Aujourd'hui" : "Hier";
       final gravityStr = switch (a.gravity) {
         AlertGravity.high   => 'high',
         AlertGravity.medium => 'medium',
@@ -60,11 +66,12 @@ class _AlertesPageState extends State<AlertesPage> {
         'id': a.id,
         'type': 'community',
         'title': '${a.typeLabel} signalé',
-        'subtitle': '${a.gravityLabel} · $timeLabel',
+        'subtitle': '${a.gravityLabel} · ${_timeLabel(a.createdAt)}',
         'gravity': gravityStr,
         'read': provider.isRead(a.id),
-        'date': dateLabel,
+        'date': _dateLabel(a.createdAt),
         'filter': _AlertFilter.community,
+        '_sort': a.createdAt.millisecondsSinceEpoch,
         'alert_data': {
           'id': a.id,
           'gravity': gravityStr,
@@ -76,8 +83,43 @@ class _AlertesPageState extends State<AlertesPage> {
     }).toList();
   }
 
+  List<Map<String, dynamic>> _zoneToMap(List<AlertEvent> events) {
+    return events.map((e) => {
+          'id': e.id,
+          'type': 'zone',
+          'title': e.title,
+          'subtitle': '${e.subtitle} · ${_timeLabel(e.createdAt)}',
+          'gravity': null,
+          'read': e.isRead,
+          'date': _dateLabel(e.createdAt),
+          'filter': _AlertFilter.zones,
+          '_sort': e.createdAt.millisecondsSinceEpoch,
+          'alert_data': null,
+        }).toList();
+  }
+
+  List<Map<String, dynamic>> _contactToMap(List<AlertEvent> events) {
+    return events.map((e) => {
+          'id': e.id,
+          'type': 'contact',
+          'title': e.title,
+          'subtitle': '${e.subtitle} · ${_timeLabel(e.createdAt)}',
+          'gravity': null,
+          'read': e.isRead,
+          'date': _dateLabel(e.createdAt),
+          'filter': _AlertFilter.contacts,
+          '_sort': e.createdAt.millisecondsSinceEpoch,
+          'alert_data': null,
+        }).toList();
+  }
+
   List<Map<String, dynamic>> _buildAllAlerts(AlertProvider provider) {
-    return _communityToMap(provider.alerts, provider);
+    return [
+      ..._communityToMap(provider.alerts, provider),
+      ..._zoneToMap(provider.zoneEvents),
+      ..._contactToMap(provider.contactEvents),
+    ]..sort((a, b) =>
+        (b['_sort'] as int).compareTo(a['_sort'] as int));
   }
 
   List<Map<String, dynamic>> _filtered(AlertProvider provider) {
@@ -247,9 +289,8 @@ class _AlertesPageState extends State<AlertesPage> {
                                   data: entry.value[i],
                                   onTap: () =>
                                       _openDetail(entry.value[i], provider),
-                                  onMarkRead: () => _markRead(
-                                      entry.value[i]['id'] as String,
-                                      provider),
+                                  onMarkRead: () =>
+                                      _markRead(entry.value[i], provider),
                                 ),
                               ),
                               childCount: entry.value.length,
@@ -290,8 +331,14 @@ class _AlertesPageState extends State<AlertesPage> {
         _AlertFilter.community => 'Communauté',
       };
 
-  void _markRead(String id, AlertProvider provider) {
-    provider.markRead(id);
+  void _markRead(Map<String, dynamic> data, AlertProvider provider) {
+    final id = data['id'] as String;
+    final type = data['type'] as String;
+    if (type == 'zone' || type == 'contact') {
+      provider.markReadEvent(id);
+    } else {
+      provider.markRead(id);
+    }
   }
 
   void _markAllRead(AlertProvider provider) {
@@ -299,7 +346,7 @@ class _AlertesPageState extends State<AlertesPage> {
   }
 
   void _openDetail(Map<String, dynamic> data, AlertProvider provider) {
-    _markRead(data['id'] as String, provider);
+    _markRead(data, provider);
     if (data['alert_data'] != null) {
       Navigator.push(
         context,

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'alert_event_store.dart';
 import 'notification_manager.dart';
 import 'api_auth_service.dart';
 import 'prefs_service.dart';
@@ -517,6 +518,7 @@ class FCMService {
 
       log('FCMService: Handling safe zone exit alert - Zone: $zoneName');
 
+      AlertEventStore().addZoneExit(zoneName: zoneName, contactName: contactName);
       await notificationManager.triggerSafeZoneExitAlert(
         zoneName: zoneName,
         contactName: contactName,
@@ -539,6 +541,7 @@ class FCMService {
         return;
       }
       log('FCMService: Zone entry — $contactName → $zoneName');
+      AlertEventStore().addZoneEntry(zoneName: zoneName, contactName: contactName);
       await notificationManager.triggerZoneEntryAlert(
         zoneName: zoneName,
         contactName: contactName,
@@ -560,6 +563,10 @@ class FCMService {
       log('FCMService: Processing invitation response notification...');
 
       // Afficher la notification avec un payload spécial pour la navigation
+      AlertEventStore().addContactAlert(
+        title: notification?.title ?? 'Réponse d\'invitation',
+        subtitle: notification?.body ?? 'Un proche a répondu à votre invitation',
+      );
       await notificationManager.sendSimpleNotification(
         title: notification?.title ?? 'Réponse d\'invitation',
         body: notification?.body ?? 'Un proche a répondu à votre invitation',
