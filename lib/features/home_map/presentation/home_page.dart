@@ -25,7 +25,6 @@ import '../../../core/models/zone.dart' as zone_models;
 import '../../../core/repositories/dangerzone_repository.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
-import '../../permissions/presentation/permission_background_location_page.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../alertes/providers/alert_provider.dart';
@@ -97,6 +96,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   double? _currentAccuracy;
   DateTime? _lastSyncTime;
   bool _locationPermissionDenied = false;
+  bool _locationPermissionPermanentlyDenied = false;
   bool _isRetryingSync = false;
   bool _emptyCardDismissed = false;
   ({ContactRelation rel, RtdbContactSnapshot snap})? _selectedContactDetail;
@@ -302,21 +302,10 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         '[MapTab] location permission granted=$granted serviceEnabled=$serviceEnabled',
       );
       if (!granted || !serviceEnabled) {
-        if (mounted) await _showLocationPermissionDialog();
+        final permanentlyDenied = (await ph.Permission.locationWhenInUse.status).isPermanentlyDenied;
+        if (mounted) await _showLocationPermissionDialog(permanentlyDenied: permanentlyDenied);
         return;
       }
-      final disclosed = await PermissionsService.isBackgroundLocationDisclosed();
-      if (!disclosed && mounted) {
-        final navigator = Navigator.of(context);
-        await navigator.push<bool>(
-          MaterialPageRoute(
-            builder: (_) => const PermissionBackgroundLocationPage(isModal: true),
-            fullscreenDialog: true,
-          ),
-        );
-        await PermissionsService.markBackgroundLocationDisclosed();
-      }
-
       if (!mounted) return;
       await _locationService.initialize();
       log('[MapTab] LocationService initialized');
@@ -327,8 +316,13 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _showLocationPermissionDialog() async {
-    if (mounted) setState(() => _locationPermissionDenied = true);
+  Future<void> _showLocationPermissionDialog({bool permanentlyDenied = false}) async {
+    if (mounted) {
+      setState(() {
+        _locationPermissionDenied = true;
+        _locationPermissionPermanentlyDenied = permanentlyDenied;
+      });
+    }
   }
 
   Future<void> _handleOpenSettings() async {
@@ -343,17 +337,6 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
     if (granted && serviceEnabled && mounted) {
       setState(() => _locationPermissionDenied = false);
-      final disclosed = await PermissionsService.isBackgroundLocationDisclosed();
-      if (!disclosed && mounted) {
-        final navigator = Navigator.of(context);
-        await navigator.push<bool>(
-          MaterialPageRoute(
-            builder: (_) => const PermissionBackgroundLocationPage(isModal: true),
-            fullscreenDialog: true,
-          ),
-        );
-        await PermissionsService.markBackgroundLocationDisclosed();
-      }
       if (!mounted) return;
       await _locationService.initialize();
       await _locationService.startTracking();
@@ -845,7 +828,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
             if (_locationPermissionDenied)
               Positioned.fill(
                 child: LocationPermissionOverlay(
-                  isPermanentlyDenied: true,
+                  isPermanentlyDenied: _locationPermissionPermanentlyDenied,
                   onOpenSettings: _handleOpenSettings,
                   onContinueWithout: () =>
                       setState(() => _locationPermissionDenied = false),

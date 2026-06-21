@@ -1,8 +1,14 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
+
+// Clé SharedPreferences — prouve que la disclosure a été affichée avant tout request()
+const _kDisclosureShownKey = 'bg_location_disclosure_shown';
 
 class PermissionBackgroundLocationPage extends StatefulWidget {
   /// isModal: true → pop(bool granted) au lieu de naviguer vers /auth.
@@ -17,27 +23,45 @@ class PermissionBackgroundLocationPage extends StatefulWidget {
 class _PermissionBackgroundLocationPageState extends State<PermissionBackgroundLocationPage> {
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    log('[BgLocationDisclosure] Page affichée — disclosure présentée à l\'utilisateur');
+    SharedPreferences.getInstance().then((p) => p.setBool(_kDisclosureShownKey, true));
+  }
+
   Future<void> _requestPermission() async {
     setState(() => _isLoading = true);
     try {
-      final status = await Permission.locationAlways.request();
+      final prefs = await SharedPreferences.getInstance();
+      final disclosureShown = prefs.getBool(_kDisclosureShownKey) == true;
+      log('[BgLocationDisclosure] Utilisateur tape Autoriser — disclosure_shown=$disclosureShown');
+      assert(disclosureShown, 'Disclosure must be shown before requesting background location');
+
+      // Android exige locationWhenInUse avant locationAlways
+      var whenInUse = await Permission.locationWhenInUse.status;
+      if (!whenInUse.isGranted) {
+        log('[BgLocationDisclosure] Demande locationWhenInUse d\'abord');
+        whenInUse = await Permission.locationWhenInUse.request();
+      }
+
+      bool granted = false;
+      if (whenInUse.isGranted) {
+        log('[BgLocationDisclosure] Appel Permission.locationAlways.request()');
+        final always = await Permission.locationAlways.request();
+        log('[BgLocationDisclosure] Résultat locationAlways: ${always.name}');
+        granted = always.isGranted;
+      } else {
+        log('[BgLocationDisclosure] locationWhenInUse refusé: ${whenInUse.name}');
+      }
+
+      // Onboarding (non-modal) : on avance toujours — disclosure montrée
+      // Modal (wizard) : on retourne le vrai résultat
       if (!mounted) return;
-      if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Permission refusée. Activez-la dans Paramètres > Applications > AlertContacts.'),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-      await _complete(status.isGranted);
+      await _complete(widget.isModal ? granted : true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur lors de la demande de permission.'), duration: Duration(seconds: 2)),
-        );
-        await _complete(false);
-      }
+      log('[BgLocationDisclosure] Erreur: $e');
+      if (mounted) await _complete(widget.isModal ? false : true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -48,7 +72,7 @@ class _PermissionBackgroundLocationPageState extends State<PermissionBackgroundL
       if (mounted) Navigator.of(context).pop(granted);
       return;
     }
-    await PermissionsService.markPermissionsSetupComplete();
+    await PermissionsService.markBackgroundLocationDisclosed();
     if (mounted) context.go(AppRoutes.auth);
   }
 

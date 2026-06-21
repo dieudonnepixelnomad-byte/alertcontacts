@@ -255,6 +255,15 @@ class AuthNotifier extends ChangeNotifier {
           ),
         );
       }
+    } on AppleSignInCancelledException {
+      log('AuthNotifier.signInWithApple: Annulé par l\'utilisateur');
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: null,
+          errorCode: null,
+        ),
+      );
     } on UserDisabledException {
       log('AuthNotifier.signInWithApple: Compte désactivé');
       AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'user_disabled');
@@ -263,6 +272,16 @@ class AuthNotifier extends ChangeNotifier {
           status: AuthStatus.unauthenticated,
           message: 'Votre compte a été désactivé',
           errorCode: 'user_disabled',
+        ),
+      );
+    } on AppleSignInFailedException catch (error) {
+      log('AuthNotifier.signInWithApple: Échec Apple: $error');
+      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'apple_sign_in_error');
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Erreur lors de la connexion Apple',
+          errorCode: 'apple_sign_in_error',
         ),
       );
     } catch (error) {

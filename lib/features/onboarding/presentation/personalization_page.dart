@@ -29,11 +29,11 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
     AnalyticsService().logOnboardingPersonaSelected(p);
     await _prefs.setOnboardingPersona(p);
     await _prefs.setUserSetupDone();
-    if (mounted) context.go(AppRoutes.auth);
+    if (mounted) context.go(AppRoutes.appShell);
   }
 
   Future<void> _skip() async {
-    if (mounted) context.go(AppRoutes.auth);
+    if (mounted) context.go(AppRoutes.appShell);
   }
 
   @override

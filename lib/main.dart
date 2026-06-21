@@ -1,9 +1,6 @@
 ﻿import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:alertcontacts/firebase_options.dart';
-import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -140,13 +137,6 @@ Future<void> main() async {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         RevenueCatService.instance.configure();
         PendingDeepLinkService.cleanupExpiredTokens();
-        if (Platform.isIOS) {
-          AppTrackingTransparency.trackingAuthorizationStatus.then((status) {
-            if (status == TrackingStatus.notDetermined) {
-              AppTrackingTransparency.requestTrackingAuthorization();
-            }
-          });
-        }
       });
     },
     (error, stack) {

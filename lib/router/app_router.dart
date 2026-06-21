@@ -1,4 +1,5 @@
 import 'package:alertcontacts/core/services/prefs_service.dart';
+import 'package:alertcontacts/core/services/permissions_service.dart';
 import 'package:alertcontacts/features/about/presentation/about_page.dart';
 import 'package:alertcontacts/features/app_shell/presentation/app_shell.dart';
 import 'package:alertcontacts/features/auth/presentation/login_page.dart';
@@ -96,6 +97,7 @@ abstract class AppRoutes {
   static const onboardingSandbox = '/onboarding/sandbox';
   static const onboardingCelebration = '/onboarding/celebration';
   static const onboardingPersonalization = '/onboarding/personalization';
+  static const onboardingBackgroundDisclosure = '/onboarding/background-disclosure';
   static const onboardingInvitation = '/onboarding/invitation';
   static const onboardingNotificationPermission = '/onboarding/notification-permission';
   static const onboardingLocationPermission = '/onboarding/location-permission';
@@ -349,6 +351,11 @@ class AppRouter {
           builder: (ctx, state) => const PersonalizationPage(),
         ),
         GoRoute(
+          path: AppRoutes.onboardingBackgroundDisclosure,
+          name: 'onboarding_background_disclosure',
+          builder: (ctx, state) => const PermissionBackgroundLocationPage(),
+        ),
+        GoRoute(
           path: AppRoutes.onboardingInvitation,
           name: 'onboarding_invitation',
           builder: (ctx, state) => const OnboardingInvitationPage(),
@@ -401,8 +408,13 @@ class AppRouter {
         }
 
         // ── Pages pré-auth toujours autorisées ────────────────────────────
-        if (location == AppRoutes.onboardingPersonalization) return null;
-        if (location == AppRoutes.auth) return null;
+        const preAuthPages = [
+          AppRoutes.onboardingSlides,
+          AppRoutes.onboardingPersonalization,
+          AppRoutes.onboardingBackgroundDisclosure,
+          AppRoutes.auth,
+        ];
+        if (preAuthPages.contains(location)) return null;
         if (location.startsWith('/auth/')) return null;
 
         // ── Pas authentifié → cascade pré-auth ───────────────────────────
@@ -412,26 +424,25 @@ class AppRouter {
           final hadLoggedIn = await prefs.hasLoggedIn();
           if (hadLoggedIn) return null;
 
-          final personaDone = await prefs.isUserSetupDone();
+          final results = await Future.wait([
+            prefs.isOnboardingSlidesSeen(),
+            prefs.isUserSetupDone(),
+            PermissionsService.isBackgroundLocationDisclosed(),
+          ]);
+          final slidesSeen = results[0];
+          final personaDone = results[1];
+          final disclosureDone = results[2];
+
+          if (!slidesSeen) return AppRoutes.onboardingSlides;
           if (!personaDone) return AppRoutes.onboardingPersonalization;
+          if (!disclosureDone) return AppRoutes.onboardingBackgroundDisclosure;
           return AppRoutes.auth;
         }
 
         // ── Authentifié, onboarding incomplet → cascade post-auth ─────────
-        const postAuthPages = [
-          AppRoutes.onboardingSlides,
-          AppRoutes.onboardingInvitation,
-        ];
-        if (postAuthPages.contains(location)) return null;
+        if (location == AppRoutes.onboardingInvitation) return null;
 
-        final results = await Future.wait([
-          prefs.isOnboardingSlidesSeen(),
-          prefs.isOnboardingInviteDone(),
-        ]);
-        final slidesSeen = results[0];
-        final inviteDone = results[1];
-
-        if (!slidesSeen) return AppRoutes.onboardingSlides;
+        final inviteDone = await prefs.isOnboardingInviteDone();
         if (!inviteDone) return AppRoutes.onboardingInvitation;
 
         // Toutes les étapes faites → marquer terminé

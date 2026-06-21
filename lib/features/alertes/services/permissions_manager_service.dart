@@ -20,11 +20,10 @@ class PermissionsManagerService {
            notificationStatus.isGranted;
   }
 
-  /// Demande toutes les permissions critiques
-  Future<Map<Permission, PermissionStatus>> requestAllCriticalPermissions() async {
+  /// Demande location + notification (sans locationAlways — passe par requestLocationAlwaysPermission)
+  Future<Map<Permission, PermissionStatus>> requestBasicPermissions() async {
     final permissions = [
       Permission.location,
-      Permission.locationAlways,
       Permission.notification,
     ];
 

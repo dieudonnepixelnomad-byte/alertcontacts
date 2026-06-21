@@ -212,6 +212,10 @@ class ProactiveSystemMonitor {
 
   /// Vérifier les permissions critiques
   Future<bool> _checkCriticalPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    if (!onboardingDone) return true;
+
     final criticalPermissions = [
       Permission.location,
       Permission.locationAlways,
