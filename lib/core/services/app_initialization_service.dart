@@ -6,9 +6,7 @@ import 'package:alertcontacts/core/config/api_config.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/location_service.dart';
-import 'package:alertcontacts/core/services/persistent_status_notification_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
-import 'package:alertcontacts/core/services/service_health_monitor.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
@@ -56,15 +54,10 @@ class AppInitializationService {
         // 2. Initialiser le service FCM pour les notifications push
         _initializeFCMService(context),
 
-        // 3. Initialiser le service de monitoring de santé
-        _initializeHealthMonitorService(context),
       ]);
-      
-      // 4. Initialiser le service de géolocalisation intégré (peut dépendre des permissions)
-      await _initializeGeolocationService(context);
 
-      // 5. Initialiser le service de notification persistante en dernier
-      await _initializePersistentNotificationService(context);
+      // 3. Initialiser le service de géolocalisation intégré (peut dépendre des permissions)
+      await _initializeGeolocationService(context);
 
       _isInitialized = true;
       log('$_tag: Initialisation des services terminée avec succès');
@@ -154,36 +147,6 @@ class AppInitializationService {
     }
   }
 
-  /// Initialise le service de notification persistante
-  Future<void> _initializePersistentNotificationService(
-    BuildContext context,
-  ) async {
-    try {
-      final statusNotificationService = context
-          .read<PersistentStatusNotificationService>();
-      await statusNotificationService.initialize();
-      log('$_tag: Service de notification persistante initialisé');
-    } catch (e) {
-      log(
-        '$_tag: Erreur lors de l\'initialisation du service de notification persistante: $e',
-      );
-      // Ne pas faire échouer l'initialisation complète pour ce service
-    }
-  }
-
-  /// Initialise le service de monitoring de santé
-  Future<void> _initializeHealthMonitorService(BuildContext context) async {
-    try {
-      final healthMonitor = context.read<ServiceHealthMonitor>();
-      await healthMonitor.initialize();
-      log('$_tag: Service de monitoring de santé initialisé');
-    } catch (e) {
-      log(
-        '$_tag: Erreur lors de l\'initialisation du service de monitoring de santé: $e',
-      );
-      // Ne pas faire échouer l'initialisation complète pour ce service
-    }
-  }
 
   /// Initialise le service de géolocalisation intégré
   Future<void> _initializeGeolocationService(BuildContext context) async {
@@ -211,10 +174,6 @@ class AppInitializationService {
       await locationService.stopTracking();
       log('$_tag: Service unifié de géolocalisation arrêté');
 
-      // Arrêter le service de monitoring de santé
-      final healthMonitor = context.read<ServiceHealthMonitor>();
-      await healthMonitor.dispose();
-      log('$_tag: Service de monitoring de santé arrêté');
 
       _isInitialized = false;
       log('$_tag: Tous les services ont été arrêtés');

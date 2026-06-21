@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'core/services/permissions_service.dart';
+import 'router/app_router.dart';
 
 class DebugPermissionsPage extends StatefulWidget {
   const DebugPermissionsPage({Key? key}) : super(key: key);
@@ -122,6 +124,14 @@ PermissionsService Check: $serviceCheck
             ElevatedButton(
               onPressed: _checkPermissions,
               child: const Text('Re-vérifier'),
+            ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E6868)),
+              onPressed: () => context.go(AppRoutes.permissionBackgroundLocation),
+              child: const Text('Tester disclosure background location', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),

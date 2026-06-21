@@ -7,6 +7,18 @@ class PermissionsService {
       'notification_permission_granted';
   static const String _permissionsSetupCompleteKey =
       'permissions_setup_complete';
+  static const String _backgroundLocationDisclosedKey =
+      'background_location_disclosed';
+
+  static Future<bool> isBackgroundLocationDisclosed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_backgroundLocationDisclosedKey) ?? false;
+  }
+
+  static Future<void> markBackgroundLocationDisclosed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_backgroundLocationDisclosedKey, true);
+  }
 
   /// Vérifie si l'utilisateur a déjà configuré ses permissions
   static Future<bool> isPermissionsSetupComplete() async {

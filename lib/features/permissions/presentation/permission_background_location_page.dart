@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../../core/widgets/permission_scaffold.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
 
 class PermissionBackgroundLocationPage extends StatefulWidget {
-  const PermissionBackgroundLocationPage({super.key});
+  /// isModal: true → pop(bool granted) au lieu de naviguer vers /auth.
+  /// Utiliser Navigator.push<bool> pour récupérer le résultat.
+  final bool isModal;
+  const PermissionBackgroundLocationPage({super.key, this.isModal = false});
 
   @override
   State<PermissionBackgroundLocationPage> createState() => _PermissionBackgroundLocationPageState();
@@ -15,79 +17,153 @@ class PermissionBackgroundLocationPage extends StatefulWidget {
 class _PermissionBackgroundLocationPageState extends State<PermissionBackgroundLocationPage> {
   bool _isLoading = false;
 
-  Future<void> _requestBackgroundLocationPermission() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _requestPermission() async {
+    setState(() => _isLoading = true);
     try {
-      // Demander la permission de géolocalisation en arrière-plan
       final status = await Permission.locationAlways.request();
-      
-      if (status.isGranted) {
-        // Permission accordée, continuer vers l'app
-        await _completePermissionsSetup();
-      } else {
-        // Permission refusée, afficher un message et permettre de continuer
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission de géolocalisation en arrière-plan refusée. Vous pouvez l\'activer plus tard dans les paramètres.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-          await _completePermissionsSetup();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (!status.isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Erreur lors de la demande de permission.'),
-            duration: Duration(seconds: 2),
+            content: Text('Permission refusée. Activez-la dans Paramètres > Applications > AlertContacts.'),
+            duration: Duration(seconds: 4),
           ),
         );
       }
-    } finally {
+      await _complete(status.isGranted);
+    } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de la demande de permission.'), duration: Duration(seconds: 2)),
+        );
+        await _complete(false);
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _completePermissionsSetup() async {
-    // Marquer la configuration des permissions comme terminée
+  Future<void> _complete(bool granted) async {
+    if (widget.isModal) {
+      if (mounted) Navigator.of(context).pop(granted);
+      return;
+    }
     await PermissionsService.markPermissionsSetupComplete();
-    
-    // Naviguer vers l'authentification
-    if (mounted) {
-      context.go(AppRoutes.auth);
-    }
-  }
-
-  Future<void> _skipPermission() async {
-    // Continuer sans accorder la permission
-    await _completePermissionsSetup();
+    if (mounted) context.go(AppRoutes.auth);
   }
 
   @override
   Widget build(BuildContext context) {
-    return PermissionScaffold(
-      icon: Icons.location_on,
-      title: 'Géolocalisation en arrière-plan',
-      bullets: const [
-        'Vous protéger même quand l\'app est fermée',
-        'Détecter les zones de danger en permanence',
-        'Surveiller vos zones de sécurité 24h/24',
-        'Alerter vos proches en cas de besoin',
-      ],
-      primaryLabel: _isLoading ? 'Chargement...' : 'Autoriser',
-      onPrimary: _isLoading ? () {} : _requestBackgroundLocationPermission,
-      secondaryLabel: 'Plus tard',
-      onSecondary: _isLoading ? () {} : _skipPermission,
-      helpText: 'Cette permission améliore votre sécurité mais peut consommer plus de batterie. Vous pouvez la modifier dans les paramètres.',
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Spacer(),
+
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE1F5EE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.location_on, size: 40, color: Color(0xFF1E6868)),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              const Text(
+                'Accès à votre position en arrière-plan',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, height: 1.2),
+              ),
+
+              const SizedBox(height: 16),
+
+              const Text(
+                'AlertContacts collecte votre position géographique même lorsque l\'application est fermée ou inutilisée.',
+                style: TextStyle(fontSize: 15, height: 1.5),
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'Cette donnée est utilisée pour :',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+
+              const SizedBox(height: 10),
+
+              const _BulletItem('Détecter votre entrée et sortie de vos zones de sécurité (ex : domicile, école)'),
+              const _BulletItem('Notifier vos proches lorsque vous arrivez ou quittez une zone'),
+              const _BulletItem('Vous alerter en cas de danger signalé près de vous'),
+              const _BulletItem('Assurer votre protection en permanence, même app fermée'),
+
+              const SizedBox(height: 20),
+
+              Text(
+                'Votre position est partagée uniquement avec vos proches que vous avez acceptés. Elle n\'est jamais vendue ni transmise à des tiers.',
+                style: TextStyle(fontSize: 13, height: 1.5, color: cs.onSurface.withValues(alpha: 0.65)),
+              ),
+
+              const Spacer(),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _isLoading ? null : _requestPermission,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E6868),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Autoriser', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: _isLoading ? null : () => _complete(false),
+                  child: Text('Plus tard', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BulletItem extends StatelessWidget {
+  final String text;
+  const _BulletItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13, height: 1.4))),
+        ],
+      ),
     );
   }
 }

@@ -25,6 +25,7 @@ import '../../../core/models/zone.dart' as zone_models;
 import '../../../core/repositories/dangerzone_repository.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
+import '../../permissions/presentation/permission_background_location_page.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../alertes/providers/alert_provider.dart';
@@ -304,6 +305,19 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         if (mounted) await _showLocationPermissionDialog();
         return;
       }
+      final disclosed = await PermissionsService.isBackgroundLocationDisclosed();
+      if (!disclosed && mounted) {
+        final navigator = Navigator.of(context);
+        await navigator.push<bool>(
+          MaterialPageRoute(
+            builder: (_) => const PermissionBackgroundLocationPage(isModal: true),
+            fullscreenDialog: true,
+          ),
+        );
+        await PermissionsService.markBackgroundLocationDisclosed();
+      }
+
+      if (!mounted) return;
       await _locationService.initialize();
       log('[MapTab] LocationService initialized');
       await _locationService.startTracking();
@@ -329,6 +343,18 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         await ph.Permission.locationWhenInUse.serviceStatus.isEnabled;
     if (granted && serviceEnabled && mounted) {
       setState(() => _locationPermissionDenied = false);
+      final disclosed = await PermissionsService.isBackgroundLocationDisclosed();
+      if (!disclosed && mounted) {
+        final navigator = Navigator.of(context);
+        await navigator.push<bool>(
+          MaterialPageRoute(
+            builder: (_) => const PermissionBackgroundLocationPage(isModal: true),
+            fullscreenDialog: true,
+          ),
+        );
+        await PermissionsService.markBackgroundLocationDisclosed();
+      }
+      if (!mounted) return;
       await _locationService.initialize();
       await _locationService.startTracking();
       _locationSubscription?.cancel();

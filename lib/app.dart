@@ -41,8 +41,6 @@ import 'package:alertcontacts/core/providers/auth_manager.dart';
 import 'package:alertcontacts/core/services/deep_link_service.dart';
 import 'package:alertcontacts/core/services/app_initialization_service.dart';
 import 'package:alertcontacts/features/alertes/services/permissions_manager_service.dart';
-import 'package:alertcontacts/core/services/persistent_status_notification_service.dart';
-import 'package:alertcontacts/core/services/service_health_monitor.dart';
 import 'package:alertcontacts/core/services/location_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
@@ -143,10 +141,6 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<PermissionsManagerService>(
           create: (_) => PermissionsManagerService(),
         ),
-        Provider<PersistentStatusNotificationService>(
-          create: (_) => PersistentStatusNotificationService(),
-        ),
-        Provider<ServiceHealthMonitor>(create: (_) => ServiceHealthMonitor()),
         Provider<LocationService>(
                 create: (_) => LocationService(),
         ),

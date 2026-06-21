@@ -1,5 +1,6 @@
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
+import '../../permissions/presentation/permission_background_location_page.dart';
 
 /// Service de gestion centralisée des permissions
 /// Gère toutes les permissions nécessaires pour AlertContact
@@ -54,21 +55,18 @@ class PermissionsManagerService {
   /// Demande la permission de localisation en arrière-plan
   Future<PermissionStatus> requestLocationAlwaysPermission(BuildContext context) async {
     final status = await Permission.locationAlways.status;
-    
-    if (status.isDenied) {
-      final shouldRequest = await _showPermissionDialog(
-        context,
-        'Localisation en arrière-plan',
-        'Pour vous protéger même quand l\'application est fermée, AlertContact a besoin d\'accéder à votre localisation en permanence.',
-        Icons.location_on,
-      );
+    if (status.isGranted) return status;
 
-      if (shouldRequest) {
-        return await Permission.locationAlways.request();
-      }
-    }
+    // ignore: use_build_context_synchronously — navigator capturé avant tout await
+    final navigator = Navigator.of(context);
+    final granted = await navigator.push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const PermissionBackgroundLocationPage(isModal: true),
+        fullscreenDialog: true,
+      ),
+    );
 
-    return status;
+    return (granted == true) ? PermissionStatus.granted : PermissionStatus.denied;
   }
 
   /// Demande la permission des notifications

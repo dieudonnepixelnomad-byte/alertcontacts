@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../router/app_router.dart';
 import '../providers/auth_notifier.dart';
@@ -177,8 +178,9 @@ class _LoginPageState extends State<LoginPage> {
                         if (v == null || v.trim().isEmpty) {
                           return 'Adresse email requise';
                         }
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$')
-                            .hasMatch(v.trim())) {
+                        if (!RegExp(
+                          r'^[^@]+@[^@]+\.[^@]+$',
+                        ).hasMatch(v.trim())) {
                           return 'Adresse email invalide';
                         }
                         return null;
@@ -230,7 +232,14 @@ class _LoginPageState extends State<LoginPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           TextButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              launchUrl(
+                                Uri.parse(
+                                  'https://mobile.alertcontacts.net/privacy',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
                             style: TextButton.styleFrom(
                               minimumSize: Size.zero,
                               padding: const EdgeInsets.symmetric(
@@ -242,18 +251,24 @@ class _LoginPageState extends State<LoginPage> {
                               'CGU',
                               style: AppTypography.textTheme.bodySmall
                                   ?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                             ),
                           ),
                           Text(
                             'et notre',
-                            style: AppTypography.textTheme.bodySmall
-                                ?.copyWith(color: AppColors.gray400),
+                            style: AppTypography.textTheme.bodySmall?.copyWith(
+                              color: AppColors.gray400,
+                            ),
                           ),
                           TextButton(
-                            onPressed: () {},
+                            onPressed: () => launchUrl(
+                              Uri.parse(
+                                'https://mobile.alertcontacts.net/privacy',
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            ),
                             style: TextButton.styleFrom(
                               minimumSize: Size.zero,
                               padding: const EdgeInsets.symmetric(
@@ -265,9 +280,9 @@ class _LoginPageState extends State<LoginPage> {
                               'Politique de confidentialité',
                               style: AppTypography.textTheme.bodySmall
                                   ?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                             ),
                           ),
                         ],
@@ -324,10 +339,8 @@ class _AuthButtons extends StatelessWidget {
             'assets/icons/google.png',
             height: 20,
             width: 20,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.g_mobiledata,
-              size: 22,
-            ),
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.g_mobiledata, size: 22),
           ),
           label: 'Continuer avec Google',
         ),

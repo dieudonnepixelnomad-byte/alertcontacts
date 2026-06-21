@@ -381,6 +381,37 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
 
+          // ── Section Debug (dev only) ─────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Builder(builder: (context) {
+              bool isDebug = false;
+              assert(() { isDebug = true; return true; }());
+              if (!isDebug) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionLabel(label: 'DEBUG'),
+                  _SettingsGroup(
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.bug_report_outlined,
+                        label: 'Permissions & disclosure',
+                        subtitle: 'Tester le dialog background location',
+                        onTap: () => context.go(AppRoutes.permissionBackgroundLocation),
+                      ),
+                      _SettingsTile(
+                        icon: Icons.notification_important_outlined,
+                        label: 'Debug permissions',
+                        subtitle: 'Statut FCM, notifications',
+                        onTap: () => context.go(AppRoutes.debugPermissions),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
