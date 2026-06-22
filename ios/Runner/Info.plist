@@ -67,5 +67,7 @@
 	<array>
 		<integer>1</integer>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
