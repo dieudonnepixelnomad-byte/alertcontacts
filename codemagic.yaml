@@ -35,6 +35,13 @@ workflows:
         script: |
           echo "MAPS_API_KEY_IOS=$MAPS_API_KEY_IOS" > ios/Flutter/Secrets.xcconfig
 
+      - name: Create .env
+        script: |
+          cat > .env << EOF
+          BASE_URL=$BASE_URL
+          GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY
+          EOF
+
       - name: Get Flutter packages
         script: |
           flutter pub get
@@ -51,8 +58,7 @@ workflows:
       - name: Build iOS app ipa for release
         script: |
           flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --dart-define=PLACES_API_KEY=$PLACES_API_KEY
+            --export-options-plist=/Users/builder/export_options.plist
 
       - name: Upload dSYMs to Firebase Crashlytics
         script: |

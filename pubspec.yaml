@@ -51,6 +51,7 @@ dependencies:
   confetti: ^0.8.0
   google_fonts: ^6.2.1
   app_tracking_transparency: ^2.0.7
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,7 @@ flutter:
   generate: true
 
   assets:
+    - .env
     - assets/images/
     - assets/illustrations/
     - assets/icons/

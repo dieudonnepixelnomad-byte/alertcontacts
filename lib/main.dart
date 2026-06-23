@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:alertcontacts/firebase_options.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -114,6 +115,7 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await dotenv.load(fileName: '.env');
       try {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
