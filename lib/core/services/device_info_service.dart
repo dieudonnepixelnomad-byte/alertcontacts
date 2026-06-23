@@ -7,16 +7,16 @@ class DeviceInfoService {
 
   Future<String> getAppVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    return 'v\${packageInfo.version} (build \${packageInfo.buildNumber})';
+    return 'v${packageInfo.version} (build ${packageInfo.buildNumber})';
   }
 
   Future<String> getOsVersion() async {
     if (Platform.isAndroid) {
       final androidInfo = await _deviceInfoPlugin.androidInfo;
-      return 'Android \${androidInfo.version.release} (SDK \${androidInfo.version.sdkInt})';
+      return 'Android ${androidInfo.version.release} (SDK ${androidInfo.version.sdkInt})';
     } else if (Platform.isIOS) {
       final iosInfo = await _deviceInfoPlugin.iosInfo;
-      return 'iOS \${iosInfo.systemVersion}';
+      return 'iOS ${iosInfo.systemVersion}';
     }
     return 'Unknown OS';
   }

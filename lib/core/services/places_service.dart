@@ -1,17 +1,14 @@
 ﻿import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'http_client.dart';
 import '../models/places_autocomplete.dart';
 
 class PlacesService {
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
+  static final AppHttpClient _client = AppHttpClient();
 
-  static const String _apiKey = String.fromEnvironment(
-    'PLACES_API_KEY',
-    defaultValue: '',
-  );
+  static String get _apiKey => dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
 
   /// Recherche d'autocomplétion de lieux
   static Future<PlaceAutoCompleteResponse> getAutocomplete(String input) async {

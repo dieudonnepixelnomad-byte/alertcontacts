@@ -166,7 +166,7 @@ class InvitationCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Utilisations: ${invitation.usedCount}/${invitation.maxUses ?? "∞"}',
+                            'Utilisations: ${invitation.usedCount}/${invitation.maxUses}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),

@@ -97,24 +97,16 @@ class NotificationManager {
     try {
       // Déterminer la priorité et l'intensité selon la sévérité
       final NotificationPriority notificationPriority;
-      final VibrationIntensity vibrationIntensity;
 
       switch (severity.toLowerCase()) {
         case 'critical':
           notificationPriority = NotificationPriority.critical;
-          vibrationIntensity = VibrationIntensity.critical;
           break;
         case 'high':
           notificationPriority = NotificationPriority.high;
-          vibrationIntensity = VibrationIntensity.heavy;
-          break;
-        case 'medium':
-          notificationPriority = NotificationPriority.normal;
-          vibrationIntensity = VibrationIntensity.medium;
           break;
         default:
           notificationPriority = NotificationPriority.normal;
-          vibrationIntensity = VibrationIntensity.light;
       }
 
       // Déclencher notification et alerte en parallèle

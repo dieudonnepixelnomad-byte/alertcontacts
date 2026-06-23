@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../../core/services/api_activities_service.dart';
 import '../models/user_activity.dart';
 import '../models/activities_response.dart';

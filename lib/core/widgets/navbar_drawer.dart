@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_notifier.dart';
 
 import '../services/share_service.dart';
-import '../../router/app_router.dart';
 
 class NavbarDrawer extends StatelessWidget {
   const NavbarDrawer({super.key});

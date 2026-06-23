@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../services/prefs_service.dart';
 
 class ApiActivitiesService {
+  final AppHttpClient _client = AppHttpClient();
   final PrefsService _prefsService = PrefsService();
 
   Future<Map<String, String>> _getHeaders() async {

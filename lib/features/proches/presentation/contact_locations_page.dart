@@ -171,8 +171,6 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    
     return Scaffold(
       appBar: AppBar(
         title: Text('Positions de ${widget.contactRelation.contact.name}'),

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
 
@@ -78,7 +77,7 @@ class UnifiedAlertService {
       await _initializeTts();
 
       // Vérifier le support des vibrations
-      _vibrationSupported = await Vibration.hasVibrator() ?? false;
+      _vibrationSupported = await Vibration.hasVibrator();
 
       _isInitialized = true;
       debugPrint('✅ UnifiedAlertService initialisé avec succès');

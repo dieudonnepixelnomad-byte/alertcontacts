@@ -2,11 +2,11 @@
 import 'dart:developer';
 import '../config/api_config.dart';
 import '../models/ignored_danger_zone.dart';
-import 'package:http/http.dart' as http;
 import 'http_client.dart';
 
 /// Service pour gérer les zones de danger ignorées via l'API
 class ApiIgnoredDangerZonesService {
+  final AppHttpClient _client = AppHttpClient();
   String? _bearerToken;
 
   ApiIgnoredDangerZonesService();

@@ -3,7 +3,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:package_info_plus/package_info_plus.dart';
 import '../config/api_config.dart';
 import '../services/prefs_service.dart';
 import '../errors/api_exceptions.dart';

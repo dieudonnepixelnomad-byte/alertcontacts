@@ -190,7 +190,7 @@ class CriticalNotificationRedundancyService {
   /// Canal 2: Vibration d'urgence
   Future<void> _sendViaVibration(CriticalNotificationAttempt attempt) async {
     try {
-      if (await Vibration.hasVibrator() ?? false) {
+      if (await Vibration.hasVibrator()) {
         // Pattern d'urgence: 3 vibrations longues
         const pattern = [0, 1000, 200, 1000, 200, 1000, 500];
         
@@ -316,7 +316,6 @@ class CriticalNotificationRedundancyService {
 
   /// Vérification de santé
   void _performHealthCheck() {
-    final now = DateTime.now();
     final expiredAttempts = _activeAttempts.values
         .where((attempt) => attempt.isExpired(_maxRetryDuration))
         .toList();

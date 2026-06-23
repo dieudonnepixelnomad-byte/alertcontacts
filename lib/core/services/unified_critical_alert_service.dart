@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'dart:developer';
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'critical_notification_redundancy_service.dart';
 import 'proactive_system_monitor.dart';
@@ -304,9 +303,6 @@ class UnifiedCriticalAlertService {
   Future<void> _performHealthCheck() async {
     try {
       // Vérifier l'état des services
-      final redundancyStats = _redundancyService.getStatistics();
-      final monitorStats = _systemMonitor.getStatistics();
-      
       // Calculer le taux de fiabilité
       final reliabilityRate = _calculateReliabilityRate();
       

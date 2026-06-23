@@ -259,7 +259,6 @@ ${_getStoreUrl()}
         );
 
       case ShareContext.general:
-      default:
         return ShareData(
           text:
               '''

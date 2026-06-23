@@ -1,7 +1,6 @@
 ﻿// lib/core/services/contact_locations_service.dart
 import 'dart:convert';
 import 'dart:developer';
-import 'package:http/http.dart' as http;
 import 'http_client.dart';
 import '../config/api_config.dart';
 import '../models/contact_location.dart';
@@ -10,6 +9,7 @@ import '../errors/auth_exceptions.dart';
 
 /// Service pour récupérer les positions d'un proche
 class ContactLocationsService {
+  final AppHttpClient _client = AppHttpClient();
   final PrefsService _prefsService = PrefsService();
 
   /// Récupérer les positions récentes d'un proche

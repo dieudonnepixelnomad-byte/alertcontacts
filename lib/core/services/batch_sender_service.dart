@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_point.dart';
-import 'prefs_service.dart';
 import '../config/api_config.dart';
 
 /// UC-L2: Envoi des positions en batch au backend
@@ -38,9 +37,6 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
   Timer? _batchTimer;
   bool _isSending = false;
   bool _isInitialized = false;
-
-  // Services
-  final PrefsService _prefs = PrefsService();
 
   /// Initialiser le service
   Future<void> initialize() async {

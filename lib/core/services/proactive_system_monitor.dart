@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:battery_plus/battery_plus.dart';
@@ -437,7 +436,6 @@ class ProactiveSystemMonitor {
   /// Charger l'état précédent
   Future<void> _loadPreviousState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       // TODO: Charger l'état précédent depuis SharedPreferences
     } catch (e) {
       log('❌ Erreur chargement état: $e');
@@ -447,7 +445,6 @@ class ProactiveSystemMonitor {
   /// Sauvegarder l'état actuel
   Future<void> _saveCurrentState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       // TODO: Sauvegarder l'état actuel dans SharedPreferences
     } catch (e) {
       log('❌ Erreur sauvegarde état: $e');

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:alertcontacts/core/services/notification_manager.dart';
-import 'package:alertcontacts/theme/app_theme.dart';
 
 /// Page de test pour les notifications et alertes
 /// Permet de tester manuellement tous les types de notifications

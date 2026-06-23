@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/feedback_provider.dart';
-import '../../../core/services/share_service.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});

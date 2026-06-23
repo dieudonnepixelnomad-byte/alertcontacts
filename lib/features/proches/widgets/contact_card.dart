@@ -37,11 +37,11 @@ class ContactCard extends StatelessWidget {
                   // Avatar
                   CircleAvatar(
                     radius: 24,
-                    backgroundImage: relationship.contact.avatarUrl != null
-                        ? NetworkImage(relationship.contact.avatarUrl!)
+                    backgroundImage: relationship.contact.avatarUrl.isNotEmpty
+                        ? NetworkImage(relationship.contact.avatarUrl)
                         : null,
                     backgroundColor: const Color(0xFF006970),
-                    child: relationship.contact.avatarUrl == null
+                    child: relationship.contact.avatarUrl.isEmpty
                         ? Text(
                             relationship.contact.name[0].toUpperCase(),
                             style: const TextStyle(
@@ -65,10 +65,10 @@ class ContactCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (relationship.contact.email != null) ...[
+                        if (relationship.contact.email.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(
-                            relationship.contact.email!,
+                            relationship.contact.email,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                             ),

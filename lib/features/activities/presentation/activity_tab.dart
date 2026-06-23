@@ -13,8 +13,6 @@ class ActivityTab extends StatefulWidget {
 
 class _ActivityTabState extends State<ActivityTab> {
   final ScrollController _scrollController = ScrollController();
-  String? _selectedActionFilter;
-  String? _selectedEntityFilter;
 
   @override
   void initState() {
@@ -92,33 +90,6 @@ class _ActivityTabState extends State<ActivityTab> {
     );
   }
 
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _FilterDialog(
-        selectedAction: _selectedActionFilter,
-        selectedEntity: _selectedEntityFilter,
-        onApplyFilters: (action, entity) {
-          setState(() {
-            _selectedActionFilter = action;
-            _selectedEntityFilter = entity;
-          });
-
-          final provider = context.read<ActivitiesProvider>();
-          provider.setActionFilter(action);
-          provider.setEntityTypeFilter(entity);
-        },
-        onClearFilters: () {
-          setState(() {
-            _selectedActionFilter = null;
-            _selectedEntityFilter = null;
-          });
-
-          context.read<ActivitiesProvider>().clearFilters();
-        },
-      ),
-    );
-  }
 }
 
 class _ActivityListTile extends StatelessWidget {

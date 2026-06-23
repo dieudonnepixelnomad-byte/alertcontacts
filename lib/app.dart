@@ -2,8 +2,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'core/services/http_client.dart';
 import 'package:alertcontacts/generated/l10n/app_localizations.dart';
 import 'package:alertcontacts/features/auth/providers/auth_notifier.dart';
 import 'package:alertcontacts/core/repositories/auth_repository.dart';
@@ -89,31 +89,31 @@ class _AlertContactAppState extends State<AlertContactApp> {
     return MultiProvider(
       providers: [
         // Services de base
-        Provider<http.Client>(create: (_) => http.Client()),
+        Provider<AppHttpClient>(create: (_) => AppHttpClient()),
         Provider<PrefsService>(create: (_) => PrefsService()),
         Provider<FirebaseAuthService>(create: (_) => FirebaseAuthService()),
         Provider<ApiAuthService>(
           create: (context) => ApiAuthService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<ApiSafeZoneService>(
           create: (context) => ApiSafeZoneService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<ApiDangerZoneService>(
           create: (context) => ApiDangerZoneService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<ApiZonesService>(
           create: (context) => ApiZonesService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<ApiInvitationService>(create: (_) => ApiInvitationService()),
@@ -127,13 +127,13 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<ApiAlertsService>(
           create: (context) => ApiAlertsService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<ApiLocationService>(
           create: (context) => ApiLocationService(
             baseUrl: ApiConfig.baseUrlSync,
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         // Services
@@ -200,12 +200,12 @@ class _AlertContactAppState extends State<AlertContactApp> {
         Provider<ProfileRepository>(
           create: (context) => ProfileRepository(
             prefs: context.read<PrefsService>(),
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
           ),
         ),
         Provider<FeedbackRepository>(
           create: (context) => FeedbackRepository(
-            client: context.read<http.Client>(),
+            client: context.read<AppHttpClient>(),
             prefs: context.read<PrefsService>(),
           ),
         ),
