@@ -1,17 +1,18 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/safe_zone.dart';
 import '../errors/auth_exceptions.dart';
 
 class ApiSafeZoneService {
   final String baseUrl;
-  final http.Client _client;
+  final AppHttpClient _client;
   String? _bearerToken;
 
-  ApiSafeZoneService({required this.baseUrl, http.Client? client})
-    : _client = client ?? http.Client();
+  ApiSafeZoneService({required this.baseUrl, AppHttpClient? client})
+    : _client = client ?? AppHttpClient();
 
   /// Headers par défaut pour les requêtes API
   Map<String, String> get _headers => {
@@ -263,3 +264,4 @@ class ApiSafeZoneService {
     _client.close();
   }
 }
+

@@ -58,6 +58,7 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   }) async {
     _setLoading(true);
     _clearError();
+    AnalyticsService().addBreadcrumb('invitation_provider: createInvitation start');
 
     try {
       final invitation = await _apiService.createInvitation(
@@ -75,9 +76,10 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       AnalyticsService().logContactInvited();
 
       return invitation;
-    } catch (e) {
+    } catch (e, stack) {
       _setError('Erreur lors de la création de l\'invitation: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().recordError(e, stack, reason: 'createInvitation failed');
       return null;
     }
   }
@@ -86,17 +88,19 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   Future<Invitation?> checkInvitation(String token) async {
     _setLoading(true);
     _clearError();
+    AnalyticsService().addBreadcrumb('invitation_provider: checkInvitation token=${token.substring(0, 8)}…');
 
     try {
       final invitation = await _apiService.checkInvitation(token);
       _currentInvitation = invitation;
       _setLoading(false);
       notifyListeners();
-      
+
       return invitation;
-    } catch (e) {
+    } catch (e, stack) {
       _setError('Erreur lors de la vérification: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().recordError(e, stack, reason: 'checkInvitation failed');
       return null;
     }
   }
@@ -110,6 +114,7 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   }) async {
     _setLoading(true);
     _clearError();
+    AnalyticsService().addBreadcrumb('invitation_provider: acceptInvitation start');
 
     try {
       await _apiService.acceptInvitation(
@@ -127,9 +132,10 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       AnalyticsService().setHasActiveContact(true);
 
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       _setError('Erreur lors de l\'acceptation: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().recordError(e, stack, reason: 'acceptInvitation failed');
       return false;
     }
   }
@@ -144,9 +150,10 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       _invitations = invitations;
       _setLoading(false);
       notifyListeners();
-    } catch (e) {
+    } catch (e, stack) {
       _setError('Erreur lors du chargement: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().recordError(e, stack, reason: 'loadMyInvitations failed');
     }
   }
 
@@ -160,11 +167,12 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       _invitations.removeWhere((inv) => inv.id == invitationId);
       _setLoading(false);
       notifyListeners();
-      
+
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       _setError('Erreur lors de la suppression: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().recordError(e, stack, reason: 'deleteInvitation failed');
       return false;
     }
   }

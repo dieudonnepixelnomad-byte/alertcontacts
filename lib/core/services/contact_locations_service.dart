@@ -1,7 +1,8 @@
-// lib/core/services/contact_locations_service.dart
+﻿// lib/core/services/contact_locations_service.dart
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../config/api_config.dart';
 import '../models/contact_location.dart';
 import '../services/prefs_service.dart';
@@ -28,7 +29,7 @@ class ContactLocationsService {
       log('ContactLocationsService.getContactLocations: Calling URL: $finalUrl');
       log('ContactLocationsService.getContactLocations: Contact ID: $contactId');
       
-      final response = await http.get(
+      final response = await _client.get(
         finalUrl,
         headers: {
           'Content-Type': 'application/json',

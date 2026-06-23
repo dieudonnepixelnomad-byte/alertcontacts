@@ -1,4 +1,5 @@
-import 'package:http/http.dart' as http;
+﻿import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../config/api_config.dart';
 import '../services/prefs_service.dart';
 
@@ -51,7 +52,7 @@ class ApiActivitiesService {
 
     final headers = await _getHeaders();
 
-    return await http.get(uri, headers: headers);
+    return await _client.get(uri, headers: headers);
   }
 
   /// Récupère les statistiques d'activités de l'utilisateur
@@ -64,6 +65,7 @@ class ApiActivitiesService {
 
     final headers = await _getHeaders();
 
-    return await http.get(uri, headers: headers);
+    return await _client.get(uri, headers: headers);
   }
 }
+

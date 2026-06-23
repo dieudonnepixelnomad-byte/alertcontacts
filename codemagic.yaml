@@ -54,8 +54,16 @@ workflows:
             --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=PLACES_API_KEY=$PLACES_API_KEY
 
+      - name: Upload dSYMs to Firebase Crashlytics
+        script: |
+          find build/ios/archive/Runner.xcarchive -name "*.dSYM" | xargs -I {} \
+            "${PODS_ROOT}/FirebaseCrashlytics/upload-symbols" \
+            -gsp ios/Runner/GoogleService-Info.plist \
+            -p ios {}
+
     artifacts:
       - build/ios/ipa/*.ipa
+      - build/ios/archive/Runner.xcarchive/dSYMs/*.dSYM
 
     publishing:
       app_store_connect:

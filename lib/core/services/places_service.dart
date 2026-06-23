@@ -1,7 +1,8 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/places_autocomplete.dart';
 
 class PlacesService {
@@ -20,7 +21,7 @@ class PlacesService {
           '$_baseUrl/autocomplete/json?input=${Uri.encodeComponent(input)}&key=$_apiKey&language=fr'; // Limité au Cameroun
       developer.log('Request URL: $url', name: 'PlaceService');
 
-      final response = await http.get(Uri.parse(url));
+      final response = await _client.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -40,7 +41,7 @@ class PlacesService {
       final String url =
           '$_baseUrl/details/json?place_id=$placeId&key=$_apiKey&fields=geometry,formatted_address,name';
 
-      final response = await http.get(Uri.parse(url));
+      final response = await _client.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -101,3 +102,4 @@ class PlaceLocation {
     );
   }
 }
+

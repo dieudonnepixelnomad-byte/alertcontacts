@@ -1,18 +1,19 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/danger_zone.dart';
 import '../errors/auth_exceptions.dart';
 import '../errors/danger_zone_exceptions.dart';
 
 class ApiDangerZoneService {
   final String baseUrl;
-  final http.Client _client;
+  final AppHttpClient _client;
   String? _bearerToken;
 
-  ApiDangerZoneService({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+  ApiDangerZoneService({required this.baseUrl, AppHttpClient? client})
+      : _client = client ?? AppHttpClient();
 
   /// Headers par défaut pour les requêtes API
   Map<String, String> get _headers => {

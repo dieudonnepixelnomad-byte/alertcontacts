@@ -1,17 +1,18 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/community_alert.dart';
 import '../errors/auth_exceptions.dart';
 
 class ApiAlertsService {
   final String baseUrl;
-  final http.Client _client;
+  final AppHttpClient _client;
   String? _bearerToken;
 
-  ApiAlertsService({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+  ApiAlertsService({required this.baseUrl, AppHttpClient? client})
+      : _client = client ?? AppHttpClient();
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -101,3 +102,4 @@ class ApiAlertsService {
     }
   }
 }
+

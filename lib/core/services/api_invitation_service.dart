@@ -1,6 +1,6 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
-import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/invitation.dart';
 import 'invitation_service_interface.dart';
 import '../config/api_config.dart';
@@ -8,6 +8,7 @@ import '../config/api_config.dart';
 class ApiInvitationService implements InvitationServiceInterface {
   static String get baseUrl => ApiConfig.baseUrlSync;
 
+  final AppHttpClient _client = AppHttpClient();
   String? _token;
 
   void setAuthToken(String token) {
@@ -30,7 +31,7 @@ class ApiInvitationService implements InvitationServiceInterface {
     bool? requirePin,
     String? message,
   }) async {
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/invitations'),
       headers: _headers,
       body: jsonEncode({
@@ -58,7 +59,7 @@ class ApiInvitationService implements InvitationServiceInterface {
 
   /// Vérifier la validité d'une invitation
   Future<Invitation> checkInvitation(String token) async {
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/invitations/check'),
       headers: _headers,
       body: jsonEncode({'token': token}),
@@ -91,7 +92,7 @@ class ApiInvitationService implements InvitationServiceInterface {
       'AcceptationPage: Acceptation Invitation: $token, $shareLevel, $acceptedZones, $pin',
     );
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/invitations/accept'),
       headers: _headers,
       body: jsonEncode({
@@ -136,7 +137,7 @@ class ApiInvitationService implements InvitationServiceInterface {
 
   /// Lister les invitations créées par l'utilisateur
   Future<List<Invitation>> getMyInvitations() async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/invitations'),
       headers: _headers,
     );
@@ -155,7 +156,7 @@ class ApiInvitationService implements InvitationServiceInterface {
 
   /// Annuler/supprimer une invitation
   Future<void> deleteInvitation(String invitationId) async {
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$baseUrl/invitations/$invitationId'),
       headers: _headers,
     );
@@ -215,3 +216,4 @@ class RelationAlreadyExistsException implements Exception {
   final String message;
   RelationAlreadyExistsException(this.message);
 }
+

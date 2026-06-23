@@ -1,18 +1,19 @@
-// lib/core/services/api_zones_service.dart
+﻿// lib/core/services/api_zones_service.dart
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/zone.dart';
 import '../errors/auth_exceptions.dart';
 
 class ApiZonesService {
   final String baseUrl; // public pour les logs
-  final http.Client _client;
+  final AppHttpClient _client;
   String? _bearerToken;
 
-  ApiZonesService({required this.baseUrl, http.Client? client})
-    : _client = client ?? http.Client();
+  ApiZonesService({required this.baseUrl, AppHttpClient? client})
+    : _client = client ?? AppHttpClient();
 
   /// Headers par défaut pour les requêtes API
   Map<String, String> get _headers => {
@@ -217,3 +218,4 @@ class ApiZonesService {
     }
   }
 }
+

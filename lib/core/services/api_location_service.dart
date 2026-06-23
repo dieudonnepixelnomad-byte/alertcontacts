@@ -1,16 +1,17 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../errors/auth_exceptions.dart';
 import 'analytics_service.dart';
 
 class ApiLocationService {
   final String baseUrl;
-  final http.Client _client;
+  final AppHttpClient _client;
   String? _bearerToken;
 
-  ApiLocationService({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+  ApiLocationService({required this.baseUrl, AppHttpClient? client})
+      : _client = client ?? AppHttpClient();
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -66,3 +67,4 @@ class ApiLocationService {
     }
   }
 }
+

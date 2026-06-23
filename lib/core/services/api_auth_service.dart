@@ -1,21 +1,22 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:alertcontacts/core/services/analytics_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/user.dart';
 import '../errors/auth_exceptions.dart';
 
 class ApiAuthService {
   final String baseUrl;
-  final http.Client _client;
+  final AppHttpClient _client;
   final PrefsService _prefsService = PrefsService();
   String? _bearerToken;
 
-  ApiAuthService({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client() {
+  ApiAuthService({required this.baseUrl, AppHttpClient? client})
+      : _client = client ?? AppHttpClient() {
     _loadToken();
   }
 
@@ -394,3 +395,4 @@ class ApiAuthService {
     _client.close();
   }
 }
+

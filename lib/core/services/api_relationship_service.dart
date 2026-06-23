@@ -1,6 +1,6 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
-import 'package:http/http.dart' as http;
+import 'http_client.dart';
 import '../models/contact_relation.dart';
 import '../models/invitation.dart';
 import '../config/api_config.dart';
@@ -8,6 +8,7 @@ import '../config/api_config.dart';
 class ApiRelationshipService {
   static String get baseUrl => ApiConfig.baseUrlSync;
 
+  final AppHttpClient _client = AppHttpClient();
   String? _token;
 
   void setAuthToken(String token) {
@@ -24,7 +25,7 @@ class ApiRelationshipService {
   /// Lister toutes les relations de l'utilisateur
   Future<List<ContactRelation>> getMyRelationships() async {
     log('Appel à getMyRelationships');
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/relationships'),
       headers: _headers,
     );
@@ -47,7 +48,7 @@ class ApiRelationshipService {
 
   /// Obtenir les détails d'une relation spécifique
   Future<ContactRelation> getRelationship(String relationshipId) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/relationships/$relationshipId'),
       headers: _headers,
     );
@@ -79,7 +80,7 @@ class ApiRelationshipService {
     log('⬆️  PUT /relationships/$relationshipId/share-level',
         name: 'ApiRelationshipService', error: jsonEncode(body));
 
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse('$baseUrl/relationships/$relationshipId/share-level'),
       headers: _headers,
       body: jsonEncode(body),
@@ -106,7 +107,7 @@ class ApiRelationshipService {
 
   /// Supprimer une relation (retirer un proche)
   Future<void> deleteRelationship(String relationshipId) async {
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$baseUrl/relationships/$relationshipId'),
       headers: _headers,
     );
@@ -126,7 +127,7 @@ class ApiRelationshipService {
 
   /// Obtenir les statistiques des relations
   Future<RelationStats> getRelationshipStats() async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/relationships/stats'),
       headers: _headers,
     );
@@ -144,7 +145,7 @@ class ApiRelationshipService {
 
   /// Rechercher des utilisateurs pour les inviter
   Future<List<Contact>> searchUsers(String query) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse(
         '$baseUrl/relationships/search-users?query=${Uri.encodeComponent(query)}',
       ),
@@ -216,7 +217,7 @@ class ApiRelationshipService {
   /// Obtenir les zones assignables pour un contact
   Future<List<AssignableZone>> getAssignableZones(String contactId) async {
     try {
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl/proches/$contactId/zones'),
         headers: _headers,
       );
@@ -255,7 +256,7 @@ class ApiRelationshipService {
   /// Assigner une zone à un contact
   Future<void> assignZone(String contactId, String zoneId) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/proches/$contactId/zones/$zoneId'),
         headers: _headers,
       );
@@ -283,7 +284,7 @@ class ApiRelationshipService {
   /// Retirer l'assignation d'une zone à un contact
   Future<void> unassignZone(String contactId, String zoneId) async {
     try {
-      final response = await http.delete(
+      final response = await _client.delete(
         Uri.parse('$baseUrl/proches/$contactId/zones/$zoneId'),
         headers: _headers,
       );
@@ -315,7 +316,7 @@ class ApiRelationshipService {
       // Convertir le status string en boolean pour correspondre à l'API Laravel
       final isActive = status == 'active';
       
-      final response = await http.patch(
+      final response = await _client.patch(
         Uri.parse('$baseUrl/proches/$contactId/zones/$zoneId'),
         headers: _headers,
         body: jsonEncode({'is_active': isActive}),
@@ -400,3 +401,4 @@ class ValidationException implements Exception {
   final String message;
   ValidationException(this.message);
 }
+

@@ -1,8 +1,9 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer';
 import '../config/api_config.dart';
 import '../models/ignored_danger_zone.dart';
 import 'package:http/http.dart' as http;
+import 'http_client.dart';
 
 /// Service pour gérer les zones de danger ignorées via l'API
 class ApiIgnoredDangerZonesService {
@@ -40,7 +41,7 @@ class ApiIgnoredDangerZonesService {
         if (reason != null) 'reason': reason,
       };
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('${ApiConfig.baseUrl}/ignored-danger-zones/ignore'),
         headers: _headers,
         body: jsonEncode(body),
@@ -84,7 +85,7 @@ class ApiIgnoredDangerZonesService {
         'ApiIgnoredDangerZonesService.reactivateDangerZone: Reactivating zone $dangerZoneId',
       );
 
-      final response = await http.delete(
+      final response = await _client.delete(
         Uri.parse(
           '${ApiConfig.baseUrl}/ignored-danger-zones/$dangerZoneId/reactivate',
         ),
@@ -126,7 +127,7 @@ class ApiIgnoredDangerZonesService {
         'ApiIgnoredDangerZonesService.getIgnoredDangerZones: Fetching ignored zones',
       );
 
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('${ApiConfig.baseUrl}/ignored-danger-zones'),
         headers: _headers,
       );
@@ -183,7 +184,7 @@ class ApiIgnoredDangerZonesService {
         'ApiIgnoredDangerZonesService.extendIgnoredZone: Extending zone $dangerZoneId',
       );
 
-      final response = await http.patch(
+      final response = await _client.patch(
         Uri.parse(
           '${ApiConfig.baseUrl}/ignored-danger-zones/$dangerZoneId/extend',
         ),
@@ -225,7 +226,7 @@ class ApiIgnoredDangerZonesService {
         'ApiIgnoredDangerZonesService.isZoneIgnored: Checking zone $dangerZoneId',
       );
 
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse(
           '${ApiConfig.baseUrl}/ignored-danger-zones/$dangerZoneId/check',
         ),
@@ -262,3 +263,4 @@ class ApiIgnoredDangerZonesService {
     log('ApiIgnoredDangerZonesService: Disposed');
   }
 }
+
