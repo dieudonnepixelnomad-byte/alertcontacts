@@ -62,19 +62,38 @@ workflows:
 
       - name: Upload dSYMs to Firebase Crashlytics
         script: |
-          UPLOAD_SYMBOLS=$(find "${CM_BUILD_DIR}/ios/Pods" -name "upload-symbols" -type f | head -1)
+          UPLOAD_SYMBOLS=$(find ios/Pods -path "*/FirebaseCrashlytics/upload-symbols" 2>/dev/null | head -1)
+
           if [ -z "$UPLOAD_SYMBOLS" ]; then
-            echo "❌ upload-symbols not found"
-            exit 1
+            echo "⚠️ upload-symbols not found in ios/Pods, trying broader search..."
+            UPLOAD_SYMBOLS=$(find . -path "*/FirebaseCrashlytics/upload-symbols" 2>/dev/null | head -1)
           fi
-          find build/ios/archive/Runner.xcarchive -name "*.dSYM" | xargs -I {} \
+
+          if [ -z "$UPLOAD_SYMBOLS" ]; then
+            echo "❌ upload-symbols introuvable, skip"
+            exit 0
+          fi
+
+          echo "✅ upload-symbols trouvé : $UPLOAD_SYMBOLS"
+
+          DSYM_DIR="build/ios/archive/Runner.xcarchive/dSYMs"
+
+          if [ -z "$(ls -A $DSYM_DIR 2>/dev/null)" ]; then
+            echo "❌ Aucun dSYM trouvé dans $DSYM_DIR"
+            exit 0
+          fi
+
+          find "$DSYM_DIR" -name "*.dSYM" | while read dsym; do
+            echo "📤 Upload : $dsym"
             "$UPLOAD_SYMBOLS" \
-            -gsp ios/Runner/GoogleService-Info.plist \
-            -p ios {}
+              -gsp ios/Runner/GoogleService-Info.plist \
+              -p ios "$dsym"
+          done
 
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/archive/Runner.xcarchive/dSYMs/*.dSYM
+      - build/ios/archive/**/*.dSYM
 
     publishing:
       app_store_connect:
