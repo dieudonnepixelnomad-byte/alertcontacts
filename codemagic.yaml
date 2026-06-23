@@ -62,8 +62,13 @@ workflows:
 
       - name: Upload dSYMs to Firebase Crashlytics
         script: |
+          UPLOAD_SYMBOLS=$(find "${CM_BUILD_DIR}/ios/Pods" -name "upload-symbols" -type f | head -1)
+          if [ -z "$UPLOAD_SYMBOLS" ]; then
+            echo "❌ upload-symbols not found"
+            exit 1
+          fi
           find build/ios/archive/Runner.xcarchive -name "*.dSYM" | xargs -I {} \
-            "${PODS_ROOT}/FirebaseCrashlytics/upload-symbols" \
+            "$UPLOAD_SYMBOLS" \
             -gsp ios/Runner/GoogleService-Info.plist \
             -p ios {}
 
