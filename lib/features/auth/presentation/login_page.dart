@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../router/app_router.dart';
 import '../providers/auth_notifier.dart';
 import '../providers/auth_state.dart';
@@ -69,6 +70,7 @@ class _LoginPageState extends State<LoginPage> {
   void _sendMagicLink() {
     if (!_formKey.currentState!.validate()) return;
     _hasNavigated = false;
+    AnalyticsService().logAuthStarted('magic_link');
     context.read<AuthNotifier>().clearMessage();
     context.read<AuthNotifier>().sendMagicLink(_emailController.text.trim());
   }
@@ -131,12 +133,14 @@ class _LoginPageState extends State<LoginPage> {
                     isLoading: isLoading,
                     onGoogle: () {
                       _hasNavigated = false;
+                      AnalyticsService().logAuthStarted('google');
                       auth.clearMessage();
                       auth.signInWithGoogle();
                     },
                     onApple: Platform.isIOS
                         ? () {
                             _hasNavigated = false;
+                            AnalyticsService().logAuthStarted('apple');
                             auth.clearMessage();
                             auth.signInWithApple();
                           }

@@ -17,6 +17,7 @@ class ApiInvitationService implements InvitationServiceInterface {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 

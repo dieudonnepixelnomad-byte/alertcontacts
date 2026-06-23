@@ -1,0 +1,58 @@
+{
+  "conditions": [],
+  "parameters": {
+    "min_app_version_android": {
+      "defaultValue": { "value": "1.0.0" },
+      "description": "Version minimale requise sur Android. Incrémenter pour forcer une MAJ."
+    },
+    "min_app_version_ios": {
+      "defaultValue": { "value": "1.0.0" },
+      "description": "Version minimale requise sur iOS. Incrémenter pour forcer une MAJ."
+    },
+    "android_store_url": {
+      "defaultValue": { "value": "https://play.google.com/store/apps/details?id=com.alertcontacts.alertcontacts" },
+      "description": "URL Play Store pour la mise à jour forcée Android."
+    },
+    "ios_store_url": {
+      "defaultValue": { "value": "https://apps.apple.com/app/alertcontacts/6475776454" },
+      "description": "URL App Store pour la mise à jour forcée iOS. Remplacer id0000000000 par le vrai ID."
+    },
+    "paywall_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Désactiver pour une promo ou un test sans déploiement."
+    },
+    "community_alerts_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Kill switch alertes communautaires en cas d'abus à grande échelle."
+    },
+    "free_tier_contacts_limit": {
+      "defaultValue": { "value": "2" },
+      "description": "Nombre max de proches en tier gratuit. Augmenter pour booster l'acquisition."
+    },
+    "free_tier_zones_limit": {
+      "defaultValue": { "value": "1" },
+      "description": "Nombre max de zones en tier gratuit."
+    },
+    "trial_duration_days": {
+      "defaultValue": { "value": "7" },
+      "description": "Durée de l'essai gratuit en jours. A/B test: 7 vs 14."
+    },
+    "location_update_interval_foreground": {
+      "defaultValue": { "value": "10" },
+      "description": "Intervalle de mise à jour GPS en premier plan (secondes)."
+    },
+    "location_update_interval_background": {
+      "defaultValue": { "value": "300" },
+      "description": "Intervalle de mise à jour GPS en arrière-plan (secondes)."
+    },
+    "invisible_mode_duration_options": {
+      "defaultValue": { "value": "60,240,0" },
+      "description": "Options de durée mode invisible en minutes. 0 = jusqu'à désactivation manuelle."
+    },
+    "onboarding_skip_allowed": {
+      "defaultValue": { "value": "true" },
+      "description": "Autoriser le skip de l'onboarding."
+    }
+  },
+  "version": {}
+}

@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'alert_event_store.dart';
+import 'analytics_service.dart';
 import 'notification_manager.dart';
 import 'api_auth_service.dart';
 import 'prefs_service.dart';
@@ -355,11 +356,18 @@ class FCMService {
     }
   }
 
+  bool _aha3Fired = false;
+
   /// Traiter l'interaction avec une notification
   Future<void> _handleNotificationTap(RemoteMessage message) async {
     try {
       log('FCMService: Notification tapped: ${message.messageId}');
-      // Ici on pourrait naviguer vers une page spécifique selon le type de notification
+      final type = message.data['type'] as String? ?? 'unknown';
+      AnalyticsService().logNotificationOpened(type: type);
+      if (!_aha3Fired && (type == 'danger_zone_alert' || type == 'zone_entry')) {
+        _aha3Fired = true;
+        AnalyticsService().logAha3ZoneAlertReceived();
+      }
       await _processNotificationMessage(message);
     } catch (e) {
       log('FCMService: Error handling notification tap: $e');

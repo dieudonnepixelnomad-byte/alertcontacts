@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 import '../errors/auth_exceptions.dart';
+import 'analytics_service.dart';
 
 class ApiLocationService {
   final String baseUrl;
@@ -14,6 +15,7 @@ class ApiLocationService {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
         if (_bearerToken != null) 'Authorization': 'Bearer $_bearerToken',
       };
 
@@ -42,6 +44,7 @@ class ApiLocationService {
         body: body,
       );
       _handleResponse(response);
+      AnalyticsService().logInvisibleModeActivated(durationMinutes: durationMinutes ?? 0);
       log('ApiLocationService: location paused (${durationMinutes ?? "indefinite"} min)');
     } catch (e) {
       log('ApiLocationService.pauseLocation error: $e');

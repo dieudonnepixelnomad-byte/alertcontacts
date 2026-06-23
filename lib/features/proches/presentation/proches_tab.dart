@@ -6,11 +6,10 @@ import '../../../theme/colors.dart';
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/models/zone.dart' as zone_models;
-import '../../../core/services/paywall_trigger_service.dart';
 import '../providers/relationship_provider.dart';
 import '../../../features/onboarding/presentation/onboarding_invitation_page.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
-import '../../../features/paywall/presentation/paywall_trigger_modal.dart';
+import '../../../core/services/paywall_trigger_service.dart';
 import '../../../core/services/contact_rtdb_service.dart';
 import '../../../features/zones/providers/zones_notifier.dart';
 import '../../../features/app_shell/providers/navigation_provider.dart';
@@ -155,32 +154,14 @@ class _ProchesTabState extends State<ProchesTab> {
     final accepted = provider.acceptedRelationships;
 
     if (PaywallTriggerService.checkContactLimit(accepted.length)) {
-      final isPremium = await PaywallTriggerService.isPremium();
-      if (!isPremium) {
-        if (!mounted) return;
-        final avatars = accepted.take(3).toList().asMap().entries.map((e) {
-          final name = e.value.contact.name;
-          final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-          return ContactAvatarData(
-            initial: initial,
-            color: PaywallTriggerModal.paletteColor(e.key),
-          );
-        }).toList();
-        final wantsUpgrade = await PaywallTriggerModal.show(
-          context,
-          trigger: 'contact_limit',
-          avatars: avatars,
-        );
-        if (wantsUpgrade == true && mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const PaywallPage(trigger: 'contact_limit'),
-            ),
-          );
-        }
-        return;
-      }
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+        ),
+      );
+      return;
     }
 
     if (!mounted) return;

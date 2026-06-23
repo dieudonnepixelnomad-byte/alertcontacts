@@ -7,43 +7,100 @@ class ForcedUpdatePage extends StatelessWidget {
   const ForcedUpdatePage({super.key, required this.storeUrl});
 
   Future<void> _launchStore() async {
-    final Uri url = Uri.parse(storeUrl);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      // Gérer l'erreur si l'URL ne peut pas être ouverte
-      print('Impossible d\'ouvrir l\'URL: $storeUrl');
+    if (storeUrl.isEmpty) return;
+    final uri = Uri.parse(storeUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.system_update, size: 80, color: Colors.blue),
-              const SizedBox(height: 24),
-              const Text(
-                'Mise à jour requise',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Une nouvelle version de l\'application est disponible. Pour continuer, veuillez installer la mise à jour.',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _launchStore,
-                child: const Text('Mettre à jour maintenant'),
-              ),
-            ],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1E6868),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Spacer(flex: 2),
+
+                // Icône
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(
+                    Icons.system_update_rounded,
+                    size: 48,
+                    color: Colors.white,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Titre
+                const Text(
+                  'Mise à jour requise',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Description
+                Text(
+                  'Cette version d\'AlertContacts n\'est plus supportée.\nMets à jour pour continuer à protéger tes proches.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withValues(alpha: 0.70),
+                    height: 1.5,
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+
+                // CTA
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _launchStore,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF1E6868),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Mettre à jour maintenant',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
       ),

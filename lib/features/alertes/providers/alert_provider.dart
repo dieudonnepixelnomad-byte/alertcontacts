@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/models/community_alert.dart';
 import '../../../core/services/alert_event_store.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/api_alerts_service.dart';
 import '../../../core/services/notification_manager.dart';
 import '../../../core/services/unified_alert_service.dart';
@@ -263,6 +264,7 @@ class AlertProvider extends ChangeNotifier {
     await _ensureToken();
     try {
       await _apiAlertsService.confirmAlert(alertId);
+      AnalyticsService().logCommunityAlertConfirmed();
       _alerts = _alerts.map((a) => a.id == alertId
           ? a.copyWith(confirmations: a.confirmations + 1) : a).toList();
       notifyListeners();

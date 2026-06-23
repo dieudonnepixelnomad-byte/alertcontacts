@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/community_alert.dart';
 import '../../../core/services/alert_event_store.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../shared/widgets/offline_banner.dart';
 import '../../../theme/colors.dart';
 import '../providers/alert_provider.dart';
@@ -348,11 +349,13 @@ class _AlertesPageState extends State<AlertesPage> {
   void _openDetail(Map<String, dynamic> data, AlertProvider provider) {
     _markRead(data, provider);
     if (data['alert_data'] != null) {
+      final alertData = data['alert_data'] as Map<String, dynamic>;
+      final gravity = alertData['gravity'] as String? ?? 'unknown';
+      AnalyticsService().logCommunityAlertViewed(gravity: gravity);
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => AlertDetailPage(
-              alert: data['alert_data'] as Map<String, dynamic>),
+          builder: (_) => AlertDetailPage(alert: alertData),
         ),
       );
     }

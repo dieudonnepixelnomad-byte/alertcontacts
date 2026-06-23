@@ -288,6 +288,7 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
     };
 
     if (currentToken != null) {

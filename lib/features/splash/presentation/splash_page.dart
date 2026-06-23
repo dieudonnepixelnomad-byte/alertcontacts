@@ -95,7 +95,9 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _runAnimations() async {
     await _logoAc.forward();
+    if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
     _taglineAc.forward();
     _loaderAc.forward();
   }

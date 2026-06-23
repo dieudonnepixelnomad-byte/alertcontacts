@@ -19,6 +19,4 @@ class PaywallTriggerService {
     return DateTime.now().difference(installDate).inDays >= 7;
   }
 
-  // RevenueCat products not yet configured — always free tier
-  static Future<bool> isPremium() async => false;
 }

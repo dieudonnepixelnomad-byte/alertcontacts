@@ -9,7 +9,6 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../../core/services/paywall_trigger_service.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
-import '../../../features/paywall/presentation/paywall_trigger_modal.dart';
 import '../../../theme/colors.dart';
 import '../providers/zones_notifier.dart';
 
@@ -126,23 +125,14 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
     final notifier = context.read<ZonesNotifier>();
 
     if (PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
-      final isPremium = await PaywallTriggerService.isPremium();
-      if (!isPremium) {
-        if (!mounted) return;
-        final wantsUpgrade = await PaywallTriggerModal.show(
-          context,
-          trigger: 'zone_limit',
-        );
-        if (wantsUpgrade == true && mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const PaywallPage(trigger: 'zone_limit'),
-            ),
-          );
-        }
-        return;
-      }
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const PaywallPage(trigger: 'zone_limit'),
+        ),
+      );
+      return;
     }
 
     if (!mounted) return;

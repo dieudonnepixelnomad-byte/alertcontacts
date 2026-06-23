@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../errors/auth_exceptions.dart';
@@ -21,32 +22,43 @@ class FirebaseAuthService {
   /// Utilisateur Firebase actuellement connecté
   firebase_auth.User? get currentUser => _firebaseAuth.currentUser;
 
-  /// Connexion avec Google
+  /// Connexion avec Google.
+  /// Android : SDK natif google_sign_in (évite le sessionStorage bug du Chrome Custom Tab).
+  /// iOS/macOS : signInWithProvider via ASWebAuthenticationSession.
   Future<firebase_auth.User> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
+      if (Platform.isAndroid) {
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) throw const GoogleSignInCancelledException();
+
+        final googleAuth = await googleUser.authentication;
+        final credential = firebase_auth.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        final userCredential = await _firebaseAuth.signInWithCredential(credential);
+        final user = userCredential.user;
+        if (user == null) throw const SyncErrorException();
+        return user;
+      } else {
+        final provider = firebase_auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+
+        final userCredential = await _firebaseAuth.signInWithProvider(provider);
+        final user = userCredential.user;
+        if (user == null) throw const SyncErrorException();
+        return user;
+      }
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'web-context-cancelled' || e.code == 'canceled') {
         throw const GoogleSignInCancelledException();
       }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(
-        credential,
-      );
-      final user = userCredential.user;
-
-      if (user == null) {
-        throw const SyncErrorException();
-      }
-
-      return user;
-    } on firebase_auth.FirebaseAuthException catch (e) {
       throw _mapFirebaseException(e);
+    } on PlatformException catch (e) {
+      if (e.code == 'CANCELED') throw const GoogleSignInCancelledException();
+      throw UnknownAuthException('Google Sign-In: ${e.code} - ${e.message}');
     } catch (e) {
       if (e is GoogleSignInCancelledException) rethrow;
       throw UnknownAuthException(e.toString());

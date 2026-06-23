@@ -124,6 +124,7 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
       notifyListeners();
       AnalyticsService().logContactInvitationAccepted();
       AnalyticsService().logAha1ContactAccepted();
+      AnalyticsService().setHasActiveContact(true);
 
       return true;
     } catch (e) {

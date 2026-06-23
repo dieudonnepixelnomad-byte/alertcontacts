@@ -5,6 +5,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/contact_relation.dart';
+import 'analytics_service.dart';
 
 /// Snapshot d'une position de proche reçue depuis Firebase Realtime DB.
 class RtdbContactSnapshot {
@@ -46,6 +47,7 @@ class ContactRtdbService extends ChangeNotifier {
   final FirebaseDatabase _db = FirebaseDatabase.instance;
   final Map<String, StreamSubscription<DatabaseEvent>> _subs = {};
   final Map<String, RtdbContactSnapshot> _snapshots = {};
+  bool _aha2Fired = false;
 
   Map<String, RtdbContactSnapshot> get snapshots => Map.unmodifiable(_snapshots);
 
@@ -110,6 +112,10 @@ class ContactRtdbService extends ChangeNotifier {
         isInvisible: map['is_invisible'] as bool? ?? false,
         batteryLevel: (map['battery'] as num?)?.toInt(),
       );
+      if (!_aha2Fired) {
+        _aha2Fired = true;
+        AnalyticsService().logAha2ContactOnMap();
+      }
       developer.log('snapshot stored for uid=$uid lat=${map['lat']} lng=${map['lng']}', name: 'ContactRtdbService');
       notifyListeners();
     } catch (e) {

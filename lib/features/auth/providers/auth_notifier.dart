@@ -42,6 +42,12 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _setUserAnalyticsProperties() async {
+    AnalyticsService().setUserTier('free');
+    final persona = await PrefsService().getOnboardingPersona();
+    if (persona != null) AnalyticsService().setProfileType(persona);
+  }
+
   /// Initialiser FCM après une connexion réussie
   Future<void> _initializeFCMAfterLogin(String bearerToken) async {
     try {
@@ -88,6 +94,7 @@ class AuthNotifier extends ChangeNotifier {
           ),
         );
         await AnalyticsService().setUser(user.id, email: user.email);
+        await _setUserAnalyticsProperties();
 
         final prefsService = PrefsService();
         await prefsService.setHasLoggedIn(true);
@@ -159,6 +166,7 @@ class AuthNotifier extends ChangeNotifier {
         );
         AnalyticsService().logLoginSuccess('google');
         await AnalyticsService().setUser(user.id, email: user.email);
+        await _setUserAnalyticsProperties();
 
         final prefsService = PrefsService();
         await prefsService.setHasLoggedIn(true);
@@ -239,6 +247,7 @@ class AuthNotifier extends ChangeNotifier {
         );
         AnalyticsService().logLoginSuccess('apple');
         await AnalyticsService().setUser(user.id, email: user.email);
+        await _setUserAnalyticsProperties();
 
         final prefsService = PrefsService();
         await prefsService.setHasLoggedIn(true);
@@ -372,6 +381,7 @@ class AuthNotifier extends ChangeNotifier {
         ));
         AnalyticsService().logLoginSuccess('magic_link');
         await AnalyticsService().setUser(user.id, email: user.email);
+        await _setUserAnalyticsProperties();
         final bearerToken = await prefs.getBearerToken();
         if (bearerToken != null) await _initializeFCMAfterLogin(bearerToken);
       } else {

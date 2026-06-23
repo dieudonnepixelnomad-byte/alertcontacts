@@ -1,18 +1,15 @@
-﻿import 'dart:convert';
-import 'dart:developer';
-import 'dart:io';
+﻿import 'dart:developer';
 
 import 'package:alertcontacts/core/config/api_config.dart';
+import 'package:alertcontacts/core/services/app_version_service.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/location_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
+import 'package:alertcontacts/core/services/remote_config_service.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
 import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:version/version.dart';
 
 /// Service centralisé pour l'initialisation automatique de tous les services
 /// au démarrage de l'application
@@ -40,13 +37,10 @@ class AppInitializationService {
     log('$_tag: Début de l\'initialisation des services');
 
     try {
-      // 0. Vérifier la mise à jour obligatoire en parallèle (non bloquant pour l'UI, mais bloquant pour la suite si critique)
-      // On lance la vérification mais on n'attend pas forcément le résultat réseau pour afficher l'UI de base
-      // Cependant, si une maj est critique, elle affichera une page bloquante via le router/listener
-      _checkUpdateInBackground();
+      // 0. Remote Config + vérification de version — bloquant, avant tout le reste
+      await _checkForceUpdateWithRemoteConfig();
 
       // Utilisation de Future.wait pour paralléliser les initialisations indépendantes
-      // Cela réduit considérablement le temps d'attente total
       await Future.wait([
         // 1. Initialiser les services critiques de sécurité en priorité
         _initializeCriticalSecurityServices(context),
@@ -69,50 +63,22 @@ class AppInitializationService {
     }
   }
 
-  /// Vérifie si une mise à jour de l'application est obligatoire en arrière-plan
-  void _checkUpdateInBackground() {
-    checkUpdate().catchError((e) {
-      log('$_tag: Erreur non bloquante lors de la vérification de la mise à jour: $e');
-    });
-  }
-
-  /// Vérifie si une mise à jour de l'application est obligatoire.
-  /// Si c'est le cas, lève une [ForcedUpdateException].
-  Future<void> checkUpdate() async {
+  /// Initialise Remote Config puis vérifie si une MAJ forcée est requise.
+  /// Bloquant — lève [ForcedUpdateException] si la version actuelle est trop ancienne.
+  Future<void> _checkForceUpdateWithRemoteConfig() async {
     try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = Version.parse(packageInfo.version);
+      final remoteConfig = RemoteConfigService();
+      await remoteConfig.initialize();
 
-      final response = await http
-          .get(
-            Uri.parse('${ApiConfig.baseUrl}/app-status'),
-          )
-          .timeout(const Duration(seconds: 5));
+      final versionService = AppVersionService(remoteConfig);
+      final result = await versionService.checkForceUpdate();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final String minVersionString = Platform.isIOS
-            ? data['ios']['min_version']
-            : data['android']['min_version'];
-        final String storeUrl = Platform.isIOS
-            ? data['ios']['store_url']
-            : data['android']['store_url'];
-
-        final minVersion = Version.parse(minVersionString);
-
-        if (currentVersion < minVersion) {
-          throw ForcedUpdateException(storeUrl);
-        }
-        log('$_tag: Version de l\'application à jour (v$currentVersion).');
+      if (result.required) {
+        throw ForcedUpdateException(result.storeUrl);
       }
     } catch (e) {
-      if (e is ForcedUpdateException) {
-        rethrow; // Propage l'exception de mise à jour forcée
-      }
-      // Pour les autres erreurs (ex: réseau), on ne bloque pas le démarrage
-      log(
-        '$_tag: Erreur non bloquante lors de la vérification de la mise à jour: $e',
-      );
+      if (e is ForcedUpdateException) rethrow;
+      log('$_tag: Vérification version échouée, démarrage normal — $e');
     }
   }
 

@@ -34,6 +34,7 @@ class ApiAuthService {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
     if (_bearerToken != null) 'Authorization': 'Bearer $_bearerToken',
   };
 

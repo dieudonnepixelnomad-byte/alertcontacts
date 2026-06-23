@@ -17,6 +17,12 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
   final _prefs = PrefsService();
   String? _selected;
 
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logOnboardingStarted();
+  }
+
   static const _profiles = [
     (key: 'children', label: 'Mes enfants', emoji: '👶'),
     (key: 'parents', label: 'Mes parents', emoji: '👴'),

@@ -4,19 +4,6 @@ import '../../../theme/colors.dart';
 class PaywallComparePage extends StatelessWidget {
   const PaywallComparePage({super.key});
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Les abonnements arrivent bientôt — merci pour ta patience !',
-        ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
@@ -75,7 +62,7 @@ class PaywallComparePage extends StatelessWidget {
             ),
           ),
 
-          // Sticky CTA
+          // Coming soon footer
           Container(
             padding: EdgeInsets.fromLTRB(
               16,
@@ -85,30 +72,21 @@ class PaywallComparePage extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(
-                top: BorderSide(color: AppColors.gray200),
-              ),
+              border: Border(top: BorderSide(color: AppColors.gray200)),
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => _showComingSoon(context),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Choisir Family',
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.construction_rounded, color: AppColors.orange, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Abonnements en cours de développement',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.gray400,
+                    fontSize: 13,
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],

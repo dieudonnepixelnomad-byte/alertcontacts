@@ -33,6 +33,7 @@ class ContactLocationsService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
           'Authorization': 'Bearer $token',
         },
       );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/app_initialization_service.dart';
 import '../../../core/services/global_navigation_service.dart';
 import '../../alertes/providers/alert_provider.dart';
@@ -22,6 +23,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logAppShellReached();
     _initializeServices();
   }
 

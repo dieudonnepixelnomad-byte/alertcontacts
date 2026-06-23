@@ -7,7 +7,6 @@ import '../../../theme/colors.dart';
 import '../../../core/services/api_auth_service.dart';
 import '../../../core/services/api_location_service.dart';
 import '../../../core/services/location_service.dart';
-import '../../../core/services/revenuecat_service.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../home_map/presentation/invisible_mode_sheet.dart';
 import '../../paywall/presentation/paywall_page.dart';
@@ -22,29 +21,12 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String? _tier; // null = gratuit
-  bool _tierLoaded = false;
-
   bool _invisibleActive = false;
   DateTime? _invisibleUntil;
 
   @override
   void initState() {
     super.initState();
-    _loadTier();
-  }
-
-  Future<void> _loadTier() async {
-    final tier = await RevenueCatService.instance.getSubscriptionTier();
-    if (mounted) setState(() { _tier = tier; _tierLoaded = true; });
-  }
-
-  String get _tierLabel {
-    switch (_tier) {
-      case 'solo': return 'Solo';
-      case 'famille': return 'Famille';
-      default: return 'Gratuit';
-    }
   }
 
   // ─── Mode invisible ───────────────────────────────────────────────────────
@@ -332,19 +314,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SettingsTile(
                   icon: Icons.workspace_premium_outlined,
                   label: 'Mon abonnement',
-                  trailing: _tierLoaded
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _tierLabel,
-                            style: tt.labelMedium?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
-                          ),
-                        )
-                      : const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Bientôt',
+                      style: tt.labelMedium?.copyWith(color: AppColors.orange, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const PaywallPage(trigger: 'settings')),

@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:alertcontacts/firebase_options.dart';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,8 +15,8 @@ import 'app.dart';
 import 'core/config/api_config.dart';
 import 'core/services/pending_deep_link_service.dart';
 import 'core/services/fcm_service.dart';
-import 'core/services/revenuecat_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
 /// Handler headless pour background_fetch — s'exécute quand l'app Android est fermée.
 /// Récupère la position GPS et la publie sur Firebase RTDB + Laravel API
@@ -34,8 +35,12 @@ Future<void> _runHeadlessLocationUpdate(HeadlessEvent task) async {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final uid = prefs.getString('flutter.firebase_uid') ?? prefs.getString('firebase_uid');
-    final bearerToken = prefs.getString('flutter.bearer_token') ?? prefs.getString('bearer_token');
+    final uid =
+        prefs.getString('flutter.firebase_uid') ??
+        prefs.getString('firebase_uid');
+    final bearerToken =
+        prefs.getString('flutter.bearer_token') ??
+        prefs.getString('bearer_token');
 
     if (uid == null) {
       BackgroundFetch.finish(task.taskId);
@@ -61,25 +66,27 @@ Future<void> _runHeadlessLocationUpdate(HeadlessEvent task) async {
 
     // Envoyer au backend Laravel pour déclencher la détection de zone
     if (bearerToken != null) {
-      await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/locations/batch'),
-        headers: {
-          'Authorization': 'Bearer $bearerToken',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'locations': [
-            {
-              'lat': position.latitude,
-              'lng': position.longitude,
-              'accuracy': position.accuracy,
-              'timestamp': timestamp,
-              'foreground': false,
-            }
-          ],
-        }),
-      ).timeout(const Duration(seconds: 15));
+      await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/locations/batch'),
+            headers: {
+              'Authorization': 'Bearer $bearerToken',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'locations': [
+                {
+                  'lat': position.latitude,
+                  'lng': position.longitude,
+                  'accuracy': position.accuracy,
+                  'timestamp': timestamp,
+                  'foreground': false,
+                },
+              ],
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
     }
   } catch (_) {
     // Silencieux — on ne peut pas loguer sans Crashlytics initialisé en mode headless
@@ -123,9 +130,13 @@ Future<void> main() async {
           FirebaseCrashlytics.instance.recordFlutterFatalError;
 
       if (kReleaseMode) {
-        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+          true,
+        );
       } else {
-        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
+        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+          false,
+        );
       }
 
       runApp(const AlertContactApp());
@@ -135,8 +146,14 @@ Future<void> main() async {
 
       // Deferred after first frame — avoid blocking UI
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        RevenueCatService.instance.configure();
         PendingDeepLinkService.cleanupExpiredTokens();
+        if (Platform.isIOS) {
+          AppTrackingTransparency.trackingAuthorizationStatus.then((status) {
+            if (status == TrackingStatus.notDetermined) {
+              AppTrackingTransparency.requestTrackingAuthorization();
+            }
+          });
+        }
       });
     },
     (error, stack) {

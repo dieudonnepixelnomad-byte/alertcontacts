@@ -18,7 +18,6 @@ class AnalyticsService {
   Future<void> setUser(String userId, {String? email}) async {
     await _analytics.setUserId(id: userId);
     await _crashlytics.setUserIdentifier(userId);
-    if (email != null) await _crashlytics.setCustomKey('user_email', email);
   }
 
   Future<void> clearUser() async {
@@ -28,6 +27,12 @@ class AnalyticsService {
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+
+  void logAuthStarted(String method) =>
+      _fire(_analytics.logEvent(
+        name: 'auth_started',
+        parameters: {'method': method},
+      ));
 
   void logLoginSuccess(String method) =>
       _fire(_analytics.logLogin(loginMethod: method));
@@ -48,7 +53,15 @@ class AnalyticsService {
   void logPasswordReset() =>
       _fire(_analytics.logEvent(name: 'password_reset_requested'));
 
+  // ── Screen tracking ───────────────────────────────────────────────────────
+
+  void logScreenView(String screenName) =>
+      _fire(_analytics.logScreenView(screenName: screenName));
+
   // ── Onboarding ────────────────────────────────────────────────────────────
+
+  void logOnboardingStarted() =>
+      _fire(_analytics.logEvent(name: 'onboarding_started'));
 
   void logOnboardingSlideViewed(int index) => _fire(
         _analytics.logEvent(
@@ -90,6 +103,9 @@ class AnalyticsService {
         ),
       );
 
+  void logInvitationScreenViewed() =>
+      _fire(_analytics.logEvent(name: 'invitation_screen_viewed'));
+
   void logOnboardingInvitationSent() =>
       _fire(_analytics.logEvent(name: 'onboarding_invitation_sent'));
 
@@ -110,6 +126,9 @@ class AnalyticsService {
 
   void logOnboardingZoneCreated() =>
       _fire(_analytics.logEvent(name: 'onboarding_zone_created'));
+
+  void logAppShellReached() =>
+      _fire(_analytics.logEvent(name: 'app_shell_reached'));
 
   void logOnboardingCompleted() {
     _fire(_analytics.logEvent(name: 'onboarding_completed'));
@@ -228,6 +247,15 @@ class AnalyticsService {
 
   void setUserTier(String tier) =>
       _fire(_analytics.setUserProperty(name: 'subscription_tier', value: tier));
+
+  void setProfileType(String profileType) =>
+      _fire(_analytics.setUserProperty(name: 'profile_type', value: profileType));
+
+  void setHasActiveContact(bool value) =>
+      _fire(_analytics.setUserProperty(
+        name: 'has_active_contact',
+        value: value ? 'true' : 'false',
+      ));
 
   // ── Géolocalisation ───────────────────────────────────────────────────────
 

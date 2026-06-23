@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import '../models/location_point.dart';
 import 'alert_event_store.dart';
+import 'analytics_service.dart';
 import 'batch_sender_service.dart';
 import 'unified_alert_service.dart';
 import 'zones_cache_service.dart';
@@ -119,8 +120,10 @@ class LocalGeofencingService {
 
       if (isInside) {
         AlertEventStore().addZoneEntry(zoneName: zone.name, contactName: 'Vous');
+        AnalyticsService().logZoneEntryDetected();
       } else {
         AlertEventStore().addZoneExit(zoneName: zone.name, contactName: 'Vous');
+        AnalyticsService().logZoneExitDetected();
       }
 
       // Flush immédiat pour que le backend reçoive ce point sans délai de 20s

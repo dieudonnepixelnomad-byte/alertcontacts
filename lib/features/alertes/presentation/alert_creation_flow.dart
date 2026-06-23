@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:provider/provider.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../theme/colors.dart';
 import '../providers/alert_provider.dart';
 import 'alert_location_picker_page.dart';
@@ -516,6 +517,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
       };
       log('AlertCreationFlow._submit: appel createAlert payload=$payload');
       await context.read<AlertProvider>().createAlert(payload);
+      AnalyticsService().logCommunityAlertCreated(gravity: _gravity, type: _type);
       log('AlertCreationFlow._submit: succès');
       if (mounted) {
         Navigator.pop(context);

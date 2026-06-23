@@ -31,6 +31,7 @@ class _OnboardingInvitationPageState extends State<OnboardingInvitationPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logInvitationScreenViewed();
     _invitationService =
         Provider.of<ApiInvitationService>(context, listen: false);
     _initAuth();
