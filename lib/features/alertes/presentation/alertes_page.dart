@@ -141,7 +141,6 @@ class _AlertesPageState extends State<AlertesPage> {
         final groups = _groupByDate(filtered);
 
         return Scaffold(
-          backgroundColor: AppColors.gray50,
           body: RefreshIndicator(
             onRefresh: () => provider.fetchNearbyAlerts(),
             child: CustomScrollView(
@@ -272,7 +271,7 @@ class _AlertesPageState extends State<AlertesPage> {
                             child: Text(
                               entry.key,
                               style: tt.labelSmall?.copyWith(
-                                color: AppColors.gray400,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 letterSpacing: 0.06,
                               ),
                             ),
@@ -365,7 +364,6 @@ class _AlertesPageState extends State<AlertesPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -432,7 +430,7 @@ class _AlertTile extends StatelessWidget {
                   Text(
                     data['subtitle'] as String,
                     style: tt.labelMedium
-                        ?.copyWith(color: AppColors.gray400),
+                        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -517,7 +515,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Tes alertes de zone et les signalements communautaires apparaîtront ici.',
               textAlign: TextAlign.center,
-              style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+              style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),

@@ -41,7 +41,7 @@ class _InvisibleModeSheetState extends State<InvisibleModeSheet> {
           Center(
             child: Container(
               width: 32, height: 3,
-              decoration: BoxDecoration(color: AppColors.gray200, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 20),
@@ -68,7 +68,7 @@ class _InvisibleModeSheetState extends State<InvisibleModeSheet> {
                           Text('Mode invisible', style: tt.titleSmall),
                           Text(
                             'Ta position ne sera plus partagée',
-                            style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+                            style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -154,7 +154,7 @@ class _DurationOption extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.gray100,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: loading

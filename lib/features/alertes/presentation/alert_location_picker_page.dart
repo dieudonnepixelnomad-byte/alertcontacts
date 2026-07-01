@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:http/http.dart' as http;
 
 import '../../../theme/colors.dart';
 
@@ -25,6 +27,14 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
   bool _loadingAddress = false;
   Timer? _debounce;
 
+  // Search
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  List<_NominatimResult> _suggestions = [];
+  bool _loadingSuggestions = false;
+  Timer? _searchDebounce;
+  bool _showSuggestions = false;
+
   @override
   void initState() {
     super.initState();
@@ -33,12 +43,20 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
       zoom: 17.0,
     );
     _reverseGeocode(widget.initialPosition);
+    _searchFocus.addListener(() {
+      if (!_searchFocus.hasFocus) {
+        setState(() => _showSuggestions = false);
+      }
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchDebounce?.cancel();
     _mapController?.dispose();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -91,22 +109,89 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
     );
   }
 
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    if (query.trim().length < 3) {
+      setState(() {
+        _suggestions = [];
+        _showSuggestions = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      _fetchSuggestions(query.trim());
+    });
+  }
+
+  Future<void> _fetchSuggestions(String query) async {
+    setState(() => _loadingSuggestions = true);
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search'
+        '?q=${Uri.encodeComponent(query)}'
+        '&format=json&limit=5&addressdetails=1',
+      );
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
+          'Accept-Language': 'fr',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _suggestions = data
+              .map((e) => _NominatimResult.fromJson(e))
+              .toList();
+          _showSuggestions = _suggestions.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      log('[AlertLocationPicker] Nominatim error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingSuggestions = false);
+    }
+  }
+
+  void _selectSuggestion(_NominatimResult result) {
+    _searchController.text = result.displayName;
+    _searchFocus.unfocus();
+    setState(() {
+      _suggestions = [];
+      _showSuggestions = false;
+    });
+
+    final target = gmaps.LatLng(result.lat, result.lon);
+    _mapController?.animateCamera(
+      gmaps.CameraUpdate.newLatLngZoom(target, 17),
+    );
+    _reverseGeocode(target);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          color: AppColors.gray900,
+          color: colorScheme.onSurface,
         ),
         title: Text(
           'Lieu de l\'incident',
-          style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          style: tt.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
       ),
@@ -124,13 +209,22 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
           ),
           // Fixed center pin
           const Center(child: _CenterPin()),
+          // Search bar
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 12,
+            child: _buildSearchBar(tt, colorScheme),
+          ),
           // My location FAB
           Positioned(
             right: 16,
-            top: 16,
+            top: _showSuggestions
+                ? 12.0 + 52 + (_suggestions.length * 56.0).clamp(0, 224) + 12
+                : 12.0 + 52 + 12,
             child: FloatingActionButton.small(
               heroTag: 'alert_loc_my_pos',
-              backgroundColor: Colors.white,
+              backgroundColor: colorScheme.surface,
               elevation: 2,
               onPressed: _goToMyLocation,
               child: const Icon(
@@ -145,23 +239,146 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomPanel(tt),
+            child: _buildBottomPanel(tt, colorScheme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomPanel(TextTheme tt) {
+  Widget _buildSearchBar(TextTheme tt, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _searchController,
+            focusNode: _searchFocus,
+            onChanged: _onSearchChanged,
+            style: tt.bodyMedium?.copyWith(color: colorScheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Rechercher une adresse…',
+              hintStyle: tt.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+              prefixIcon: _loadingSuggestions
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.search, color: AppColors.primary, size: 20),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _suggestions = [];
+                          _showSuggestions = false;
+                        });
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+          ),
+        ),
+        if (_showSuggestions && _suggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: _suggestions.length,
+              separatorBuilder: (_, __) => Divider(
+                height: 1,
+                color: colorScheme.outlineVariant,
+              ),
+              itemBuilder: (context, i) {
+                final s = _suggestions[i];
+                return InkWell(
+                  onTap: () => _selectSuggestion(s),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            s.displayName,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colorScheme.onSurface),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBottomPanel(TextTheme tt, ColorScheme colorScheme) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
-            offset: Offset(0, -4),
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -175,7 +392,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
               width: 32,
               height: 3,
               decoration: BoxDecoration(
-                color: AppColors.gray200,
+                color: colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -184,7 +401,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
           Text(
             'Emplacement sélectionné',
             style: tt.bodySmall?.copyWith(
-              color: AppColors.gray400,
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -199,7 +416,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
                         height: 14,
                         width: 160,
                         decoration: BoxDecoration(
-                          color: AppColors.gray100,
+                          color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       )
@@ -207,7 +424,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
                         _address,
                         style: tt.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: AppColors.gray900,
+                          color: colorScheme.onSurface,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -218,7 +435,9 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
           const SizedBox(height: 6),
           Text(
             'Déplace la carte pour ajuster le point',
-            style: tt.labelMedium?.copyWith(color: AppColors.gray400),
+            style: tt.labelMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -227,7 +446,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
               onPressed: _loadingAddress ? null : _confirm,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.gray200,
+                disabledBackgroundColor: colorScheme.surfaceContainerHighest,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -361,4 +580,24 @@ class _LocationResult {
   final gmaps.LatLng latLng;
   final String address;
   const _LocationResult({required this.latLng, required this.address});
+}
+
+class _NominatimResult {
+  final String displayName;
+  final double lat;
+  final double lon;
+
+  const _NominatimResult({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+  });
+
+  factory _NominatimResult.fromJson(Map<String, dynamic> json) {
+    return _NominatimResult(
+      displayName: json['display_name'] as String,
+      lat: double.parse(json['lat'] as String),
+      lon: double.parse(json['lon'] as String),
+    );
+  }
 }

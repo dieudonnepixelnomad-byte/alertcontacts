@@ -102,7 +102,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: _appBar(tt),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -110,7 +110,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
 
     if (_loadError != null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: _appBar(tt),
         body: Center(
           child: Column(
@@ -186,7 +186,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
             const SizedBox(height: 4),
             Text(
               'Signalé il y a quelques minutes',
-              style: tt.labelMedium?.copyWith(color: AppColors.gray400),
+              style: tt.labelMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
 
             if (description != null && description.isNotEmpty) ...[
@@ -194,7 +194,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.gray100,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(description, style: tt.bodyMedium),
@@ -218,7 +218,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: (_localConfirmations / 10).clamp(0.0, 1.0),
-                backgroundColor: AppColors.gray200,
+                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                 color: gravityColor,
                 minHeight: 6,
               ),
@@ -271,8 +271,8 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
                       icon: const Icon(Icons.close, size: 18),
                       label: const Text('Pas vu'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.gray400,
-                        side: const BorderSide(color: AppColors.gray200),
+                        foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -287,7 +287,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
                 onPressed: alertId == null ? null : () => _reportAbuse(alertId),
                 child: Text(
                   'Signaler comme abusif',
-                  style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+                  style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
             ),
@@ -320,7 +320,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
                 context.go('/');
               }
             },
-      color: AppColors.gray900,
+      color: Theme.of(context).colorScheme.onSurface,
     ),
     title: Text('Détail de l\'alerte', style: tt.titleSmall),
     centerTitle: true,
@@ -379,8 +379,8 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
         icon: const Icon(Icons.visibility_off, size: 18),
         label: const Text('Ignorer cette zone'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.gray400,
-          side: const BorderSide(color: AppColors.gray200),
+          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -517,7 +517,7 @@ class _MiniMap extends StatelessWidget {
       height: 160,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.gray200),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: gmaps.GoogleMap(
@@ -554,7 +554,7 @@ class _VoteChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isConfirm = vote == 'confirm';
-    final color = isConfirm ? AppColors.success : AppColors.gray400;
+    final color = isConfirm ? AppColors.success : Theme.of(context).colorScheme.onSurfaceVariant;
     final icon = isConfirm ? Icons.check_circle_outline : Icons.do_not_disturb_on_outlined;
     final label = isConfirm ? 'Confirmé — merci pour ton signalement' : 'Vote enregistré';
 

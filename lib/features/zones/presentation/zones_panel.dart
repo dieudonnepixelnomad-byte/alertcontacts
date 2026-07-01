@@ -42,7 +42,7 @@ class _ZonesPanelState extends State<ZonesPanel> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         child: SafeArea(
           top: false,
           child: SizedBox(
@@ -97,7 +97,7 @@ class _ZonesPanelState extends State<ZonesPanel> {
                           IconButton(
                             icon: const Icon(Icons.close, size: 22),
                             onPressed: () => Navigator.pop(context),
-                            color: AppColors.gray400,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -152,7 +152,6 @@ class _ZonesPanelState extends State<ZonesPanel> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -236,7 +235,7 @@ class _ZoneRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     _subtitle,
-                    style: tt.labelMedium?.copyWith(color: AppColors.gray400),
+                    style: tt.labelMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   if (memberCount > 0) ...[
                     const SizedBox(height: 6),
@@ -272,7 +271,6 @@ class _ZoneRow extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -355,7 +353,7 @@ class _MembersRow extends StatelessWidget {
         else
           Text(
             '$totalCount proche${totalCount > 1 ? 's' : ''}',
-            style: tt.labelMedium?.copyWith(color: AppColors.gray400),
+            style: tt.labelMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
       ],
     );
@@ -387,7 +385,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Crée ta première zone pour recevoir des alertes quand tes proches arrivent ou partent.',
               textAlign: TextAlign.center,
-              style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+              style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -412,9 +410,9 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_outlined, size: 40, color: AppColors.gray400),
+            Icon(Icons.wifi_off_outlined, size: 40, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: AppColors.gray400)),
+            Text(message, textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: onRetry,

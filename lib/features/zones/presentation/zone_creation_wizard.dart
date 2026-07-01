@@ -56,7 +56,7 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
             width: 32,
             height: 3,
             decoration: BoxDecoration(
-              color: AppColors.gray200,
+              color: Theme.of(context).colorScheme.outlineVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -70,7 +70,7 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
                 IconButton(
                   onPressed: () => setState(() => _step--),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                  color: AppColors.gray400,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   padding: EdgeInsets.zero,
                 )
               else
@@ -85,7 +85,7 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
               IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close, size: 20),
-                color: AppColors.gray400,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -187,7 +187,7 @@ class _StepIndicator extends StatelessWidget {
               height: 3,
               margin: EdgeInsets.only(right: i < 1 ? 4 : 0),
               decoration: BoxDecoration(
-                color: active ? AppColors.primary : AppColors.gray200,
+                color: active ? AppColors.primary : Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -399,7 +399,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                 right: 10,
                 child: FloatingActionButton.small(
                   onPressed: _locating ? null : _goToCurrentLocation,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   foregroundColor: AppColors.primary,
                   elevation: 4,
                   heroTag: 'zone_my_location',
@@ -448,7 +448,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                         textInputAction: TextInputAction.search,
                         decoration: InputDecoration(
                           hintText: 'Rechercher une adresse…',
-                          prefixIcon: const Icon(Icons.search, color: AppColors.gray400, size: 20),
+                          prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                           suffixIcon: _searching
                               ? const Padding(
                                   padding: EdgeInsets.all(12),
@@ -459,7 +459,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                                 )
                               : _searchController.text.isNotEmpty
                                   ? IconButton(
-                                      icon: const Icon(Icons.close, size: 18, color: AppColors.gray400),
+                                      icon: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                       onPressed: () {
                                         _searchController.clear();
                                         setState(() => _suggestions = []);
@@ -467,7 +467,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                                     )
                                   : null,
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -497,7 +497,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                         child: Container(
                           margin: const EdgeInsets.only(top: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: ListView.separated(
@@ -506,7 +506,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                             padding: EdgeInsets.zero,
                             itemCount: _suggestions.length,
                             separatorBuilder: (_, __) =>
-                                Divider(height: 1, color: AppColors.gray100),
+                                Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
                             itemBuilder: (_, i) {
                               final s = _suggestions[i];
                               return ListTile(
@@ -523,7 +523,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                                 subtitle: s.secondaryText.isNotEmpty
                                     ? Text(
                                         s.secondaryText,
-                                        style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+                                        style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                       )
                                     : null,
                                 onTap: () => _selectPlace(s),
@@ -571,7 +571,7 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
               onPressed: hasPos ? widget.onNext : null,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.gray200,
+                disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -637,7 +637,7 @@ class _StepMetadata extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'Ex : Maison, École des enfants…',
               filled: true,
-              fillColor: AppColors.gray100,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -660,7 +660,7 @@ class _StepMetadata extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primaryLight : AppColors.gray100,
+                    color: selected ? AppColors.primaryLight : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                     border: selected ? Border.all(color: AppColors.primary) : null,
                   ),
@@ -670,13 +670,13 @@ class _StepMetadata extends StatelessWidget {
                       Icon(
                         iconData,
                         size: 18,
-                        color: selected ? AppColors.primary : AppColors.gray400,
+                        color: selected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         label,
                         style: tt.bodySmall?.copyWith(
-                          color: selected ? AppColors.primary : AppColors.gray600,
+                          color: selected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
@@ -693,7 +693,7 @@ class _StepMetadata extends StatelessWidget {
               onPressed: saving ? null : onSubmit,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.gray200,
+                disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

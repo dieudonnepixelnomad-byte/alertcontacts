@@ -7,7 +7,7 @@ import '../../../core/models/contact_relation.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/models/zone.dart' as zone_models;
 import '../providers/relationship_provider.dart';
-import '../../../features/onboarding/presentation/onboarding_invitation_page.dart';
+import 'invite_contact_page.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../core/services/paywall_trigger_service.dart';
 import '../../../core/services/contact_rtdb_service.dart';
@@ -36,7 +36,6 @@ class _ProchesTabState extends State<ProchesTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gray50,
       body: Consumer<RelationshipProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
@@ -108,7 +107,7 @@ class _ProchesTabState extends State<ProchesTab> {
                           child: Text(
                             'EN ATTENTE',
                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.gray400,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               letterSpacing: 0.08,
                             ),
                           ),
@@ -167,7 +166,7 @@ class _ProchesTabState extends State<ProchesTab> {
     if (!mounted) return;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const OnboardingInvitationPage()),
+      MaterialPageRoute(builder: (_) => const InviteContactPage()),
     );
   }
 
@@ -179,7 +178,6 @@ class _ProchesTabState extends State<ProchesTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -365,21 +363,22 @@ class _ContactCard extends StatelessWidget {
 
   // ── Status text + color ───────────────────────────────────────────────
 
-  ({String text, Color color, IconData? icon}) get _statusLine {
+  ({String text, Color color, IconData? icon}) _statusLine(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     switch (_cardState) {
       case 'pending':
         return (
           text: 'Invitation envoyée · il y a ${_timeAgo(relation.createdAt)}',
-          color: AppColors.gray400,
+          color: muted,
           icon: null,
         );
       case 'one-way':
-        return (text: 'Position non visible', color: AppColors.gray400, icon: null);
+        return (text: 'Position non visible', color: muted, icon: null);
       case 'offline':
         final last = snapshot?.updatedAt;
         return (
           text: last != null ? 'Hors ligne · vue il y a ${_timeAgo(last)}' : 'Hors ligne',
-          color: AppColors.gray400,
+          color: muted,
           icon: null,
         );
       case 'invisible':
@@ -401,23 +400,23 @@ class _ContactCard extends StatelessWidget {
         if (speed != null && speed > 5) {
           return (
             text: 'En déplacement · ${speed.toStringAsFixed(0)} km/h',
-            color: AppColors.gray600,
+            color: muted,
             icon: null,
           );
         }
         return (
           text: 'Actif · ${_timeAgo(snapshot!.updatedAt)}',
-          color: AppColors.gray400,
+          color: muted,
           icon: null,
         );
       default:
-        return (text: '', color: AppColors.gray400, icon: null);
+        return (text: '', color: muted, icon: null);
     }
   }
 
   // ── Right indicator ───────────────────────────────────────────────────
 
-  Widget _buildRightIndicator() {
+  Widget _buildRightIndicator(BuildContext context) {
     switch (_cardState) {
       case 'pending':
         return Container(
@@ -426,9 +425,9 @@ class _ContactCard extends StatelessWidget {
             color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
+          child: const Text(
             'Renvoyer',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.primary,
@@ -443,7 +442,7 @@ class _ContactCard extends StatelessWidget {
             ? AppColors.danger
             : bat < 40
                 ? AppColors.warning
-                : AppColors.gray600;
+                : Theme.of(context).colorScheme.onSurfaceVariant;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -470,7 +469,10 @@ class _ContactCard extends StatelessWidget {
 
   // ── Avatar badge (dot or clock) ───────────────────────────────────────
 
-  Widget? _buildAvatarBadge() {
+  Widget? _buildAvatarBadge(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final mutedBg = Theme.of(context).colorScheme.surfaceContainerHighest;
     switch (_cardState) {
       case 'active':
         return Container(
@@ -479,7 +481,7 @@ class _ContactCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.success,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
+            border: Border.all(color: surfaceColor, width: 1.5),
           ),
         );
       case 'invisible':
@@ -489,7 +491,7 @@ class _ContactCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFFFF8C3C),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
+            border: Border.all(color: surfaceColor, width: 1.5),
           ),
           child: const Icon(Icons.pause_rounded, size: 10, color: Colors.white),
         );
@@ -498,11 +500,11 @@ class _ContactCard extends StatelessWidget {
           width: 18,
           height: 18,
           decoration: BoxDecoration(
-            color: AppColors.gray200,
+            color: mutedBg,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
+            border: Border.all(color: surfaceColor, width: 1.5),
           ),
-          child: const Icon(Icons.schedule_rounded, size: 11, color: AppColors.gray400),
+          child: Icon(Icons.schedule_rounded, size: 11, color: muted),
         );
       default:
         return null;
@@ -512,17 +514,18 @@ class _ContactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
     final isPending = _cardState == 'pending';
     final isOfflineOrOneWay = _cardState == 'offline' || _cardState == 'one-way';
-    final status = _statusLine;
-    final badge = _buildAvatarBadge();
+    final status = _statusLine(context);
+    final badge = _buildAvatarBadge(context);
 
     Widget card = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(14),
-        border: isPending ? null : Border.all(color: AppColors.gray200),
+        border: isPending ? null : Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
@@ -577,7 +580,7 @@ class _ContactCard extends StatelessWidget {
           const SizedBox(width: 8),
 
           // ── Right indicator (battery / chip) ───────────────────────────
-          _buildRightIndicator(),
+          _buildRightIndicator(context),
         ],
       ),
     );
@@ -585,7 +588,7 @@ class _ContactCard extends StatelessWidget {
     // Dashed border for pending
     if (isPending) {
       card = CustomPaint(
-        painter: _DashedRoundedBorderPainter(),
+        painter: _DashedRoundedBorderPainter(color: cs.outlineVariant),
         child: card,
       );
     }
@@ -597,10 +600,13 @@ class _ContactCard extends StatelessWidget {
 // ─── Dashed border painter ──────────────────────────────────────────────────
 
 class _DashedRoundedBorderPainter extends CustomPainter {
+  final Color color;
+  const _DashedRoundedBorderPainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.gray400
+      ..color = color
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     const r = Radius.circular(14);
@@ -681,7 +687,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Invite quelqu\'un pour partager vos positions et recevoir des alertes mutuellement.',
               textAlign: TextAlign.center,
-              style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+              style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -705,11 +711,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_outlined, size: 48, color: AppColors.gray400),
+            Icon(Icons.wifi_off_outlined, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
             Text('Impossible de charger', style: tt.titleSmall),
             const SizedBox(height: 6),
-            Text(error, textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: AppColors.gray400)),
+            Text(error, textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: onRetry,

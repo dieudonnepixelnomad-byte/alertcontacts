@@ -28,6 +28,7 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
     (key: 'parents', label: 'Mes parents', emoji: '👴'),
     (key: 'partner', label: 'Mon conjoint(e)', emoji: '❤️'),
     (key: 'self', label: 'Moi-même', emoji: '🧘'),
+    (key: 'other', label: 'Autre', emoji: '👥'),
   ];
 
   Future<void> _continue(String? profile) async {
@@ -77,73 +78,63 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
 
               const SizedBox(height: 40),
 
-              // 2×2 grid
+              // 2×2 grid + 1 carte centrée
               Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.1,
+                child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
-                  children: _profiles.map((p) {
-                    final isSelected = _selected == p.key;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selected = p.key),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primaryLight
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.gray200,
-                            width: isSelected ? 2 : 1,
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: _profiles.map((p) {
+                      final cardSize = (MediaQuery.of(context).size.width - 48 - 12) / 2;
+                      final isSelected = _selected == p.key;
+                      return SizedBox(
+                        width: cardSize,
+                        height: cardSize / 1.1,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selected = p.key),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.primaryLight : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? AppColors.primary : AppColors.gray200,
+                                width: isSelected ? 2 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(p.emoji, style: const TextStyle(fontSize: 36)),
+                                const SizedBox(height: 10),
+                                Text(
+                                  p.label,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                    color: isSelected ? AppColors.primary : AppColors.gray900,
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(height: 6),
+                                  const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
+                                ],
+                              ],
+                            ),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              p.emoji,
-                              style: const TextStyle(fontSize: 36),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              p.label,
-                              textAlign: TextAlign.center,
-                              style:
-                                  AppTypography.textTheme.bodyMedium?.copyWith(
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.gray900,
-                              ),
-                            ),
-                            if (isSelected) ...[
-                              const SizedBox(height: 6),
-                              const Icon(
-                                Icons.check_circle,
-                                color: AppColors.primary,
-                                size: 18,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
+                      );
                   }).toList(),
+                  ),
                 ),
               ),
 

@@ -13,7 +13,7 @@ import 'package:alertcontacts/features/permissions/presentation/permission_backg
 import 'package:provider/provider.dart';
 import 'package:alertcontacts/features/splash/presentation/forced_update_page.dart';
 import 'package:alertcontacts/features/proches/presentation/accept_invitation_page.dart';
-import 'package:alertcontacts/features/proches/presentation/add_proche_page.dart';
+import 'package:alertcontacts/features/proches/presentation/invite_contact_page.dart';
 import 'package:alertcontacts/features/splash/presentation/splash_page.dart';
 import 'package:alertcontacts/features/zones_securite/presentation/safezone_setup_wizard.dart';
 import 'package:alertcontacts/features/safezone_setup/presentation/setup_introduction_page.dart';
@@ -254,7 +254,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.addProche,
           name: 'add_proche',
-          builder: (ctx, state) => const InviteProchePage(),
+          builder: (ctx, state) => const InviteContactPage(),
         ),
         // Routes supprimées car gérées en interne par ProchesScreen :
         // - prochesManagement -> ProchesScreen est maintenant dans AppShell

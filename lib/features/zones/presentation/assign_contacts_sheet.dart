@@ -89,7 +89,7 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
               width: 32,
               height: 3,
               decoration: BoxDecoration(
-                color: AppColors.gray200,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -122,7 +122,7 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
                   onPressed: () => Navigator.pop(context),
-                  color: AppColors.gray400,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -137,20 +137,20 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
               decoration: InputDecoration(
                 hintText: 'Rechercher un proche...',
                 hintStyle:
-                    tt.bodyMedium?.copyWith(color: AppColors.gray400),
-                prefixIcon: const Icon(Icons.search,
-                    size: 20, color: AppColors.gray400),
+                    tt.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                prefixIcon: Icon(Icons.search,
+                    size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 filled: true,
-                fillColor: AppColors.gray50,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.gray200),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.gray200),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -229,7 +229,7 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
                     child: Center(
                       child: Text(
                         'Aucun proche trouvé',
-                        style: tt.bodySmall?.copyWith(color: AppColors.gray400),
+                        style: tt.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ),
                   ),
@@ -248,7 +248,7 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
                 onPressed: (_hasChanges && !_saving) ? _save : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  disabledBackgroundColor: AppColors.gray200,
+                  disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -340,7 +340,7 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.gray400,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               letterSpacing: 0.06,
               fontWeight: FontWeight.w600,
             ),
@@ -412,7 +412,7 @@ class _ContactTile extends StatelessWidget {
                     Text(
                       isSelected ? 'Déjà dans la zone' : 'Sera retiré(e) de la zone',
                       style: tt.labelSmall?.copyWith(
-                        color: isSelected ? AppColors.gray400 : AppColors.danger,
+                        color: isSelected ? Theme.of(context).colorScheme.onSurfaceVariant : AppColors.danger,
                       ),
                     ),
                 ],
@@ -441,7 +441,7 @@ class _CheckIcon extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected ? AppColors.primary : Colors.transparent,
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.gray200,
+          color: selected ? AppColors.primary : Theme.of(context).colorScheme.outlineVariant,
           width: 1.5,
         ),
         borderRadius: BorderRadius.circular(6),

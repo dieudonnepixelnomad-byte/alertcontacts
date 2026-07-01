@@ -29,13 +29,10 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
   }
 
-  // ─── Mode invisible ───────────────────────────────────────────────────────
-
   void _showInvisibleSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -83,8 +80,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // ─── Exporter données ─────────────────────────────────────────────────────
-
   Future<void> _exportData() async {
     final apiAuth = context.read<ApiAuthService>();
     final messenger = ScaffoldMessenger.of(context);
@@ -104,8 +99,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // ─── URL légales ──────────────────────────────────────────────────────────
-
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -116,8 +109,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
   }
-
-  // ─── Déconnexion ──────────────────────────────────────────────────────────
 
   void _signOut() {
     showDialog<bool>(
@@ -140,8 +131,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
   }
-
-  // ─── Suppression compte ───────────────────────────────────────────────────
 
   void _deleteAccount() {
     showDialog(
@@ -186,11 +175,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
     final auth = context.watch<AuthNotifier>();
     final user = auth.user;
     final displayName = user?.name ?? 'Mon compte';
@@ -198,16 +186,26 @@ class _SettingsPageState extends State<SettingsPage> {
     final photoUrl = user?.photoUrl;
 
     return Scaffold(
-      backgroundColor: AppColors.gray50,
+      backgroundColor: cs.surfaceContainerLow,
+      appBar: AppBar(
+        backgroundColor: cs.surfaceContainerLow,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => Navigator.maybePop(context),
+          color: cs.onSurface,
+        ),
+        title: Text(
+          'Paramètres',
+          style: tt.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
+      ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 8),
-              child: Text('Paramètres', style: tt.titleLarge),
-            ),
-          ),
-
           // ── Avatar header ────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
@@ -215,9 +213,9 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.gray200),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Row(
                   children: [
@@ -237,9 +235,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(displayName, style: tt.titleSmall),
+                          Text(displayName, style: tt.titleSmall?.copyWith(color: cs.onSurface)),
                           const SizedBox(height: 2),
-                          Text(email, style: tt.bodySmall?.copyWith(color: AppColors.gray400)),
+                          Text(email, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                         ],
                       ),
                     ),
@@ -289,7 +287,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SettingsTile(
                   icon: Icons.language_outlined,
                   label: 'Langue',
-                  trailing: Text('Français', style: tt.bodySmall?.copyWith(color: AppColors.gray400)),
+                  trailing: Text('Français', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                   onTap: () {},
                 ),
                 _SettingsTile(
@@ -412,7 +410,7 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.gray400,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           letterSpacing: 0.08,
         ),
       ),
@@ -426,17 +424,18 @@ class _SettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.gray200),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           children: List.generate(children.length * 2 - 1, (i) {
-            if (i.isOdd) return const Divider(height: 1, indent: 16);
+            if (i.isOdd) return Divider(height: 1, indent: 16, color: Theme.of(context).colorScheme.outlineVariant);
             return children[i ~/ 2];
           }),
         ),
@@ -465,16 +464,24 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final c = color ?? AppColors.gray900;
+    final cs = Theme.of(context).colorScheme;
+    final c = color ?? cs.onSurface;
 
     return ListTile(
       tileColor: Colors.transparent,
       leading: Icon(icon, color: c, size: 22),
       title: Text(label, style: tt.bodyMedium?.copyWith(color: c)),
       subtitle: subtitle != null
-          ? Text(subtitle!, style: tt.labelMedium?.copyWith(color: color != null ? color!.withValues(alpha: 0.7) : AppColors.gray400))
+          ? Text(
+              subtitle!,
+              style: tt.labelMedium?.copyWith(
+                color: color != null
+                    ? color!.withValues(alpha: 0.7)
+                    : cs.onSurfaceVariant,
+              ),
+            )
           : null,
-      trailing: trailing ?? const Icon(Icons.chevron_right, color: AppColors.gray400, size: 20),
+      trailing: trailing ?? Icon(Icons.chevron_right, color: cs.onSurfaceVariant, size: 20),
       minLeadingWidth: 28,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       onTap: onTap,
