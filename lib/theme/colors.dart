@@ -8,9 +8,10 @@ class AppColors {
   static const Color success      = Color(0xFF22C55E);
   static const Color warning      = Color(0xFFF59E0B);
   static const Color danger       = Color(0xFFEF4444);
-  static const Color gravityLow   = Color(0xFFEAB308);
-  static const Color gravityMid   = Color(0xFFF97316);
-  static const Color gravityHigh  = Color(0xFFEF4444);
+  static const Color gravityLow      = Color(0xFFEAB308);
+  static const Color gravityMid      = Color(0xFFF97316);
+  static const Color gravityHigh     = Color(0xFFEF4444);
+  static const Color gravityCritical = Color(0xFF7C1D8C); // Critique — 24h
 
   static const Color gray50  = Color(0xFFF9FAFB);
   static const Color gray100 = Color(0xFFF3F4F6);

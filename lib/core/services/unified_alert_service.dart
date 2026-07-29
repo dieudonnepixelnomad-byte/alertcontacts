@@ -314,9 +314,10 @@ class UnifiedAlertService {
     required int distanceMeters,
   }) async {
     final gravityLabel = switch (gravity) {
-      'high'   => 'grave',
-      'medium' => 'moyen',
-      _        => 'mineur',
+      'critical' => 'critique',
+      'high'     => 'grave',
+      'medium'   => 'moyen',
+      _          => 'mineur',
     };
     final typeLabel = switch (type) {
       'accident'           => 'Un accident',
@@ -324,22 +325,24 @@ class UnifiedAlertService {
       'aggression'         => 'Une agression',
       'suspect'            => 'Une personne suspecte',
       'suspicious_package' => 'Un colis suspect',
+      'murder'             => 'Un meurtre',
       _                    => 'Un incident',
     };
     final message = '$typeLabel a été signalé à $distanceMeters mètres. Niveau $gravityLabel.';
     final vibration = switch (gravity) {
-      'high'   => VibrationIntensity.heavy,
-      'medium' => VibrationIntensity.medium,
-      _        => VibrationIntensity.light,
+      'critical' => VibrationIntensity.critical,
+      'high'     => VibrationIntensity.heavy,
+      'medium'   => VibrationIntensity.medium,
+      _          => VibrationIntensity.light,
     };
     await triggerAlert(AlertConfig(
-      type: AlertType.dangerZone,
+      type: gravity == 'critical' ? AlertType.critical : AlertType.dangerZone,
       voiceMessage: message,
       vibrationIntensity: vibration,
       enableVoice: true,
       enableVibration: true,
       voiceVolume: 1.0,
-      voicePitch: gravity == 'high' ? 1.2 : 1.0,
+      voicePitch: (gravity == 'high' || gravity == 'critical') ? 1.2 : 1.0,
       voiceRate: 0.45,
     ));
   }

@@ -1,20 +1,19 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import '../../../core/models/places_autocomplete.dart';
 import '../../../core/services/paywall_trigger_service.dart';
+import '../../../core/services/places_service.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../theme/colors.dart';
 import '../providers/zones_notifier.dart';
 
 class ZoneCreationWizard extends StatefulWidget {
-  final ScrollController? scrollController;
-  const ZoneCreationWizard({super.key, this.scrollController});
+  const ZoneCreationWizard({super.key});
 
   @override
   State<ZoneCreationWizard> createState() => _ZoneCreationWizardState();
@@ -48,20 +47,11 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    return Column(
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
       children: [
-        const SizedBox(height: 12),
-        Center(
-          child: Container(
-            width: 32,
-            height: 3,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
@@ -116,6 +106,8 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
           ),
         ),
       ],
+        ),
+      ),
     );
   }
 
@@ -228,8 +220,6 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
   bool _locating = false;
   String? _apiError;
 
-  static const _nominatimUrl = 'https://nominatim.openstreetmap.org/search';
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -301,51 +291,49 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
   }
 
   Future<void> _fetchSuggestions(String input) async {
-    log('[Nominatim] search query="$input"');
+    log('[Places] search query="$input"');
     setState(() { _searching = true; _apiError = null; });
     try {
-      final uri = Uri.parse(_nominatimUrl).replace(queryParameters: {
-        'q': input,
-        'format': 'json',
-        'limit': '5',
-        'accept-language': 'fr',
-      });
-      final response = await http.get(uri, headers: {
-        'User-Agent': 'AlertContacts/1.0',
-      }).timeout(const Duration(seconds: 8));
-      log('[Nominatim] http=${response.statusCode}');
+      final response = await PlacesService.getAutocomplete(input);
+      log('[Places] status=${response.status}');
       if (!mounted) return;
-      final results = jsonDecode(response.body) as List<dynamic>;
-      log('[Nominatim] count=${results.length}');
-      final predictions = results.map((r) {
-        final displayName = r['display_name'] as String? ?? '';
-        final parts = displayName.split(', ');
-        final mainText = parts.isNotEmpty ? parts.first : displayName;
-        final secondaryText = parts.length > 1 ? parts.skip(1).join(', ') : '';
-        return _PlacePrediction(
-          mainText: mainText,
-          secondaryText: secondaryText,
-          lat: double.parse(r['lat'] as String),
-          lng: double.parse(r['lon'] as String),
-        );
-      }).toList();
+      final predictions = (response.status == 'OK'
+              ? response.predictions ?? []
+              : <AutoCompletePrediction>[])
+          .where((p) => p.placeId != null)
+          .map((p) => _PlacePrediction(
+                mainText: p.structuredFormatting?.mainText ??
+                    p.description ??
+                    '',
+                secondaryText: p.structuredFormatting?.secondaryText ?? '',
+                placeId: p.placeId!,
+              ))
+          .toList();
       setState(() => _suggestions = predictions);
     } catch (e) {
-      log('[Nominatim] error: $e');
+      log('[Places] error: $e');
       if (mounted) setState(() => _apiError = e.toString());
     } finally {
       if (mounted) setState(() => _searching = false);
     }
   }
 
-  void _selectPlace(_PlacePrediction place) {
-    log('[Nominatim] selected lat=${place.lat} lng=${place.lng}');
+  Future<void> _selectPlace(_PlacePrediction place) async {
+    log('[Places] selected placeId=${place.placeId}');
     _searchController.text = place.mainText;
     setState(() => _suggestions = []);
     FocusScope.of(context).unfocus();
-    final pos = gmaps.LatLng(place.lat, place.lng);
-    widget.onPositionSelected(pos);
-    _mapController?.animateCamera(gmaps.CameraUpdate.newLatLngZoom(pos, 16));
+    try {
+      final details = await PlacesService.getPlaceDetails(place.placeId);
+      final location = details?.geometry?.location;
+      if (location == null) return;
+      final pos = gmaps.LatLng(location.lat, location.lng);
+      widget.onPositionSelected(pos);
+      _mapController?.animateCamera(gmaps.CameraUpdate.newLatLngZoom(pos, 16));
+    } catch (e) {
+      log('[Places] details error: $e');
+      if (mounted) setState(() => _apiError = e.toString());
+    }
   }
 
   @override
@@ -493,13 +481,10 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                     if (showSuggestions)
                       Material(
                         elevation: 8,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           margin: const EdgeInsets.only(top: 4),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
                           child: ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -590,14 +575,12 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
 class _PlacePrediction {
   final String mainText;
   final String secondaryText;
-  final double lat;
-  final double lng;
+  final String placeId;
 
   const _PlacePrediction({
     required this.mainText,
     required this.secondaryText,
-    required this.lat,
-    required this.lng,
+    required this.placeId,
   });
 }
 

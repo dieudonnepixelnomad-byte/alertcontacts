@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
-import 'package:http/http.dart' as http;
 
+import '../../../core/models/places_autocomplete.dart';
+import '../../../core/services/places_service.dart';
 import '../../../theme/colors.dart';
 
 class AlertLocationPickerPage extends StatefulWidget {
@@ -30,7 +30,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
   // Search
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-  List<_NominatimResult> _suggestions = [];
+  List<AutoCompletePrediction> _suggestions = [];
   bool _loadingSuggestions = false;
   Timer? _searchDebounce;
   bool _showSuggestions = false;
@@ -126,49 +126,43 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
   Future<void> _fetchSuggestions(String query) async {
     setState(() => _loadingSuggestions = true);
     try {
-      final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search'
-        '?q=${Uri.encodeComponent(query)}'
-        '&format=json&limit=5&addressdetails=1',
-      );
-      final response = await http.get(
-        uri,
-        headers: {
-          'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
-          'Accept-Language': 'fr',
-        },
-      ).timeout(const Duration(seconds: 8));
-
+      final response = await PlacesService.getAutocomplete(query);
       if (!mounted) return;
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _suggestions = data
-              .map((e) => _NominatimResult.fromJson(e))
-              .toList();
-          _showSuggestions = _suggestions.isNotEmpty;
-        });
-      }
+      setState(() {
+        _suggestions = response.status == 'OK'
+            ? (response.predictions ?? [])
+            : [];
+        _showSuggestions = _suggestions.isNotEmpty;
+      });
     } catch (e) {
-      log('[AlertLocationPicker] Nominatim error: $e');
+      log('[AlertLocationPicker] Places autocomplete error: $e');
     } finally {
       if (mounted) setState(() => _loadingSuggestions = false);
     }
   }
 
-  void _selectSuggestion(_NominatimResult result) {
-    _searchController.text = result.displayName;
+  Future<void> _selectSuggestion(AutoCompletePrediction result) async {
+    _searchController.text =
+        result.description ?? result.structuredFormatting?.mainText ?? '';
     _searchFocus.unfocus();
     setState(() {
       _suggestions = [];
       _showSuggestions = false;
     });
 
-    final target = gmaps.LatLng(result.lat, result.lon);
-    _mapController?.animateCamera(
-      gmaps.CameraUpdate.newLatLngZoom(target, 17),
-    );
-    _reverseGeocode(target);
+    if (result.placeId == null) return;
+    try {
+      final details = await PlacesService.getPlaceDetails(result.placeId!);
+      final location = details?.geometry?.location;
+      if (location == null) return;
+      final target = gmaps.LatLng(location.lat, location.lng);
+      _mapController?.animateCamera(
+        gmaps.CameraUpdate.newLatLngZoom(target, 17),
+      );
+      _reverseGeocode(target);
+    } catch (e) {
+      log('[AlertLocationPicker] Places details error: $e');
+    }
   }
 
   @override
@@ -283,7 +277,11 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
                         ),
                       ),
                     )
-                  : const Icon(Icons.search, color: AppColors.primary, size: 20),
+                  : const Icon(
+                      Icons.search,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: Icon(
@@ -327,10 +325,8 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: _suggestions.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                color: colorScheme.outlineVariant,
-              ),
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: colorScheme.outlineVariant),
               itemBuilder: (context, i) {
                 final s = _suggestions[i];
                 return InkWell(
@@ -351,7 +347,9 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            s.displayName,
+                            s.description ??
+                                s.structuredFormatting?.mainText ??
+                                '',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: colorScheme.onSurface),
                             maxLines: 2,
@@ -580,24 +578,4 @@ class _LocationResult {
   final gmaps.LatLng latLng;
   final String address;
   const _LocationResult({required this.latLng, required this.address});
-}
-
-class _NominatimResult {
-  final String displayName;
-  final double lat;
-  final double lon;
-
-  const _NominatimResult({
-    required this.displayName,
-    required this.lat,
-    required this.lon,
-  });
-
-  factory _NominatimResult.fromJson(Map<String, dynamic> json) {
-    return _NominatimResult(
-      displayName: json['display_name'] as String,
-      lat: double.parse(json['lat'] as String),
-      lon: double.parse(json['lon'] as String),
-    );
-  }
 }

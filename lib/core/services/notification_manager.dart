@@ -191,9 +191,10 @@ class NotificationManager {
     debugPrint('[NotificationManager] feu vert — déclenchement voix + notification');
 
     final gravityEmoji = switch (gravity) {
-      'high'   => '🔴',
-      'medium' => '🟠',
-      _        => '🟡',
+      'critical' => '🟣',
+      'high'     => '🔴',
+      'medium'   => '🟠',
+      _          => '🟡',
     };
     final typeLabel = switch (type) {
       'accident'           => 'Accident',
@@ -201,6 +202,7 @@ class NotificationManager {
       'aggression'         => 'Agression',
       'suspect'            => 'Personne suspecte',
       'suspicious_package' => 'Colis suspect',
+      'murder'             => 'Meurtre',
       _                    => 'Incident',
     };
     try {
@@ -210,7 +212,7 @@ class NotificationManager {
             title: '$gravityEmoji $typeLabel signalé à ${distanceMeters}m',
             body: 'Alerte communautaire dans votre secteur',
             type: NotificationType.dangerZone,
-            priority: gravity == 'high' ? NotificationPriority.high : NotificationPriority.normal,
+            priority: (gravity == 'high' || gravity == 'critical') ? NotificationPriority.high : NotificationPriority.normal,
             enableVibration: true,
             enableSound: true,
             payload: 'community_alert:$type:$gravity:$distanceMeters',

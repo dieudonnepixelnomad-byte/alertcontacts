@@ -480,15 +480,17 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
   }
 
   Color _gravityColor(String g) => switch (g) {
-    'high'   => AppColors.gravityHigh,
-    'medium' => AppColors.gravityMid,
-    _        => AppColors.gravityLow,
+    'critical' => AppColors.gravityCritical,
+    'high'     => AppColors.gravityHigh,
+    'medium'   => AppColors.gravityMid,
+    _          => AppColors.gravityLow,
   };
 
   String _gravityLabel(String g) => switch (g) {
-    'high'   => 'Élevé',
-    'medium' => 'Moyen',
-    _        => 'Faible',
+    'critical' => 'Critique',
+    'high'     => 'Élevé',
+    'medium'   => 'Moyen',
+    _          => 'Faible',
   };
 
   String _typeLabel(String type) => switch (type) {
@@ -497,6 +499,7 @@ class _AlertDetailPageState extends State<AlertDetailPage> {
     'fire'               => 'Incendie',
     'aggression'         => 'Agression',
     'suspicious_package' => 'Colis suspect',
+    'murder'             => 'Meurtre',
     _                    => 'Incident signalé',
   };
 }

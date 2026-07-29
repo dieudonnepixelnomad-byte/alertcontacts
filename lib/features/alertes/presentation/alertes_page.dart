@@ -59,9 +59,10 @@ class _AlertesPageState extends State<AlertesPage> {
       List<CommunityAlert> alerts, AlertProvider provider) {
     return alerts.map((a) {
       final gravityStr = switch (a.gravity) {
-        AlertGravity.high   => 'high',
-        AlertGravity.medium => 'medium',
-        AlertGravity.low    => 'low',
+        AlertGravity.critical => 'critical',
+        AlertGravity.high     => 'high',
+        AlertGravity.medium   => 'medium',
+        AlertGravity.low      => 'low',
       };
       return {
         'id': a.id,
@@ -482,6 +483,7 @@ class _AlertIcon extends StatelessWidget {
   }
 
   Color _gravityColor(String g) => switch (g) {
+        'critical' => AppColors.gravityCritical,
         'high' => AppColors.gravityHigh,
         'medium' => AppColors.gravityMid,
         _ => AppColors.gravityLow,

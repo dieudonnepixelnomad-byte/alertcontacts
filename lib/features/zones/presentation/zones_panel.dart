@@ -149,19 +149,9 @@ class _ZonesPanelState extends State<ZonesPanel> {
 
   void _openCreationWizard(BuildContext context) {
     Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.92,
-        maxChildSize: 0.96,
-        minChildSize: 0.5,
-        builder: (_, controller) => ZoneCreationWizard(scrollController: controller),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ZoneCreationWizard()),
     );
   }
 }

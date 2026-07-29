@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-enum AlertGravity { low, medium, high }
-enum AlertType { accident, fire, flood, suspect, theft, other }
+enum AlertGravity { low, medium, high, critical }
+enum AlertType { accident, fire, flood, suspect, theft, murder, other }
 enum AlertVisibility { publicAlert, contactsOnly }
 
 class CommunityAlert extends Equatable {
@@ -38,15 +38,17 @@ class CommunityAlert extends Equatable {
   bool get isActive => DateTime.now().isBefore(expiresAt);
 
   int get radiusMeters => switch (gravity) {
-    AlertGravity.low    => 200,
-    AlertGravity.medium => 500,
-    AlertGravity.high   => 1000,
+    AlertGravity.low      => 200,
+    AlertGravity.medium   => 500,
+    AlertGravity.high     => 1000,
+    AlertGravity.critical => 2000,
   };
 
   String get gravityLabel => switch (gravity) {
-    AlertGravity.low    => 'Faible',
-    AlertGravity.medium => 'Moyen',
-    AlertGravity.high   => 'Élevé',
+    AlertGravity.low      => 'Faible',
+    AlertGravity.medium   => 'Moyen',
+    AlertGravity.high     => 'Élevé',
+    AlertGravity.critical => 'Critique',
   };
 
   String get typeLabel => switch (type) {
@@ -55,6 +57,7 @@ class CommunityAlert extends Equatable {
     AlertType.flood    => 'Inondation',
     AlertType.suspect  => 'Personne suspecte',
     AlertType.theft    => 'Vol',
+    AlertType.murder   => 'Meurtre',
     AlertType.other    => 'Autre',
   };
 
@@ -89,9 +92,10 @@ class CommunityAlert extends Equatable {
   };
 
   static AlertGravity _parseGravity(String s) => switch (s) {
-    'medium' => AlertGravity.medium,
-    'high'   => AlertGravity.high,
-    _        => AlertGravity.low,
+    'medium'   => AlertGravity.medium,
+    'high'     => AlertGravity.high,
+    'critical' => AlertGravity.critical,
+    _          => AlertGravity.low,
   };
 
   static AlertType _parseType(String s) => switch (s) {
@@ -100,13 +104,15 @@ class CommunityAlert extends Equatable {
     'flood'    => AlertType.flood,
     'suspect'  => AlertType.suspect,
     'theft'    => AlertType.theft,
+    'murder'   => AlertType.murder,
     _          => AlertType.other,
   };
 
   static String _gravityToString(AlertGravity g) => switch (g) {
-    AlertGravity.low    => 'low',
-    AlertGravity.medium => 'medium',
-    AlertGravity.high   => 'high',
+    AlertGravity.low      => 'low',
+    AlertGravity.medium   => 'medium',
+    AlertGravity.high     => 'high',
+    AlertGravity.critical => 'critical',
   };
 
   static String _typeToString(AlertType t) => switch (t) {
@@ -115,6 +121,7 @@ class CommunityAlert extends Equatable {
     AlertType.flood    => 'flood',
     AlertType.suspect  => 'suspect',
     AlertType.theft    => 'theft',
+    AlertType.murder   => 'murder',
     AlertType.other    => 'other',
   };
 

@@ -35,6 +35,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
     ('low', AppColors.gravityLow, '🟡', 'Faible', '30 min · 200m'),
     ('medium', AppColors.gravityMid, '🟠', 'Moyen', '1h · 500m'),
     ('high', AppColors.gravityHigh, '🔴', 'Élevé', '2h · 1km'),
+    ('critical', AppColors.gravityCritical, '🟣', 'Critique', '24h · 2km'),
   ];
 
   static const _types = [
@@ -43,6 +44,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
     ('fire', Icons.local_fire_department_outlined, 'Incendie'),
     ('aggression', Icons.warning_amber_outlined, 'Agression'),
     ('suspicious_package', Icons.inventory_2_outlined, 'Colis suspect'),
+    ('murder', Icons.dangerous_outlined, 'Meurtre'),
     ('other', Icons.report_outlined, 'Autre'),
   ];
 
@@ -55,6 +57,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
   Color get _ctaColor => switch (_gravity) {
     'medium' => AppColors.gravityMid,
     'high' => AppColors.gravityHigh,
+    'critical' => AppColors.gravityCritical,
     _ => AppColors.gravityLow,
   };
 
@@ -279,7 +282,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.gray100,
+                color: AppColors.gray400,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -332,7 +335,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
             decoration: InputDecoration(
               hintText: 'Décris brièvement la situation…',
               filled: true,
-              fillColor: AppColors.gray100,
+              fillColor: AppColors.gray600,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -425,7 +428,9 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
           timeLimit: Duration(seconds: 10),
         ),
       );
-      log('_fetchCurrentLocation: position obtenue lat=${pos.latitude} lng=${pos.longitude}');
+      log(
+        '_fetchCurrentLocation: position obtenue lat=${pos.latitude} lng=${pos.longitude}',
+      );
 
       if (!mounted) return;
       setState(() {
@@ -444,15 +449,18 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
       if (!mounted) return;
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
-        log('_fetchCurrentLocation: placemark street=${p.street} locality=${p.locality}');
+        log(
+          '_fetchCurrentLocation: placemark street=${p.street} locality=${p.locality}',
+        );
         final parts = [
           if ((p.street ?? '').isNotEmpty) p.street,
           if ((p.locality ?? '').isNotEmpty) p.locality,
           if ((p.postalCode ?? '').isNotEmpty) p.postalCode,
         ];
         setState(() {
-          _pickedAddress =
-              parts.isNotEmpty ? parts.join(', ') : 'Position actuelle';
+          _pickedAddress = parts.isNotEmpty
+              ? parts.join(', ')
+              : 'Position actuelle';
         });
       } else {
         setState(() {
@@ -517,7 +525,10 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
       };
       log('AlertCreationFlow._submit: appel createAlert payload=$payload');
       await context.read<AlertProvider>().createAlert(payload);
-      AnalyticsService().logCommunityAlertCreated(gravity: _gravity, type: _type);
+      AnalyticsService().logCommunityAlertCreated(
+        gravity: _gravity,
+        type: _type,
+      );
       log('AlertCreationFlow._submit: succès');
       if (mounted) {
         Navigator.pop(context);
