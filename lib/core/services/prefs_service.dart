@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
+import 'alert_event_store.dart';
 
 class PrefsService {
   static const _keyOnboardingDone = 'onboarding_done';
@@ -51,16 +52,21 @@ class PrefsService {
   Future<void> setUserProfile(User user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyUserProfile, jsonEncode(user.toJson()));
+    AlertEventStore().applyTier(user.tier);
   }
 
   Future<User?> getUserProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final profileJson = prefs.getString(_keyUserProfile);
     if (profileJson == null) return null;
-    
+
     try {
       final profileMap = jsonDecode(profileJson) as Map<String, dynamic>;
-      return User.fromJson(profileMap);
+      final user = User.fromJson(profileMap);
+      // Restauration au démarrage : rouvre la fenêtre d'historique des alertes
+      // correspondant au tier avant que la page Alertes ne lise le store (§10.1).
+      AlertEventStore().applyTier(user.tier);
+      return user;
     } catch (e) {
       return null;
     }
@@ -258,5 +264,18 @@ class PrefsService {
   Future<void> clearPendingMagicLinkEmail() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyPendingMagicLinkEmail);
+  }
+
+  // Type de carte Google Maps préféré — partagé entre tous les écrans
+  static const _keyMapType = 'map_type';
+
+  Future<void> setMapType(String mapTypeName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyMapType, mapTypeName);
+  }
+
+  Future<String?> getMapType() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyMapType);
   }
 }

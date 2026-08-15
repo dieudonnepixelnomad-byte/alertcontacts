@@ -7,6 +7,7 @@ import '../../../theme/colors.dart';
 import '../../../core/services/api_auth_service.dart';
 import '../../../core/services/api_location_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/prefs_service.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../home_map/presentation/invisible_mode_sheet.dart';
 import '../../paywall/presentation/paywall_page.dart';
@@ -29,7 +30,24 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
   }
 
-  void _showInvisibleSheet() {
+  Future<void> _showInvisibleSheet() async {
+    // CDC §10.1 — feature payante. Seule l'activation est bloquée : si le mode
+    // est déjà actif, la feuille reste accessible pour reprendre le partage.
+    if (!_invisibleActive) {
+      final profile = await context.read<PrefsService>().getUserProfile();
+      if (profile != null && !profile.isPaidTier) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaywallPage(trigger: 'invisible_mode'),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
 import '../../../core/models/danger_zone.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../theme/colors.dart';
 import '../providers/alert_provider.dart';
 import '../../zones_danger/providers/danger_zone_notifier.dart';
@@ -528,6 +529,7 @@ class _MiniMap extends StatelessWidget {
           target: gmaps.LatLng(lat, lng),
           zoom: 15,
         ),
+        mapType: context.watch<MapTypeNotifier>().type,
         circles: {
           gmaps.Circle(
             circleId: const gmaps.CircleId('zone'),

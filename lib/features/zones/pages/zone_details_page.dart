@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../core/models/zone.dart';
+import '../../../core/providers/map_type_notifier.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 
 class ZoneDetailsPage extends StatefulWidget {
   final Zone zone;
@@ -104,41 +107,51 @@ class _ZoneDetailsPageState extends State<ZoneDetailsPage> {
               height: 250,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target:
-                        LatLng(widget.zone.center.lat, widget.zone.center.lng),
-                    zoom: 15,
-                  ),
-                  circles: {
-                    Circle(
-                      circleId: CircleId(widget.zone.id),
-                      center:
-                          LatLng(widget.zone.center.lat, widget.zone.center.lng),
-                      radius: widget.zone.radiusMeters,
-                      fillColor: (isDanger ? cs.error : cs.primary)
-                          .withOpacity(0.2),
-                      strokeColor: (isDanger ? cs.error : cs.primary)
-                          .withOpacity(0.8),
-                      strokeWidth: 2,
-                    ),
-                  },
-                  markers: {
-                    Marker(
-                      markerId: MarkerId(widget.zone.id),
-                      position:
-                          LatLng(widget.zone.center.lat, widget.zone.center.lng),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        isDanger ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target:
+                            LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                        zoom: 15,
                       ),
+                      circles: {
+                        Circle(
+                          circleId: CircleId(widget.zone.id),
+                          center:
+                              LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                          radius: widget.zone.radiusMeters,
+                          fillColor: (isDanger ? cs.error : cs.primary)
+                              .withOpacity(0.2),
+                          strokeColor: (isDanger ? cs.error : cs.primary)
+                              .withOpacity(0.8),
+                          strokeWidth: 2,
+                        ),
+                      },
+                      markers: {
+                        Marker(
+                          markerId: MarkerId(widget.zone.id),
+                          position:
+                              LatLng(widget.zone.center.lat, widget.zone.center.lng),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            isDanger ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
+                          ),
+                        ),
+                      },
+                      myLocationButtonEnabled: false,
+                      zoomControlsEnabled: false,
+                      scrollGesturesEnabled: false,
+                      tiltGesturesEnabled: false,
+                      rotateGesturesEnabled: false,
+                      zoomGesturesEnabled: false,
+                      mapType: context.watch<MapTypeNotifier>().type,
                     ),
-                  },
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  scrollGesturesEnabled: false,
-                  tiltGesturesEnabled: false,
-                  rotateGesturesEnabled: false,
-                  zoomGesturesEnabled: false,
+                    const Positioned(
+                      top: 8,
+                      right: 8,
+                      child: MapTypeToggleButton(),
+                    ),
+                  ],
                 ),
               ),
             ),

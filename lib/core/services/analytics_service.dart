@@ -216,6 +216,54 @@ class AnalyticsService {
   void logCommunityAlertConfirmed() =>
       _fire(_analytics.logEvent(name: 'community_alert_confirmed'));
 
+  // ── Trajets (CDC V4.1 §13) ────────────────────────────────────────────────
+  //
+  // Ces événements sont l'instrumentation minimale du §13.1 : sans eux,
+  // l'arbitrage sur l'avenir du module se ferait à l'opinion.
+
+  void logRoutePreviewed({required String transportMode, required int incidentCount}) =>
+      _fire(_analytics.logEvent(
+        name: 'route_previewed',
+        parameters: {'transport_mode': transportMode, 'incident_count': incidentCount},
+      ));
+
+  /// Taux de rencontre (§13.1) — sous 5 %, la feature ne sert à rien et le
+  /// problème est ailleurs : la densité de signalements.
+  void logRouteIncidentDetected({
+    required String gravity,
+    required String type,
+    required int reportCount,
+  }) =>
+      _fire(_analytics.logEvent(
+        name: 'route_incident_detected',
+        parameters: {'gravity': gravity, 'type': type, 'report_count': reportCount},
+      ));
+
+  /// Taux de contournement (§13.1) — sous 20 %, la valeur perçue est faible
+  /// ou le wording est mauvais.
+  void logRouteAvoidanceRequested({required int incidentCount}) =>
+      _fire(_analytics.logEvent(
+        name: 'route_avoidance_requested',
+        parameters: {'incident_count': incidentCount},
+      ));
+
+  /// Taux d'échec (§13.1) — au-delà de 15 %, les géométries sont trop larges
+  /// et les buffers du §4.9 sont à revoir.
+  void logRouteAvoidancePartial() =>
+      _fire(_analytics.logEvent(name: 'route_avoidance_partial'));
+
+  void logRouteStarted({required String transportMode, required bool avoidanceApplied}) =>
+      _fire(_analytics.logEvent(
+        name: 'route_started',
+        parameters: {
+          'transport_mode': transportMode,
+          'avoidance_applied': avoidanceApplied ? 1 : 0,
+        },
+      ));
+
+  void logRouteIncidentNotificationOpened() =>
+      _fire(_analytics.logEvent(name: 'route_incident_notification_opened'));
+
   // ── Monetisation ─────────────────────────────────────────────────────────
 
   void logPaywallDisplayed({required String trigger}) =>

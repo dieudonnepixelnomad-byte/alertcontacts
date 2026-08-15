@@ -9,6 +9,10 @@ class User extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Tier d'abonnement : 'free' | 'solo' | 'famille' (CDC §10.1).
+  /// Défaut prudent à 'free' quand l'API ne le renvoie pas encore.
+  final String tier;
+
   const User({
     required this.id,
     required this.email,
@@ -17,7 +21,10 @@ class User extends Equatable {
     this.photoUrl,
     this.createdAt,
     this.updatedAt,
+    this.tier = 'free',
   });
+
+  bool get isPaidTier => tier == 'solo' || tier == 'famille';
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -29,9 +36,10 @@ class User extends Equatable {
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String)
           : null,
-      updatedAt: json['updated_at'] != null 
+      updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      tier: json['tier'] as String? ?? 'free',
     );
   }
 
@@ -44,6 +52,7 @@ class User extends Equatable {
       'photo_url': photoUrl,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'tier': tier,
     };
   }
 
@@ -55,6 +64,7 @@ class User extends Equatable {
     String? photoUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? tier,
   }) {
     return User(
       id: id ?? this.id,
@@ -64,6 +74,7 @@ class User extends Equatable {
       photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      tier: tier ?? this.tier,
     );
   }
 
@@ -76,5 +87,6 @@ class User extends Equatable {
         photoUrl,
         createdAt,
         updatedAt,
+        tier,
       ];
 }

@@ -138,9 +138,9 @@ class _FreeTierCard extends StatelessWidget {
           Wrap(
             spacing: 6,
             children: [
-              _Chip(label: '3 proches'),
-              _Chip(label: '2 zones'),
-              _Chip(label: '7 j d\'historique'),
+              _Chip(label: '2 proches'),
+              _Chip(label: '1 zone'),
+              _Chip(label: '24 h d\'historique'),
             ],
           ),
         ],

@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/models/safe_zone.dart' as models;
+import '../../../../core/providers/map_type_notifier.dart';
+import '../../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../alertes/services/permissions_manager_service.dart';
 import '../../../../theme/colors.dart';
 import '../../../../core/widgets/location_search_field.dart';
@@ -180,42 +183,52 @@ class _ZonePlaceRadiusStepState extends State<ZonePlaceRadiusStep> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: GoogleMap(
-                  onMapCreated: (GoogleMapController controller) {
-                    _mapController = controller;
-                    // Si la position a été initialisée, centrer la carte
-                    if (_hasInitializedLocation) {
-                      _updateMapCamera();
-                    }
-                  },
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(_center.lat, _center.lng),
-                    zoom: 16.0,
-                  ),
-                  onTap: _onMapTap,
-                  circles: {
-                    Circle(
-                      circleId: const CircleId('safe_zone'),
-                      center: LatLng(_center.lat, _center.lng),
-                      radius: _radius,
-                      fillColor: AppColors.safe.withOpacity(0.2),
-                      strokeColor: AppColors.safe,
-                      strokeWidth: 2,
-                    ),
-                  },
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('center'),
-                      position: LatLng(_center.lat, _center.lng),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        BitmapDescriptor.hueGreen,
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      onMapCreated: (GoogleMapController controller) {
+                        _mapController = controller;
+                        // Si la position a été initialisée, centrer la carte
+                        if (_hasInitializedLocation) {
+                          _updateMapCamera();
+                        }
+                      },
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(_center.lat, _center.lng),
+                        zoom: 16.0,
                       ),
+                      onTap: _onMapTap,
+                      mapType: context.watch<MapTypeNotifier>().type,
+                      circles: {
+                        Circle(
+                          circleId: const CircleId('safe_zone'),
+                          center: LatLng(_center.lat, _center.lng),
+                          radius: _radius,
+                          fillColor: AppColors.safe.withOpacity(0.2),
+                          strokeColor: AppColors.safe,
+                          strokeWidth: 2,
+                        ),
+                      },
+                      markers: {
+                        Marker(
+                          markerId: const MarkerId('center'),
+                          position: LatLng(_center.lat, _center.lng),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueGreen,
+                          ),
+                        ),
+                      },
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: true,
+                      zoomControlsEnabled: false,
+                      mapToolbarEnabled: false,
                     ),
-                  },
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
+                    const Positioned(
+                      top: 8,
+                      right: 8,
+                      child: MapTypeToggleButton(),
+                    ),
+                  ],
                 ),
               ),
             ),

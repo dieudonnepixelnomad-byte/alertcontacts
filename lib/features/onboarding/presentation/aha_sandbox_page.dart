@@ -2,12 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/services/unified_alert_service.dart';
 import '../../../router/app_router.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../theme/colors.dart';
 
 enum _DangerType { agression, vol, harcelement, autre }
@@ -347,7 +350,13 @@ class _AhaSandboxPageState extends State<AhaSandboxPage>
                         myLocationEnabled: _locationRequested,
                         myLocationButtonEnabled: _locationRequested,
                         zoomControlsEnabled: false,
+                        mapType: context.watch<MapTypeNotifier>().type,
                         onTap: (pos) => setState(() => _center = pos),
+                      ),
+                      const Positioned(
+                        top: 8,
+                        right: 8,
+                        child: MapTypeToggleButton(),
                       ),
                     ],
                   ),

@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../models/location_point.dart';
 import 'batch_sender_service.dart';
+import 'gps_trace_recorder.dart';
 import 'local_geofencing_service.dart';
 
 class LocationService {
@@ -40,6 +41,10 @@ class LocationService {
     if (_isInitialized) return;
     await _batchSender.initialize();
     await _localGeofencing.initialize();
+    // V4.1 §4.6 — mémorise les derniers mètres parcourus pour qu'un
+    // signalement en déplacement produise un corridor et non un disque.
+    // Simple écoute du flux existant : aucun capteur supplémentaire.
+    GpsTraceRecorder().start();
     _configureBackgroundFetch();
     _isInitialized = true;
     developer.log('LocationService initialized', name: 'LocationService');

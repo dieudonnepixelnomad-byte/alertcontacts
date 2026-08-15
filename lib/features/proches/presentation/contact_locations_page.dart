@@ -1,10 +1,13 @@
 // lib/features/proches/presentation/contact_locations_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../../core/models/contact_location.dart';
 import '../../../core/models/contact_relation.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/contact_locations_service.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 
 /// Page pour afficher les positions récentes d'un proche
 class ContactLocationsPage extends StatefulWidget {
@@ -357,23 +360,33 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
       children: [
         Expanded(
           flex: 2,
-          child: GoogleMap(
-            onMapCreated: (GoogleMapController controller) {
-              if (!_mapController.isCompleted) {
-                _mapController.complete(controller);
-              }
-              _controller = controller;
-            },
-            initialCameraPosition: CameraPosition(
-              target: _locations.isNotEmpty
-                  ? LatLng(_locations.first.latitude, _locations.first.longitude)
-                  : const LatLng(48.8566, 2.3522), // Paris par défaut
-              zoom: 15.0,
-            ),
-            markers: _buildMarkers(),
-            polylines: _buildPolylines(),
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
+          child: Stack(
+            children: [
+              GoogleMap(
+                onMapCreated: (GoogleMapController controller) {
+                  if (!_mapController.isCompleted) {
+                    _mapController.complete(controller);
+                  }
+                  _controller = controller;
+                },
+                initialCameraPosition: CameraPosition(
+                  target: _locations.isNotEmpty
+                      ? LatLng(_locations.first.latitude, _locations.first.longitude)
+                      : const LatLng(48.8566, 2.3522), // Paris par défaut
+                  zoom: 15.0,
+                ),
+                markers: _buildMarkers(),
+                polylines: _buildPolylines(),
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapType: context.watch<MapTypeNotifier>().type,
+              ),
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: MapTypeToggleButton(),
+              ),
+            ],
           ),
         ),
         Expanded(

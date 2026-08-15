@@ -54,18 +54,51 @@ class AlertEventStore extends ChangeNotifier {
   static const String _prefsKey = 'alert_event_store_v1';
   static const int _maxEvents = 50;
 
+  /// Fenêtre d'historique des alertes — CDC §10.1.
+  static const int freeRetentionHours = 24;      // tier Gratuit
+  static const int paidRetentionHours = 24 * 30; // Solo / Famille — 30 jours
+
   final List<AlertEvent> _events = [];
   bool _loaded = false;
 
-  List<AlertEvent> get events => List.unmodifiable(_events);
+  /// Fenêtre actuellement appliquée. Défaut prudent sur le tier Gratuit :
+  /// tant que le profil n'est pas chargé, on n'expose jamais plus que le
+  /// minimum garanti. Voir [applyTier].
+  int _retentionHours = freeRetentionHours;
 
-  List<AlertEvent> get zoneEvents =>
-      _events.where((e) => e.category == AlertEventCategory.zone).toList();
+  int get retentionHours => _retentionHours;
 
-  List<AlertEvent> get contactEvents =>
-      _events.where((e) => e.category == AlertEventCategory.contact).toList();
+  /// Ajuste la fenêtre selon le tier de l'utilisateur ('free' | 'solo' | 'famille').
+  /// À appeler dès que le profil est connu, et à chaque changement d'abonnement.
+  void applyTier(String tier) {
+    final hours = (tier == 'solo' || tier == 'famille')
+        ? paidRetentionHours
+        : freeRetentionHours;
+    if (hours == _retentionHours) return;
+    _retentionHours = hours;
+    notifyListeners();
+    log('[AlertEventStore] retention → ${hours}h (tier: $tier)');
+  }
 
-  int get unreadCount => _events.where((e) => !e.isRead).length;
+  /// Le filtrage est volontairement fait à la lecture, jamais par suppression :
+  /// un utilisateur qui souscrit doit retrouver son historique, et un profil
+  /// pas encore chargé ne doit pas détruire les données d'un abonné.
+  bool _isWithinRetention(AlertEvent e) =>
+      DateTime.now().difference(e.createdAt).inHours < _retentionHours;
+
+  List<AlertEvent> get events =>
+      List.unmodifiable(_events.where(_isWithinRetention));
+
+  List<AlertEvent> get zoneEvents => _events
+      .where((e) => e.category == AlertEventCategory.zone && _isWithinRetention(e))
+      .toList();
+
+  List<AlertEvent> get contactEvents => _events
+      .where((e) => e.category == AlertEventCategory.contact && _isWithinRetention(e))
+      .toList();
+
+  int get unreadCount =>
+      _events.where((e) => !e.isRead && _isWithinRetention(e)).length;
 
   Future<void> load() async {
     if (_loaded) return;
@@ -79,6 +112,7 @@ class AlertEventStore extends ChangeNotifier {
           list.map((e) => AlertEvent.fromJson(e as Map<String, dynamic>)),
         );
       }
+      _pruneExpired();
       _loaded = true;
       log('[AlertEventStore] loaded ${_events.length} events');
     } catch (e) {
@@ -131,8 +165,23 @@ class AlertEventStore extends ChangeNotifier {
     ));
   }
 
+  /// Purge définitive au-delà de la fenêtre la plus large (30 j) : passé ce
+  /// délai, aucun tier ne peut plus afficher l'event, le garder ne sert à rien.
+  void _pruneExpired() {
+    final cutoff = DateTime.now().subtract(
+      const Duration(hours: paidRetentionHours),
+    );
+    final before = _events.length;
+    _events.removeWhere((e) => e.createdAt.isBefore(cutoff));
+    if (_events.length != before) {
+      _persist();
+      log('[AlertEventStore] pruned ${before - _events.length} expired events');
+    }
+  }
+
   void _push(AlertEvent event) {
     _events.insert(0, event);
+    _pruneExpired();
     if (_events.length > _maxEvents) _events.removeLast();
     _persist();
     notifyListeners();

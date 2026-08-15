@@ -7,6 +7,10 @@ class ApiConfig {
       dotenv.env['BASE_URL'] ?? 'https://mobile.alertcontacts.net';
 
   static String get baseUrl => '$_baseUrl/api';
+
+  /// Socle V4.1 — incidents communautaires & trajets (CDC §8).
+  /// Les endpoints `/api/*` restent en service : la bascule se fait écran par écran.
+  static String get baseUrlV1 => '$_baseUrl/api/v1';
   static String get baseUrlSync => '$_baseUrl/api';
   static String get baseUrlWithoutApi => _baseUrl;
   static String get baseUrlWithoutApiSync => _baseUrl;

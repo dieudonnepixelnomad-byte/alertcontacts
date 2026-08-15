@@ -4,6 +4,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'core/services/http_client.dart';
+import 'core/services/api_v1_client.dart';
+import 'core/services/api_incidents_service.dart';
+import 'core/services/api_routes_service.dart';
+import 'features/alertes/providers/incident_provider.dart';
+import 'features/trajets/providers/route_provider.dart';
 import 'package:alertcontacts/generated/l10n/app_localizations.dart';
 import 'package:alertcontacts/features/auth/providers/auth_notifier.dart';
 import 'package:alertcontacts/core/repositories/auth_repository.dart';
@@ -48,6 +53,7 @@ import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
 import 'package:alertcontacts/core/services/contact_rtdb_service.dart';
 import 'package:alertcontacts/core/services/device_info_service.dart';
+import 'package:alertcontacts/core/providers/map_type_notifier.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -129,6 +135,16 @@ class _AlertContactAppState extends State<AlertContactApp> {
             baseUrl: ApiConfig.baseUrlSync,
             client: context.read<AppHttpClient>(),
           ),
+        ),
+        // Socle API v1 — incidents communautaires & trajets (CDC V4.1 §8)
+        Provider<ApiV1Client>(
+          create: (context) => ApiV1Client(client: context.read<AppHttpClient>()),
+        ),
+        Provider<ApiIncidentsService>(
+          create: (context) => ApiIncidentsService(client: context.read<ApiV1Client>()),
+        ),
+        Provider<ApiRoutesService>(
+          create: (context) => ApiRoutesService(client: context.read<ApiV1Client>()),
         ),
         Provider<ApiLocationService>(
           create: (context) => ApiLocationService(
@@ -250,6 +266,20 @@ class _AlertContactAppState extends State<AlertContactApp> {
             context.read<PrefsService>(),
           ),
         ),
+        // Incidents communautaires V4.1 — remplace progressivement la partie
+        // « alertes communautaires » d'AlertProvider (§4)
+        ChangeNotifierProvider<IncidentProvider>(
+          create: (context) => IncidentProvider(
+            context.read<ApiIncidentsService>(),
+            context.read<PrefsService>(),
+          ),
+        ),
+        ChangeNotifierProvider<RouteProvider>(
+          create: (context) => RouteProvider(
+            context.read<ApiRoutesService>(),
+            context.read<PrefsService>(),
+          ),
+        ),
         ChangeNotifierProvider<ActivitiesProvider>(
           create: (context) => ActivitiesProvider(
             context.read<ActivitiesRepository>(),
@@ -270,6 +300,9 @@ class _AlertContactAppState extends State<AlertContactApp> {
             feedbackRepository: context.read<FeedbackRepository>(),
             deviceInfoService: context.read<DeviceInfoService>(),
           ),
+        ),
+        ChangeNotifierProvider<MapTypeNotifier>(
+          create: (context) => MapTypeNotifier(context.read<PrefsService>()),
         ),
 
         // Gestionnaire d'authentification

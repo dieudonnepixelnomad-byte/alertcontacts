@@ -6,9 +6,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:provider/provider.dart';
 import '../../../core/models/places_autocomplete.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/paywall_trigger_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../theme/colors.dart';
 import '../providers/zones_notifier.dart';
 
@@ -381,6 +383,12 @@ class _StepPositionRadiusState extends State<_StepPositionRadius> {
                         ),
                       }
                     : {},
+                mapType: context.watch<MapTypeNotifier>().type,
+              ),
+              Positioned(
+                bottom: 115 + 56,
+                right: 10,
+                child: const MapTypeToggleButton(),
               ),
               Positioned(
                 bottom: 115,

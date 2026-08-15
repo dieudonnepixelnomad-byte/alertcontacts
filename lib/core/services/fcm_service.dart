@@ -368,6 +368,11 @@ class FCMService {
         _aha3Fired = true;
         AnalyticsService().logAha3ZoneAlertReceived();
       }
+      // §13 — le taux d'ouverture de cette notification mesure la valeur
+      // perçue de la surveillance en trajet.
+      if (type == 'route_incident') {
+        AnalyticsService().logRouteIncidentNotificationOpened();
+      }
       await _processNotificationMessage(message);
     } catch (e) {
       log('FCMService: Error handling notification tap: $e');
@@ -428,8 +433,15 @@ class FCMService {
           );
           break;
         case 'community_alert':
+        // V4.1 §4 — nouveau type émis par NotifyNearbyUsersJob
+        case 'community_incident':
           log('FCMService: Handling community alert...');
           await _handleCommunityAlert(data, notification, notificationManager);
+          break;
+        // V4.1 §5.5 / §9 — un incident vient d'apparaître sur un trajet actif
+        case 'route_incident':
+          log('FCMService: Handling route incident...');
+          await _handleRouteIncident(data, notification, notificationManager);
           break;
         default:
           log('FCMService: Unhandled notification type: ${data['type']}');
@@ -617,6 +629,35 @@ class FCMService {
       );
     } catch (e) {
       log('FCMService: Error handling community alert: $e');
+    }
+  }
+
+  /// Incident apparu sur un trajet en cours — CDC V4.1 §5.5 / §9
+  ///
+  /// Le serveur ne notifie que si l'incident est sur la portion NON ENCORE
+  /// PARCOURUE, et une seule fois par incident et par trajet. Le client se
+  /// contente donc d'ouvrir le sélecteur d'itinéraires : le recalcul, lui,
+  /// n'a lieu que si l'utilisateur tape « Contourner ».
+  static Future<void> _handleRouteIncident(
+    Map<String, dynamic> data,
+    RemoteNotification? notification,
+    NotificationManager notificationManager,
+  ) async {
+    try {
+      final routeId = data['route_id']?.toString();
+      final incidentId = data['incident_id']?.toString();
+      log('FCMService: Route incident — route=$routeId incident=$incidentId');
+
+      await notificationManager.sendSimpleNotification(
+        title: notification?.title ?? '🔴 Alerte sur ta route',
+        body: notification?.body ?? 'Touchez pour voir les itinéraires',
+        payload: jsonEncode({
+          ...data,
+          'navigate_to': 'route_preview',
+        }),
+      );
+    } catch (e) {
+      log('FCMService: Error handling route incident: $e');
     }
   }
 

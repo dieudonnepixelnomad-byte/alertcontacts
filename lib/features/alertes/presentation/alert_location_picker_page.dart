@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:provider/provider.dart';
 
 import '../../../core/models/places_autocomplete.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/places_service.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../theme/colors.dart';
 
 class AlertLocationPickerPage extends StatefulWidget {
@@ -200,6 +203,7 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
             compassEnabled: false,
+            mapType: context.watch<MapTypeNotifier>().type,
           ),
           // Fixed center pin
           const Center(child: _CenterPin()),
@@ -227,6 +231,15 @@ class _AlertLocationPickerPageState extends State<AlertLocationPickerPage> {
                 size: 20,
               ),
             ),
+          ),
+          // Map type toggle
+          Positioned(
+            right: 16,
+            top: (_showSuggestions
+                    ? 12.0 + 52 + (_suggestions.length * 56.0).clamp(0, 224) + 12
+                    : 12.0 + 52 + 12) +
+                52,
+            child: const MapTypeToggleButton(),
           ),
           // Bottom address + CTA
           Positioned(

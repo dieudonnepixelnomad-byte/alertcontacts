@@ -6,11 +6,26 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:provider/provider.dart';
 
+import '../../../core/enums/incident_type.dart';
+import '../../../core/models/incident.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../core/services/gps_trace_recorder.dart';
 import '../../../theme/colors.dart';
-import '../providers/alert_provider.dart';
+import '../providers/incident_provider.dart';
 import 'alert_location_picker_page.dart';
 
+/// Formulaire de signalement — CDC V4.1 §6.6
+///
+/// Le parcours reste en trois taps. Contrainte absolue du §4.6 : une personne
+/// qui signale une agression est en état de stress, elle ne dessinera pas de
+/// polygone. Tous les changements V4.1 sont donc invisibles pour elle :
+///
+///   * la précision du fix et les derniers mètres de trace partent avec le
+///     signalement, et le serveur en déduit corridor ou polygone serré ;
+///   * le rayon et la durée ne sont plus affichés — ils dépendent du type,
+///     plus de la gravité (§4.1) ;
+///   * un incident compatible à moins de 150 m propose de confirmer plutôt
+///     que de créer un doublon.
 class AlertCreationFlow extends StatefulWidget {
   const AlertCreationFlow({super.key});
 
@@ -20,10 +35,9 @@ class AlertCreationFlow extends StatefulWidget {
 
 class _AlertCreationFlowState extends State<AlertCreationFlow> {
   int _step = 0;
-  String _gravity = 'low';
-  String _type = 'other';
+  IncidentSeverity _severity = IncidentSeverity.medium;
+  IncidentType _type = IncidentType.other;
   final _descController = TextEditingController();
-  bool _isAnonymous = true;
   bool _contactsOnly = false;
   bool _submitting = false;
 
@@ -31,22 +45,33 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
   String _pickedAddress = 'Position actuelle';
   bool _loadingLocation = false;
 
-  static const _gravities = [
-    ('low', AppColors.gravityLow, '🟡', 'Faible', '30 min · 200m'),
-    ('medium', AppColors.gravityMid, '🟠', 'Moyen', '1h · 500m'),
-    ('high', AppColors.gravityHigh, '🔴', 'Élevé', '2h · 1km'),
-    ('critical', AppColors.gravityCritical, '🟣', 'Critique', '24h · 2km'),
+  /// §4.8 — fourni gratuitement par le SDK, et jeté par le V4.0.
+  int? _gpsAccuracyM;
+  double? _speedKmh;
+
+  /// La position a-t-elle été déplacée à la main ? Dans ce cas la trace GPS
+  /// ne décrit plus le lieu signalé et ne doit pas servir de corridor.
+  bool _locationPickedManually = false;
+
+  static const _severities = [
+    (IncidentSeverity.low, '🟡'),
+    (IncidentSeverity.medium, '🟠'),
+    (IncidentSeverity.high, '🔴'),
   ];
 
-  static const _types = [
-    ('accident', Icons.car_crash_outlined, 'Accident'),
-    ('suspect', Icons.person_search_outlined, 'Suspect'),
-    ('fire', Icons.local_fire_department_outlined, 'Incendie'),
-    ('aggression', Icons.warning_amber_outlined, 'Agression'),
-    ('suspicious_package', Icons.inventory_2_outlined, 'Colis suspect'),
-    ('murder', Icons.dangerous_outlined, 'Meurtre'),
-    ('other', Icons.report_outlined, 'Autre'),
-  ];
+  /// Icône par type — §4.9 en compte dix, dont quatre absents du V4.0.
+  static const Map<IncidentType, IconData> _typeIcons = {
+    IncidentType.accident: Icons.car_crash_outlined,
+    IncidentType.fire: Icons.local_fire_department_outlined,
+    IncidentType.aggression: Icons.warning_amber_outlined,
+    IncidentType.suspect: Icons.person_search_outlined,
+    IncidentType.suspiciousPackage: Icons.inventory_2_outlined,
+    IncidentType.trafficJam: Icons.traffic_outlined,
+    IncidentType.roadworks: Icons.construction_outlined,
+    IncidentType.flood: Icons.water_outlined,
+    IncidentType.protest: Icons.campaign_outlined,
+    IncidentType.other: Icons.report_outlined,
+  };
 
   @override
   void dispose() {
@@ -54,16 +79,14 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
     super.dispose();
   }
 
-  Color get _ctaColor => switch (_gravity) {
-    'medium' => AppColors.gravityMid,
-    'high' => AppColors.gravityHigh,
-    'critical' => AppColors.gravityCritical,
-    _ => AppColors.gravityLow,
-  };
+  /// Le CTA change de couleur selon la gravité. C'est une friction
+  /// intentionnelle.
+  Color get _ctaColor => _severity.color;
 
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+
     return Column(
       children: [
         const SizedBox(height: 12),
@@ -120,66 +143,6 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
         children: [
           const SizedBox(height: 8),
           Text(
-            'Niveau de gravité',
-            style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 10),
-          ...(_gravities.map((g) {
-            final (id, color, emoji, label, meta) = g;
-            final selected = _gravity == id;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: GestureDetector(
-                onTap: () => setState(() => _gravity = id),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? color.withValues(alpha: 0.1)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? color : AppColors.gray200,
-                      width: selected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(emoji, style: const TextStyle(fontSize: 22)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              label,
-                              style: tt.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: selected ? color : AppColors.gray900,
-                              ),
-                            ),
-                            Text(
-                              meta,
-                              style: tt.labelMedium?.copyWith(
-                                color: AppColors.gray400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (selected)
-                        Icon(Icons.check_circle, color: color, size: 20),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          })),
-          const SizedBox(height: 16),
-          Text(
             'Type d\'incident',
             style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
@@ -191,40 +154,32 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
             childAspectRatio: 2.8,
-            children: _types.map((t) {
-              final (id, iconData, label) = t;
-              final selected = _type == id;
+            children: IncidentType.reportable.map((type) {
+              final selected = _type == type;
+
               return GestureDetector(
-                onTap: () => setState(() => _type = id),
+                onTap: () => setState(() => _type = type),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primaryLight
-                        : AppColors.gray100,
+                    color: selected ? AppColors.primaryLight : AppColors.gray100,
                     borderRadius: BorderRadius.circular(10),
-                    border: selected
-                        ? Border.all(color: AppColors.primary)
-                        : null,
+                    border: selected ? Border.all(color: AppColors.primary) : null,
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        iconData,
+                        _typeIcons[type] ?? Icons.report_outlined,
                         size: 18,
                         color: selected ? AppColors.primary : AppColors.gray400,
                       ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          label,
+                          type.label,
                           style: tt.bodySmall?.copyWith(
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.gray600,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            color: selected ? AppColors.primary : AppColors.gray600,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -235,6 +190,55 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
               );
             }).toList(),
           ),
+          const SizedBox(height: 20),
+          Text(
+            'Niveau de gravité',
+            style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 10),
+          // §4.1 — la gravité ne détermine plus que la couleur, la priorité et
+          // le tri. Ni durée ni rayon ne sont affichés : ils dépendent du type.
+          ..._severities.map((entry) {
+            final (severity, emoji) = entry;
+            final selected = _severity == severity;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _severity = severity),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? severity.color.withValues(alpha: 0.1)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? severity.color : AppColors.gray200,
+                      width: selected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 22)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          severity.label,
+                          style: tt.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: selected ? severity.color : AppColors.gray900,
+                          ),
+                        ),
+                      ),
+                      if (selected)
+                        Icon(Icons.check_circle, color: severity.color, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -282,16 +286,12 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.gray400,
+                color: AppColors.gray100,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.location_on,
-                    color: AppColors.danger,
-                    size: 20,
-                  ),
+                  const Icon(Icons.location_on, color: AppColors.danger, size: 20),
                   const SizedBox(width: 10),
                   _loadingLocation
                       ? const SizedBox(
@@ -305,61 +305,43 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
                       : Expanded(
                           child: Text(
                             _pickedAddress,
-                            style: tt.bodyMedium?.copyWith(
-                              color: AppColors.gray900,
-                            ),
+                            style: tt.bodyMedium?.copyWith(color: AppColors.gray900),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                   const SizedBox(width: 8),
-                  const Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: AppColors.gray400,
-                  ),
+                  const Icon(Icons.edit_outlined, size: 16, color: AppColors.gray400),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
-            'Description (optionnel)',
+            'Précisions (facultatif)',
             style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _descController,
-            maxLength: 200,
             maxLines: 3,
+            maxLength: 200,
             decoration: InputDecoration(
-              hintText: 'Décris brièvement la situation…',
+              hintText: 'Ce que tu as vu, en quelques mots',
               filled: true,
-              fillColor: AppColors.gray600,
+              fillColor: AppColors.gray100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.all(14),
-              counterStyle: const TextStyle(
-                color: AppColors.gray400,
-                fontSize: 11,
-              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
           _ToggleTile(
-            label: 'Signalement anonyme',
-            subtitle: 'Ton nom ne sera pas visible',
-            value: _isAnonymous,
-            onChanged: (v) => setState(() => _isAnonymous = v),
-          ),
-          const SizedBox(height: 8),
-          _ToggleTile(
-            label: 'Visible uniquement par mes proches',
-            subtitle: 'Signalement privé',
+            label: 'Visible par mes proches seulement',
+            subtitle: 'Ton alerte n\'apparaît pas sur la carte publique',
             value: _contactsOnly,
-            onChanged: (v) => setState(() => _contactsOnly = v),
+            onChanged: (value) => setState(() => _contactsOnly = value),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -368,7 +350,6 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
               onPressed: _submitting ? null : _submit,
               style: FilledButton.styleFrom(
                 backgroundColor: _ctaColor,
-                disabledBackgroundColor: AppColors.gray200,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -399,68 +380,55 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
   }
 
   Future<void> _fetchCurrentLocation() async {
-    log('_fetchCurrentLocation: début');
     setState(() => _loadingLocation = true);
+
     try {
-      // Vérif permission avant d'appeler getCurrentPosition
       LocationPermission perm = await Geolocator.checkPermission();
-      log('_fetchCurrentLocation: permission=$perm');
+
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
-        log('_fetchCurrentLocation: permission après demande=$perm');
       }
-      if (perm == LocationPermission.deniedForever ||
-          perm == LocationPermission.denied) {
-        log('_fetchCurrentLocation: permission refusée → fallback Paris');
+
+      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
         if (mounted) {
-          setState(() {
-            _pickedAddress = 'Position non disponible — appuie pour choisir';
-          });
+          setState(() => _pickedAddress = 'Position non disponible — appuie pour choisir');
         }
         return;
       }
 
-      // Timeout 10s pour éviter le hang infini
-      log('_fetchCurrentLocation: appel getCurrentPosition...');
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 10),
         ),
       );
-      log(
-        '_fetchCurrentLocation: position obtenue lat=${pos.latitude} lng=${pos.longitude}',
-      );
 
       if (!mounted) return;
+
       setState(() {
         _pickedLocation = gmaps.LatLng(pos.latitude, pos.longitude);
+        // §4.8 — la précision conditionne le buffer d'évitement et, au-delà de
+        // 80 m, interdit à l'incident de modifier des itinéraires.
+        _gpsAccuracyM = pos.accuracy.round();
+        _speedKmh = pos.speed * 3.6;
         _pickedAddress = 'Chargement adresse…';
       });
 
-      // Reverse geocoding
-      log('_fetchCurrentLocation: reverse geocoding...');
-      final placemarks = await placemarkFromCoordinates(
-        pos.latitude,
-        pos.longitude,
-      ).timeout(const Duration(seconds: 8));
-      log('_fetchCurrentLocation: placemarks=${placemarks.length}');
+      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
+          .timeout(const Duration(seconds: 8));
 
       if (!mounted) return;
+
       if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        log(
-          '_fetchCurrentLocation: placemark street=${p.street} locality=${p.locality}',
-        );
+        final place = placemarks.first;
         final parts = [
-          if ((p.street ?? '').isNotEmpty) p.street,
-          if ((p.locality ?? '').isNotEmpty) p.locality,
-          if ((p.postalCode ?? '').isNotEmpty) p.postalCode,
+          if ((place.street ?? '').isNotEmpty) place.street,
+          if ((place.locality ?? '').isNotEmpty) place.locality,
+          if ((place.postalCode ?? '').isNotEmpty) place.postalCode,
         ];
+
         setState(() {
-          _pickedAddress = parts.isNotEmpty
-              ? parts.join(', ')
-              : 'Position actuelle';
+          _pickedAddress = parts.isNotEmpty ? parts.join(', ') : 'Position actuelle';
         });
       } else {
         setState(() {
@@ -468,21 +436,27 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
               '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
         });
       }
-    } catch (e, st) {
-      log('_fetchCurrentLocation: erreur=$e\n$st');
+    } catch (e) {
+      log('[AlertCreationFlow] localisation: $e');
+
       if (mounted) {
-        setState(() {
-          _pickedAddress = 'Erreur GPS — appuie pour choisir manuellement';
-        });
+        setState(() => _pickedAddress = 'Position indisponible — appuie pour choisir');
       }
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
-      log('_fetchCurrentLocation: fin, loadingLocation=false');
     }
   }
 
   Future<void> _openLocationPicker(BuildContext context) async {
-    final initial = _pickedLocation ?? const gmaps.LatLng(48.8566, 2.3522);
+    final initial = _pickedLocation;
+
+    if (initial == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Position en cours de récupération…')),
+      );
+      return;
+    }
+
     final result = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
@@ -490,19 +464,24 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
         fullscreenDialog: true,
       ),
     );
+
     if (result != null && mounted) {
       setState(() {
         _pickedLocation = result.latLng as gmaps.LatLng;
         _pickedAddress = result.address as String;
+        // Position choisie à la main : la trace du porteur ne décrit plus le
+        // lieu signalé, et la précision du fix n'a plus de sens.
+        _locationPickedManually = true;
+        _gpsAccuracyM = null;
+        _speedKmh = null;
       });
     }
   }
 
   Future<void> _submit() async {
     final pos = _pickedLocation;
-    log('AlertCreationFlow._submit: pos=$pos gravity=$_gravity type=$_type');
+
     if (pos == null) {
-      log('AlertCreationFlow._submit: position null → abandon');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Position non disponible — réessaie'),
@@ -511,55 +490,128 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
       );
       return;
     }
+
     setState(() => _submitting = true);
-    try {
-      final payload = <String, dynamic>{
-        'gravity': _gravity,
-        'type': _type,
-        'lat': pos.latitude,
-        'lng': pos.longitude,
-        'is_anonymous': _isAnonymous,
-        'visibility': _contactsOnly ? 'contacts_only' : 'public',
-        if (_descController.text.trim().isNotEmpty)
-          'description': _descController.text.trim(),
-      };
-      log('AlertCreationFlow._submit: appel createAlert payload=$payload');
-      await context.read<AlertProvider>().createAlert(payload);
-      AnalyticsService().logCommunityAlertCreated(
-        gravity: _gravity,
-        type: _type,
-      );
-      log('AlertCreationFlow._submit: succès');
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Alerte signalée — merci pour la communauté'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      log('AlertCreationFlow._submit: erreur=$e');
-      if (mounted) {
+
+    final provider = context.read<IncidentProvider>();
+
+    // §6.6 — un incident compatible existe déjà ici ? On propose de le
+    // confirmer. Un doublon potentiel devient ainsi une confirmation, ce qui
+    // renforce la confiance de l'incident au lieu de polluer la carte.
+    final duplicate = await provider.checkDuplicate(
+      type: _type,
+      lat: pos.latitude,
+      lng: pos.longitude,
+    );
+
+    if (!mounted) return;
+
+    if (duplicate != null && duplicate.found && duplicate.incident != null) {
+      final confirmed = await _askConfirmDuplicate(duplicate.incident!);
+
+      if (!mounted) return;
+
+      if (confirmed == null) {
+        // L'utilisateur a fermé la modale : on ne signale rien.
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur : $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        return;
+      }
+
+      if (confirmed) {
+        await provider.confirm(duplicate.incident!.id);
+
+        if (!mounted) return;
+
+        AnalyticsService().logCommunityAlertConfirmed();
+        Navigator.pop(context);
+        _snack('Merci — ton témoignage renforce cette alerte.', AppColors.success);
+        return;
       }
     }
+
+    try {
+      // §4.6 cas 1 — la trace du porteur devient la géométrie de la voie.
+      final trace = _locationPickedManually ? null : GpsTraceRecorder().currentTrace();
+
+      await provider.submitReport(
+        type: _type,
+        severity: _severity,
+        lat: pos.latitude,
+        lng: pos.longitude,
+        gpsAccuracyM: _gpsAccuracyM,
+        gpsTrace: trace,
+        wasMoving: trace != null,
+        speedKmh: _speedKmh?.round(),
+        comment: _descController.text.trim(),
+        contactsOnly: _contactsOnly,
+      );
+
+      AnalyticsService().logCommunityAlertCreated(
+        gravity: _severity.value,
+        type: _type.value,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+      _snack('Alerte signalée — merci pour la communauté', AppColors.success);
+    } catch (e) {
+      log('[AlertCreationFlow] submit: $e');
+
+      if (mounted) {
+        setState(() => _submitting = false);
+        _snack('Envoi impossible pour le moment. Réessaie.', AppColors.danger);
+      }
+    }
+  }
+
+  /// Retourne `true` pour confirmer l'incident existant, `false` pour créer
+  /// quand même un nouveau signalement, `null` si la modale est fermée.
+  Future<bool?> _askConfirmDuplicate(Incident incident) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Incident déjà signalé'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${incident.type.emoji} ${incident.type.label}'),
+            const SizedBox(height: 6),
+            Text(
+              'Un incident similaire est déjà signalé ici. Confirmer ?',
+              style: Theme.of(dialogContext).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              incident.reportCountLabel,
+              style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('C\'est autre chose'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _snack(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
   }
 }
 
 class _ToggleTile extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
   const _ToggleTile({
     required this.label,
     required this.subtitle,
@@ -567,32 +619,30 @@ class _ToggleTile extends StatelessWidget {
     required this.onChanged,
   });
 
+  final String label;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-              ),
+              Text(label, style: tt.bodyMedium),
               Text(
                 subtitle,
-                style: tt.labelMedium?.copyWith(color: AppColors.gray400),
+                style: tt.bodySmall?.copyWith(color: AppColors.gray400),
               ),
             ],
           ),
         ),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: Colors.white,
-          activeTrackColor: AppColors.primary,
-        ),
+        Switch(value: value, onChanged: onChanged),
       ],
     );
   }

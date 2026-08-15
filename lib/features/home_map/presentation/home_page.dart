@@ -11,15 +11,18 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/danger_zone.dart';
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/api_location_service.dart';
 import '../../../core/services/contact_rtdb_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../shared/widgets/gps_imprecise_banner.dart';
+import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../shared/widgets/location_permission_overlay.dart';
 import '../../../shared/widgets/low_battery_banner.dart';
 import '../../../shared/widgets/offline_banner.dart';
 import '../../../shared/widgets/offline_cache_card.dart';
 import '../../zones/presentation/zones_panel.dart';
+import '../../../features/paywall/presentation/paywall_page.dart';
 import 'invisible_mode_sheet.dart';
 import '../../../core/models/zone.dart' as zone_models;
 import '../../../core/repositories/dangerzone_repository.dart';
@@ -27,7 +30,14 @@ import '../../../core/services/location_service.dart';
 import '../../../core/services/permissions_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
+import '../../alertes/presentation/incident_detail_sheet.dart';
 import '../../alertes/providers/alert_provider.dart';
+import '../../alertes/providers/incident_provider.dart';
+import '../../trajets/presentation/route_preview_page.dart';
+import '../../trajets/presentation/route_search_page.dart';
+import '../../trajets/presentation/widgets/active_route_banner.dart';
+import '../../trajets/presentation/widgets/route_search_bar.dart';
+import '../../trajets/providers/route_provider.dart';
 import '../../app_shell/providers/navigation_provider.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../proches/providers/relationship_provider.dart';
@@ -55,9 +65,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   late final LocationService _locationService;
   late final AlertProvider _alertProvider;
   bool _alertListenerAttached = false;
+  bool _dependenciesInitialized = false;
   StreamSubscription? _locationSubscription;
   StreamSubscription? _connectivitySubscription;
-  final gmaps.MapType _currentMapType = gmaps.MapType.hybrid;
 
   // Connectivity
   List<ConnectivityResult> _connectivity = const [ConnectivityResult.none];
@@ -123,8 +133,11 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _locationService = context.read<LocationService>();
-    _alertProvider = context.read<AlertProvider>();
+    if (!_dependenciesInitialized) {
+      _locationService = context.read<LocationService>();
+      _alertProvider = context.read<AlertProvider>();
+      _dependenciesInitialized = true;
+    }
     if (!_alertListenerAttached) {
       _alertProvider.addListener(_onAlertCreated);
       _alertListenerAttached = true;
@@ -258,6 +271,12 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     } finally {
       _viewportLoading = false;
     }
+
+    // Incidents communautaires V4.1 — le V4.0 ne les affichait nulle part sur
+    // la carte principale, ils n'existaient que dans la liste de l'onglet Alertes.
+    if (mounted) {
+      unawaited(context.read<IncidentProvider>().loadForBounds(bounds));
+    }
   }
 
   void _applyViewportZones(List<DangerZone> zones) {
@@ -302,8 +321,12 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         '[MapTab] location permission granted=$granted serviceEnabled=$serviceEnabled',
       );
       if (!granted || !serviceEnabled) {
-        final permanentlyDenied = (await ph.Permission.locationWhenInUse.status).isPermanentlyDenied;
-        if (mounted) await _showLocationPermissionDialog(permanentlyDenied: permanentlyDenied);
+        final permanentlyDenied =
+            (await ph.Permission.locationWhenInUse.status).isPermanentlyDenied;
+        if (mounted)
+          await _showLocationPermissionDialog(
+            permanentlyDenied: permanentlyDenied,
+          );
         return;
       }
       if (!mounted) return;
@@ -316,7 +339,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _showLocationPermissionDialog({bool permanentlyDenied = false}) async {
+  Future<void> _showLocationPermissionDialog({
+    bool permanentlyDenied = false,
+  }) async {
     if (mounted) {
       setState(() {
         _locationPermissionDenied = true;
@@ -446,7 +471,25 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     }
   }
 
-  void _openInvisibleSheet() {
+  Future<void> _openInvisibleSheet() async {
+    // CDC §10.1 — le mode invisible est réservé aux tiers payants.
+    // On ne bloque que l'activation : si le mode est déjà actif, la feuille
+    // doit rester accessible pour pouvoir reprendre le partage.
+    if (!_invisibleActive) {
+      final profile = await context.read<PrefsService>().getUserProfile();
+      if (profile != null && !profile.isPaidTier) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaywallPage(trigger: 'invisible_mode'),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -466,7 +509,11 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
             await svc.pauseLocation(durationMinutes: minutes);
             await _locationService.setInvisibleMode(true);
           } catch (e) {
+            // Ne JAMAIS afficher « invisible » si le serveur a refusé : la
+            // position continuerait d'être partagée alors que l'utilisateur
+            // croit être masqué.
             log('invisible mode activate error: $e');
+            return false;
           }
           if (mounted) {
             setState(() {
@@ -489,6 +536,8 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
           } catch (e) {
             log('invisible mode resume error: $e');
           }
+          // On repasse toujours en visible côté UI : en cas d'échec réseau,
+          // afficher « masqué » serait la promesse la plus dangereuse à tenir.
           _resumeInvisible();
           return true;
         },
@@ -526,6 +575,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         final activeContacts = relProvider.acceptedRelationships.length;
         final hasContacts = activeContacts > 0;
 
+        final routeProvider = context.watch<RouteProvider>();
+        final activeRoute = routeProvider.isActive ? routeProvider.route : null;
+
         return Stack(
           children: [
             // ── Map ──────────────────────────────────────────────────────────
@@ -549,6 +601,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               circles: {
                 ...safeCircles,
                 if (_currentZoom >= 13) ..._buildDangerCircles(),
+                ..._buildIncidentHalos(),
                 if (_currentPosition != null &&
                     _currentAccuracy != null &&
                     _currentAccuracy! > 50)
@@ -565,7 +618,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
-              mapType: _currentMapType,
+              mapType: context.watch<MapTypeNotifier>().type,
               onLongPress: (_) => _openInvisibleSheet(),
             ),
 
@@ -753,6 +806,28 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
               ),
             ),
 
+            // ── Barre de recherche d'itinéraire (V4.1 §6.1) ──────────────────
+            // Sous le header, comme Google Maps / Apple Plans / Waze. Aucun
+            // emplacement de navigation consommé : la tab bar reste à 3 entrées.
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 76,
+              left: 16,
+              right: 16,
+              child: RouteSearchBar(onTap: _openRouteSearch),
+            ),
+
+            // ── Bandeau trajet en cours (V4.1 §5.4/§5.5) ─────────────────────
+            if (activeRoute != null)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 136,
+                left: 0,
+                right: 0,
+                child: ActiveRouteBanner(
+                  destinationLabel: activeRoute.destinationLabel,
+                  onStop: _stopActiveRoute,
+                ),
+              ),
+
             // ── Recenter FAB ─────────────────────────────────────────────────
             Positioned(
               bottom: hasContacts ? 24 : 180,
@@ -765,6 +840,13 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                 foregroundColor: AppColors.primary,
                 child: const Icon(Icons.my_location),
               ),
+            ),
+
+            // ── Type de carte ────────────────────────────────────────────────
+            Positioned(
+              bottom: (hasContacts ? 24 : 180) + 56,
+              right: 16,
+              child: const MapTypeToggleButton(),
             ),
 
             // ── Empty state card (no contacts) ───────────────────────────────
@@ -884,6 +966,86 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
         strokeWidth: 2,
       ),
   };
+
+  /// Halos d'incidents communautaires — CDC V4.1 §4.4 / §11.1
+  ///
+  /// On dessine `display_radius_m`, jamais la géométrie d'évitement. Un
+  /// signalement communautaire est imprécis (GPS urbain ±10 à 50 m) : le halo
+  /// communique honnêtement « quelque part par ici », là où un corridor fin
+  /// prétendrait une précision que la donnée ne possède pas.
+  Set<gmaps.Circle> _buildIncidentHalos() {
+    final incidents = context.watch<IncidentProvider>().incidents;
+
+    return {
+      for (final incident in incidents)
+        gmaps.Circle(
+          circleId: gmaps.CircleId('incident_${incident.id}'),
+          center: incident.position,
+          radius: incident.displayRadiusM.toDouble(),
+          fillColor: incident.severity.color.withValues(alpha: 0.15),
+          strokeColor: incident.severity.color,
+          strokeWidth: 2,
+          consumeTapEvents: true,
+          onTap: () => IncidentDetailSheet.show(context, incident),
+        ),
+    };
+  }
+
+  /// Ouvre le module Trajets — §6.1. Aucun onglet consommé : la barre
+  /// d'onglets reste à trois entrées.
+  Future<void> _openRouteSearch() async {
+    final result = await Navigator.of(context).push<RouteSearchResult>(
+      MaterialPageRoute(
+        builder: (_) => RouteSearchPage(initialOrigin: _currentPosition),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => RoutePreviewPage(search: result)));
+  }
+
+  /// Arrête un trajet actif (bandeau §5.4/§5.5) — désarme la surveillance
+  /// serveur avant que la destination soit atteinte.
+  Future<void> _stopActiveRoute() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Arrêter le trajet ?'),
+        content: const Text(
+          'La surveillance de ce trajet sera désactivée.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              'Arrêter',
+              style: TextStyle(color: AppColors.danger),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final stopped = await context.read<RouteProvider>().cancelRoute();
+    if (!mounted) return;
+
+    if (!stopped) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'arrêter le trajet pour le moment.'),
+        ),
+      );
+    }
+  }
 
   Set<gmaps.Marker> _buildContactMarkers(
     List<ContactRelation> contacts,

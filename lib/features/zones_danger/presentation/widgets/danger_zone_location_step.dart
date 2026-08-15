@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:provider/provider.dart';
 import '../../../../core/models/safe_zone.dart'; // Pour LatLng
+import '../../../../core/providers/map_type_notifier.dart';
 import '../../../../theme/colors.dart';
 import '../../../../core/widgets/location_search_field.dart';
+import '../../../../shared/widgets/map_type_toggle_button.dart';
 
 class DangerZoneLocationStep extends StatefulWidget {
   final LatLng center;
@@ -84,38 +87,48 @@ class _DangerZoneLocationStepState extends State<DangerZoneLocationStep> {
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: gmaps.GoogleMap(
-              onMapCreated: (controller) => _mapController = controller,
-              initialCameraPosition: gmaps.CameraPosition(
-                target: _currentCenter,
-                zoom: 16,
-              ),
-              onTap: _onMapTap,
-              circles: {
-                gmaps.Circle(
-                  circleId: const gmaps.CircleId('danger_zone'),
-                  center: _currentCenter,
-                  radius: _currentRadius,
-                  fillColor: AppColors.alert.withOpacity(0.2),
-                  strokeColor: AppColors.alert,
-                  strokeWidth: 2,
-                ),
-              },
-              markers: {
-                gmaps.Marker(
-                  markerId: const gmaps.MarkerId('danger_center'),
-                  position: _currentCenter,
-                  icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
-                    gmaps.BitmapDescriptor.hueRed,
+            child: Stack(
+              children: [
+                gmaps.GoogleMap(
+                  onMapCreated: (controller) => _mapController = controller,
+                  initialCameraPosition: gmaps.CameraPosition(
+                    target: _currentCenter,
+                    zoom: 16,
                   ),
-                  draggable: true,
-                  onDragEnd: _onMarkerDragEnd,
+                  onTap: _onMapTap,
+                  circles: {
+                    gmaps.Circle(
+                      circleId: const gmaps.CircleId('danger_zone'),
+                      center: _currentCenter,
+                      radius: _currentRadius,
+                      fillColor: AppColors.alert.withOpacity(0.2),
+                      strokeColor: AppColors.alert,
+                      strokeWidth: 2,
+                    ),
+                  },
+                  markers: {
+                    gmaps.Marker(
+                      markerId: const gmaps.MarkerId('danger_center'),
+                      position: _currentCenter,
+                      icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        gmaps.BitmapDescriptor.hueRed,
+                      ),
+                      draggable: true,
+                      onDragEnd: _onMarkerDragEnd,
+                    ),
+                  },
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  mapType: context.watch<MapTypeNotifier>().type,
                 ),
-              },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: MapTypeToggleButton(),
+                ),
+              ],
             ),
           ),
         ),

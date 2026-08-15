@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../theme/colors.dart';
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/zone.dart' as zone_models;
+import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/contact_rtdb_service.dart';
 import 'permissions_modal.dart';
 
@@ -149,6 +150,7 @@ class _ContactBottomSheetState extends State<ContactBottomSheet> {
                         zoom: 15,
                       ),
                       onMapCreated: (ctrl) => _mapCtrl = ctrl,
+                      mapType: context.watch<MapTypeNotifier>().type,
                       markers: {
                         gmaps.Marker(
                           markerId: const gmaps.MarkerId('contact'),
