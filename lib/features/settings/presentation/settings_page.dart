@@ -8,6 +8,7 @@ import '../../../core/services/api_auth_service.dart';
 import '../../../core/services/api_location_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../core/services/subscription_service.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../../home_map/presentation/invisible_mode_sheet.dart';
 import '../../paywall/presentation/paywall_page.dart';
@@ -35,7 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
     // est déjà actif, la feuille reste accessible pour reprendre le partage.
     if (!_invisibleActive) {
       final profile = await context.read<PrefsService>().getUserProfile();
-      if (profile != null && !profile.isPaidTier) {
+      if (profile != null && !profile.isPaidTier && !SubscriptionService.instance.isPremium) {
         if (!mounted) return;
         await Navigator.push(
           context,
@@ -337,7 +338,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'Bientôt',
+                      'Premium',
                       style: tt.labelMedium?.copyWith(color: AppColors.orange, fontWeight: FontWeight.w600),
                     ),
                   ),

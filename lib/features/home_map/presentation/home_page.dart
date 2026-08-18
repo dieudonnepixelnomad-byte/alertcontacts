@@ -11,9 +11,12 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/contact_relation.dart';
 import '../../../core/models/danger_zone.dart';
+import '../../../core/enums/incident_type.dart';
 import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/api_location_service.dart';
 import '../../../core/services/contact_rtdb_service.dart';
+import '../../../core/services/paywall_trigger_service.dart';
+import '../../../core/services/subscription_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../shared/widgets/gps_imprecise_banner.dart';
 import '../../../shared/widgets/map_type_toggle_button.dart';
@@ -98,6 +101,12 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
 
   // Custom contact markers cache
   final Map<String, gmaps.BitmapDescriptor> _contactMarkerIcons = {};
+
+  // Les pictogrammes des incidents sont générés une fois par catégorie. On ne
+  // retombe volontairement pas sur `defaultMarker` pendant ce chargement : une
+  // alerte n'est jamais représentée par une épingle Google Maps générique.
+  final Map<IncidentType, gmaps.BitmapDescriptor> _incidentMarkerIcons = {};
+  final Set<IncidentType> _incidentMarkerIconsLoading = {};
 
   // Proximity alert toast
   bool _alertToastDismissed = false;
@@ -232,7 +241,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   }
 
   Future<void> _loadViewport(gmaps.CameraPosition position) async {
-    if (!mounted || _controller == null || _viewportLoading) return;
+    if (!mounted || _controller == null) return;
 
     final bounds = await _controller!.getVisibleRegion();
     final zoom = position.zoom.round();
@@ -246,6 +255,17 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
 
     if (key == _lastViewportKey) return;
+
+    // Les incidents communautaires ne dépendent pas du cache des zones de
+    // danger. Les charger avant les retours anticipés évite qu'une alerte
+    // active soit absente quand ce viewport de zones est déjà en mémoire.
+    unawaited(context.read<IncidentProvider>().loadForBounds(bounds));
+
+    // Ne pas marquer ce viewport comme traité tant que le chargement précédent
+    // des zones n'est pas terminé : un mouvement rapide de caméra devra encore
+    // pouvoir déclencher son chargement de zones.
+    if (_viewportLoading) return;
+
     _lastViewportKey = key;
 
     if (_viewportCache.contains(key)) {
@@ -272,11 +292,6 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       _viewportLoading = false;
     }
 
-    // Incidents communautaires V4.1 — le V4.0 ne les affichait nulle part sur
-    // la carte principale, ils n'existaient que dans la liste de l'onglet Alertes.
-    if (mounted) {
-      unawaited(context.read<IncidentProvider>().loadForBounds(bounds));
-    }
   }
 
   void _applyViewportZones(List<DangerZone> zones) {
@@ -420,6 +435,27 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
   }
 
+  void _focusSafeZoneOnMap(zone_models.Zone zone) {
+    setState(() {
+      _selectedSafe = zone;
+      _selectedDanger = null;
+      _selectedContactDetail = null;
+    });
+    _controller?.animateCamera(
+      gmaps.CameraUpdate.newLatLngZoom(
+        gmaps.LatLng(zone.center.lat, zone.center.lng),
+        _zoomForSafeZone(zone.radiusMeters),
+      ),
+    );
+  }
+
+  double _zoomForSafeZone(double radiusMeters) {
+    if (radiusMeters <= 200) return 16;
+    if (radiusMeters <= 500) return 15;
+    if (radiusMeters <= 1500) return 14;
+    return 13;
+  }
+
   Future<void> _recenterCamera() async {
     log(
       '[MapTab] recenter tapped, currentPosition=$_currentPosition loadingLocation=$_loadingLocation isTracking=${_locationService.isTracking}',
@@ -477,7 +513,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     // doit rester accessible pour pouvoir reprendre le partage.
     if (!_invisibleActive) {
       final profile = await context.read<PrefsService>().getUserProfile();
-      if (profile != null && !profile.isPaidTier) {
+      if (profile != null &&
+          !profile.isPaidTier &&
+          !SubscriptionService.instance.isPremium) {
         if (!mounted) return;
         await Navigator.push(
           context,
@@ -570,6 +608,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
           ..._buildSafeMarkers(safeZones),
           ..._dangerMarkers,
           ...contactMarkers,
+          ..._buildIncidentMarkers(),
         };
 
         final activeContacts = relProvider.acceptedRelationships.length;
@@ -787,7 +826,9 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                     barrierLabel: 'zones',
                     barrierColor: Colors.black54,
                     transitionDuration: const Duration(milliseconds: 250),
-                    pageBuilder: (_, __, ___) => const ZonesPanel(),
+                    pageBuilder: (_, __, ___) => ZonesPanel(
+                      onViewOnMap: _focusSafeZoneOnMap,
+                    ),
                     transitionBuilder: (_, anim, __, child) => SlideTransition(
                       position:
                           Tween(
@@ -856,7 +897,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
                 left: 16,
                 right: 16,
                 child: _EmptyStateCard(
-                  onInvite: () => context.push(AppRoutes.addProche),
+                  onInvite: () => _openInvitation(relProvider),
                   onDiscover: () => setState(() => _emptyCardDismissed = true),
                 ),
               ),
@@ -922,6 +963,25 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openInvitation(RelationshipProvider relationshipProvider) async {
+    final profile = await PrefsService().getUserProfile();
+
+    if (profile?.isPaidTier != true &&
+        PaywallTriggerService.checkContactLimit(
+          relationshipProvider.acceptedRelationships.length,
+        )) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+        ),
+      );
+      return;
+    }
+
+    if (mounted) context.push(AppRoutes.addProche);
+  }
+
   // ─── Markers & Circles ───────────────────────────────────────────────────────
 
   Set<gmaps.Marker> _buildSafeMarkers(List<zone_models.Zone> zones) => {
@@ -984,11 +1044,140 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
           radius: incident.displayRadiusM.toDouble(),
           fillColor: incident.severity.color.withValues(alpha: 0.15),
           strokeColor: incident.severity.color,
-          strokeWidth: 2,
+          strokeWidth: _incidentHaloStrokeWidth(incident.confirmCount),
           consumeTapEvents: true,
           onTap: () => IncidentDetailSheet.show(context, incident),
         ),
     };
+  }
+
+  /// Marqueurs bitmap propres aux catégories d'incidents communautaires.
+  ///
+  /// Tant qu'un bitmap n'est pas prêt, le marqueur est simplement différé. Cela
+  /// évite le bref affichage d'une épingle standard avant son remplacement.
+  Set<gmaps.Marker> _buildIncidentMarkers() {
+    final incidents = context.watch<IncidentProvider>().incidents;
+    final types = incidents.map((incident) => incident.type).toSet();
+    for (final type in types) {
+      _ensureIncidentMarkerIcon(type);
+    }
+
+    return {
+      for (final incident in incidents)
+        if (_incidentMarkerIcons[incident.type] case final icon?)
+          gmaps.Marker(
+            markerId: gmaps.MarkerId('incident_marker_${incident.id}'),
+            position: incident.position,
+            icon: icon,
+            anchor: const Offset(0.5, 0.5),
+            infoWindow: gmaps.InfoWindow(
+              title: incident.type.label,
+              snippet: incident.reportCountLabel,
+            ),
+            onTap: () => IncidentDetailSheet.show(context, incident),
+          ),
+    };
+  }
+
+  /// Épaisseur en px du contour du halo, selon les confirmations sur place.
+  /// Une croissance racine carrée conserve une différence lisible sur les
+  /// petits nombres sans transformer les incidents très confirmés en disque.
+  int _incidentHaloStrokeWidth(int confirmCount) {
+    final confirmations = math.max(0, confirmCount);
+    return (2 + math.sqrt(confirmations) * 2).round().clamp(2, 10).toInt();
+  }
+
+  void _ensureIncidentMarkerIcon(IncidentType type) {
+    if (_incidentMarkerIcons.containsKey(type) ||
+        !_incidentMarkerIconsLoading.add(type)) {
+      return;
+    }
+
+    unawaited(
+      _makeIncidentMarker(type).then((icon) {
+        if (!mounted) return;
+        setState(() => _incidentMarkerIcons[type] = icon);
+      }).catchError((Object error, StackTrace stackTrace) {
+        log('MapTab._makeIncidentMarker($type) error: $error',
+            stackTrace: stackTrace);
+      }).whenComplete(() => _incidentMarkerIconsLoading.remove(type)),
+    );
+  }
+
+  IconData _incidentIcon(IncidentType type) => switch (type) {
+    IncidentType.accident => Icons.car_crash,
+    IncidentType.fire => Icons.local_fire_department,
+    IncidentType.aggression => Icons.warning_amber_rounded,
+    IncidentType.suspect => Icons.person_search,
+    IncidentType.suspiciousPackage => Icons.inventory_2,
+    IncidentType.roadworks => Icons.construction,
+    IncidentType.trafficJam => Icons.traffic,
+    IncidentType.flood => Icons.flood,
+    IncidentType.protest => Icons.campaign,
+    IncidentType.other => Icons.notifications_active,
+  };
+
+  Color _incidentMarkerColor(IncidentType type) => switch (type) {
+    IncidentType.accident => const Color(0xFFB3261E),
+    IncidentType.fire => const Color(0xFFE65100),
+    IncidentType.aggression => const Color(0xFF9C1C31),
+    IncidentType.suspect => const Color(0xFF6A1B9A),
+    IncidentType.suspiciousPackage => const Color(0xFF795548),
+    IncidentType.roadworks => const Color(0xFFF57C00),
+    IncidentType.trafficJam => const Color(0xFFC62828),
+    IncidentType.flood => const Color(0xFF0277BD),
+    IncidentType.protest => const Color(0xFF1565C0),
+    IncidentType.other => AppColors.primary,
+  };
+
+  Future<gmaps.BitmapDescriptor> _makeIncidentMarker(IncidentType type) async {
+    const size = 56.0;
+    const center = Offset(size / 2, size / 2);
+    const radius = 22.0;
+    final color = _incidentMarkerColor(type);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, size, size));
+
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2 + 2),
+      radius,
+      Paint()
+        ..color = const Color(0x33000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawCircle(center, radius, Paint()..color = color);
+    canvas.drawCircle(
+      center,
+      radius - 1,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    final icon = _incidentIcon(type);
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 27,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
+    );
+
+    final image = await recorder
+        .endRecording()
+        .toImage(size.toInt(), size.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    return gmaps.BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
   /// Ouvre le module Trajets — §6.1. Aucun onglet consommé : la barre

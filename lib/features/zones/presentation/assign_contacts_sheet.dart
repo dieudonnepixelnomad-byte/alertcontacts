@@ -7,6 +7,8 @@ import '../../../core/models/contact_relation.dart';
 import '../providers/zones_notifier.dart';
 import '../../proches/providers/relationship_provider.dart';
 
+enum ZoneSheetAction { viewOnMap, delete }
+
 class AssignContactsSheet extends StatefulWidget {
   final Zone zone;
 
@@ -129,6 +131,22 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
           ),
           const SizedBox(height: 16),
 
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(
+                  context,
+                  ZoneSheetAction.viewOnMap,
+                ),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Voir sur la carte'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
           // Search bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -242,33 +260,48 @@ class _AssignContactsSheetState extends State<AssignContactsSheet> {
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: (_hasChanges && !_saving) ? _save : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: (_hasChanges && !_saving) ? _save : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(
+                            'Valider',
+                            style: tt.bodyLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        'Valider',
-                        style: tt.bodyLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: _saving
+                      ? null
+                      : () => Navigator.pop(context, ZoneSheetAction.delete),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                  label: const Text(
+                    'Supprimer la zone',
+                    style: TextStyle(color: AppColors.danger),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

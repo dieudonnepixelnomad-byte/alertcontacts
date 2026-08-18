@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../core/repositories/safezone_repository.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../core/services/subscription_service.dart';
+import '../../paywall/presentation/paywall_page.dart';
 
 class SetupIntroductionPage extends StatefulWidget {
   const SetupIntroductionPage({super.key});
@@ -21,6 +25,34 @@ class _SetupIntroductionPageState extends State<SetupIntroductionPage> {
     if (mounted) {
       context.go(AppRoutes.appShell);
     }
+  }
+
+  Future<void> _startSetup() async {
+    HapticFeedback.lightImpact();
+    final profile = await _prefsService.getUserProfile();
+
+    // Un compte gratuit ne doit pas voir le formulaire s'il possède déjà sa
+    // zone. Le backend refait le contrôle afin de couvrir les appels directs.
+    if (profile?.isPaidTier != true && !SubscriptionService.instance.isPremium) {
+      try {
+        final zones = await context
+            .read<SafeZoneRepository>()
+            .getSafeZones(forceRefresh: true);
+        if (zones.isNotEmpty) {
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const PaywallPage(trigger: 'zone_limit'),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // En cas de problème réseau, on laisse le serveur appliquer sa règle.
+      }
+    }
+
+    if (mounted) context.go(AppRoutes.safezoneSetup + '/zone-config');
   }
 
   @override
@@ -284,10 +316,7 @@ class _SetupIntroductionPageState extends State<SetupIntroductionPage> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          context.go(AppRoutes.safezoneSetup + '/zone-config');
-        },
+        onPressed: _startSetup,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.teal,
           foregroundColor: Colors.white,

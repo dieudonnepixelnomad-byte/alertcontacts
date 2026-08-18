@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
 import '../../../core/enums/incident_type.dart';
 import '../../../core/models/incident.dart';
+import '../../../core/models/my_community_report.dart';
 import '../../../core/services/api_incidents_service.dart';
 import '../../../core/services/prefs_service.dart';
 
@@ -22,16 +23,20 @@ class IncidentProvider extends ChangeNotifier {
   final PrefsService _prefs;
 
   final Map<int, Incident> _incidents = {};
+  List<MyCommunityReport> _myReports = const [];
   bool _isLoading = false;
+  bool _isLoadingMyReports = false;
   String? _errorMessage;
 
   List<Incident> get incidents => _incidents.values
-      .where((i) => i.status.isLive)
+      .where((i) => i.isLive)
       .toList()
     ..sort((a, b) => b.severity.rank.compareTo(a.severity.rank));
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  List<MyCommunityReport> get myReports => _myReports;
+  bool get isLoadingMyReports => _isLoadingMyReports;
 
   Incident? byId(int id) => _incidents[id];
 
@@ -79,6 +84,40 @@ class IncidentProvider extends ChangeNotifier {
     } catch (e) {
       log('[IncidentProvider] refreshIncident($id): $e');
       return null;
+    }
+  }
+
+  Future<void> loadMyReports() async {
+    if (_isLoadingMyReports) return;
+
+    _isLoadingMyReports = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _syncToken();
+      _myReports = await _service.getMyReports();
+    } catch (e) {
+      log('[IncidentProvider] loadMyReports: $e');
+      _errorMessage = 'Impossible de charger tes alertes pour le moment.';
+    } finally {
+      _isLoadingMyReports = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteMyReport(int reportId) async {
+    try {
+      await _syncToken();
+      await _service.deleteMyReport(reportId);
+      _myReports = _myReports.where((report) => report.id != reportId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      log('[IncidentProvider] deleteMyReport($reportId): $e');
+      _errorMessage = 'Suppression impossible pour le moment.';
+      notifyListeners();
+      return false;
     }
   }
 
@@ -156,7 +195,7 @@ class IncidentProvider extends ChangeNotifier {
       await _syncToken();
       final incident = await action();
 
-      if (incident.status.isLive) {
+      if (incident.isLive) {
         _incidents[incident.id] = incident;
       } else {
         _incidents.remove(incident.id);

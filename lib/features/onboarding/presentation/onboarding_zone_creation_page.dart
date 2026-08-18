@@ -7,9 +7,11 @@ import '../../../core/models/safe_zone.dart';
 import '../../../core/repositories/safezone_repository.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../core/services/subscription_service.dart';
 import '../../../core/errors/auth_exceptions.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
+import '../../paywall/presentation/paywall_page.dart';
 import '../../zones_securite/presentation/widgets/zone_name_icon_step.dart';
 import '../../zones_securite/presentation/widgets/zone_place_radius_step.dart';
 
@@ -93,6 +95,22 @@ class _OnboardingZoneCreationPageState
     setState(() => _isCreating = true);
 
     try {
+      final profile = await _prefs.getUserProfile();
+      if (profile?.isPaidTier != true && !SubscriptionService.instance.isPremium) {
+        final existingZones = await _repo.getSafeZones(forceRefresh: true);
+        if (existingZones.isNotEmpty) {
+          if (mounted) {
+            setState(() => _isCreating = false);
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const PaywallPage(trigger: 'zone_limit'),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       final zone = SafeZone(
         id: '',
         name: _name,

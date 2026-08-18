@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/models/incident.dart';
 import '../../../core/models/route_plan.dart';
 import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/analytics_service.dart';
@@ -29,10 +33,14 @@ class RoutePreviewPage extends StatefulWidget {
 class _RoutePreviewPageState extends State<RoutePreviewPage> {
   GoogleMapController? _mapController;
   bool _bannerDismissed = false;
+  late TransportMode _transportMode;
+  final Map<String, BitmapDescriptor> _incidentMarkerIcons = {};
+  final Set<String> _incidentMarkerIconsLoading = {};
 
   @override
   void initState() {
     super.initState();
+    _transportMode = widget.search.transportMode;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -44,7 +52,7 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
       destination: widget.search.destination,
       originLabel: widget.search.originLabel,
       destinationLabel: widget.search.destinationLabel,
-      transportMode: widget.search.transportMode,
+      transportMode: _transportMode,
     );
 
     if (preview == null || !mounted) return;
@@ -65,6 +73,15 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
     }
 
     _fitBounds();
+  }
+
+  void _changeTransportMode(TransportMode mode) {
+    if (mode == _transportMode) return;
+    setState(() {
+      _transportMode = mode;
+      _bannerDismissed = false;
+    });
+    _load();
   }
 
   void _fitBounds() {
@@ -95,7 +112,7 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
   /// §5.4 étape 5 — le second appel au moteur n'a lieu qu'ici, sur tap explicite.
   Future<void> _avoid() async {
     final provider = context.read<RouteProvider>();
-    final incidentIds = provider.incidentsOnRoute
+    final incidentIds = provider.avoidableIncidents
         .map((h) => h.incident.id)
         .toList();
 
@@ -229,9 +246,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
     final route = provider.route;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.search.destinationLabel ?? 'Itinéraire'),
-      ),
       body: Stack(
         children: [
           GoogleMap(
@@ -248,15 +262,20 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
             mapType: context.watch<MapTypeNotifier>().type,
             polylines: _buildPolylines(provider),
             circles: _buildIncidentHalos(provider),
-            markers: {
-              Marker(
-                markerId: const MarkerId('destination'),
-                position: widget.search.destination,
-              ),
-            },
+            markers: _buildMarkers(provider),
           ),
           Positioned(
-            top: 12,
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 16,
+            right: 16,
+            child: _RouteHeader(
+              origin: widget.search.originLabel ?? 'Votre position',
+              destination: widget.search.destinationLabel ?? 'Destination',
+              onBack: () => Navigator.of(context).pop(),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 138,
             right: 16,
             child: const MapTypeToggleButton(),
           ),
@@ -272,42 +291,41 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
             ),
           if (route != null)
             Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _BottomCard(
+                route: route,
+                optionCount: provider.options.length,
+                selectedMode: _transportMode,
+                onModeChanged: _changeTransportMode,
+                onStart: _start,
+                onShowOptions: provider.options.length < 2
+                    ? null
+                    : () => RouteOptionSheet.show(
+                        context,
+                        options: provider.options,
+                        selectedIndex: provider.selectedOptionIndex,
+                        onSelect: (index) async {
+                          await provider.selectOption(index);
+                          if (mounted) _fitBounds();
+                        },
+                      ),
+              ),
+            ),
+          if (route != null && provider.hasIncidents && !_bannerDismissed)
+            Positioned(
               left: 16,
               right: 16,
-              bottom: 16,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (provider.hasIncidents && !_bannerDismissed)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: IncidentWarningBanner(
-                        hit: provider.incidentsOnRoute.first,
-                        canAvoid: provider.preview?.canAvoid ?? false,
-                        destinationInside:
-                            provider.preview?.destinationInside ?? false,
-                        onAvoid: _avoid,
-                        onContinue: () =>
-                            setState(() => _bannerDismissed = true),
-                      ),
-                    ),
-                  _BottomCard(
-                    route: route,
-                    optionCount: provider.options.length,
-                    onStart: _start,
-                    onShowOptions: provider.options.length < 2
-                        ? null
-                        : () => RouteOptionSheet.show(
-                            context,
-                            options: provider.options,
-                            selectedIndex: provider.selectedOptionIndex,
-                            onSelect: (index) async {
-                              await provider.selectOption(index);
-                              if (mounted) _fitBounds();
-                            },
-                          ),
-                  ),
-                ],
+              bottom: 246,
+              child: IncidentWarningBanner(
+                hit: provider.primaryIncidentHit!,
+                canAvoid:
+                    provider.hasAvoidableIncidents &&
+                    !(provider.preview?.destinationInside ?? false),
+                destinationInside: provider.preview?.destinationInside ?? false,
+                onAvoid: _avoid,
+                onContinue: () => setState(() => _bannerDismissed = true),
               ),
             ),
         ],
@@ -315,7 +333,9 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
     );
   }
 
-  /// §11.1 — tracé sélectionné teal trait plein, alternatives gris 40 %.
+  /// §11.1 — tracé sélectionné teal en trait plein. Les alternatives gardent
+  /// la même couleur pour appartenir au même trajet, mais passent en pointillés
+  /// afin de rester identifiables sans concurrencer le choix actif.
   /// Contournant : liseré vert sous le tracé sélectionné.
   Set<Polyline> _buildPolylines(RouteProvider provider) {
     final polylines = <Polyline>{};
@@ -342,11 +362,12 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
         Polyline(
           polylineId: PolylineId('route_${option.index}'),
           points: points,
-          color: isSelected
-              ? AppColors.primary
-              : AppColors.gray400.withValues(alpha: 0.4),
-          width: isSelected ? 6 : 4,
+          color: AppColors.primary,
+          width: isSelected ? 6 : 5,
           zIndex: isSelected ? 2 : 1,
+          patterns: isSelected
+              ? const <PatternItem>[]
+              : <PatternItem>[PatternItem.dash(18), PatternItem.gap(10)],
         ),
       );
     }
@@ -384,6 +405,70 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
       );
     }).toSet();
   }
+
+  Set<Marker> _buildMarkers(RouteProvider provider) {
+    for (final hit in provider.incidentsOnRoute) {
+      _ensureIncidentMarker(hit.incident);
+    }
+    return {
+      Marker(
+        markerId: const MarkerId('destination'),
+        position: widget.search.destination,
+      ),
+      for (final hit in provider.incidentsOnRoute)
+        if (_incidentMarkerIcons['${hit.incident.type.value}_${hit.incident.severity.value}']
+            case final icon?)
+          Marker(
+            markerId: MarkerId('route_incident_${hit.incident.id}'),
+            position: hit.incident.position,
+            icon: icon,
+            anchor: const Offset(.5, .5),
+            zIndex: 5,
+          ),
+    };
+  }
+
+  void _ensureIncidentMarker(Incident incident) {
+    final key = '${incident.type.value}_${incident.severity.value}';
+    if (_incidentMarkerIcons.containsKey(key) ||
+        !_incidentMarkerIconsLoading.add(key))
+      return;
+    unawaited(
+      _makeIncidentMarker(incident)
+          .then((icon) {
+            if (mounted) setState(() => _incidentMarkerIcons[key] = icon);
+          })
+          .whenComplete(() => _incidentMarkerIconsLoading.remove(key)),
+    );
+  }
+
+  Future<BitmapDescriptor> _makeIncidentMarker(Incident incident) async {
+    const size = 62.0;
+    const center = Offset(31, 31);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, size, size));
+    canvas.drawCircle(
+      const Offset(31, 34),
+      24,
+      Paint()..color = const Color(0x33000000),
+    );
+    canvas.drawCircle(center, 24, Paint()..color = incident.severity.color);
+    canvas.drawCircle(center, 21, Paint()..color = Colors.white);
+    final painter = TextPainter(
+      text: TextSpan(
+        text: incident.type.emoji,
+        style: const TextStyle(fontSize: 28),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
+    );
+    final image = await recorder.endRecording().toImage(62, 62);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+  }
 }
 
 /// §9.1 — hors ligne : bandeau non bloquant, jamais d'écran d'erreur.
@@ -413,83 +498,113 @@ class _BottomCard extends StatelessWidget {
   const _BottomCard({
     required this.route,
     required this.optionCount,
+    required this.selectedMode,
+    required this.onModeChanged,
     required this.onStart,
     this.onShowOptions,
   });
 
   final RoutePlan route;
   final int optionCount;
+  final TransportMode selectedMode;
+  final ValueChanged<TransportMode> onModeChanged;
   final VoidCallback onStart;
   final VoidCallback? onShowOptions;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final arrival = route.estimatedArrival;
 
     return Material(
-      color: colors.surface,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Text(
-                  _formatDuration(route.durationS),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
+      color: AppColors.gray900,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.gray600,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  '${_formatDistance(route.distanceM)} · arrivée ${_formatTime(arrival)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    selectedMode.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                  const Spacer(),
+                  const Icon(Icons.tune, color: Colors.white70),
+                  const SizedBox(width: 18),
+                  const Icon(Icons.share_outlined, color: Colors.white70),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ModeTabs(selected: selectedMode, onChanged: onModeChanged),
+              const Divider(color: AppColors.gray600, height: 24),
+              Text(
+                '${_formatDuration(route.durationS)} (${_formatDistance(route.distanceM)})',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Arrivée ${_formatTime(arrival)} · ${route.alternatives.isNotEmpty ? route.alternatives.first.label : 'itinéraire principal'}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              if (route.avoidanceApplied) ...[
+                const SizedBox(height: 6),
+                Text(
+                  route.avoidancePartial
+                      ? '⚠️ Contournement partiel'
+                      : '✅ Contourne la zone signalée',
+                  style: const TextStyle(fontSize: 13, color: Colors.white70),
                 ),
               ],
-            ),
-            if (route.avoidanceApplied) ...[
-              const SizedBox(height: 6),
-              Text(
-                route.avoidancePartial
-                    ? '⚠️ Contournement partiel'
-                    : '✅ Contourne la zone signalée',
-                style: const TextStyle(fontSize: 13),
-              ),
-            ],
-            if (onShowOptions != null) ...[
-              const SizedBox(height: 4),
-              TextButton(
-                onPressed: onShowOptions,
-                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                child: Text('Voir les $optionCount itinéraires'),
-              ),
-            ],
-            const SizedBox(height: 10),
-            // §11.3 — CTA principal en zone basse, pleine largeur
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onStart,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  minimumSize: const Size.fromHeight(46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              if (onShowOptions != null) ...[
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: onShowOptions,
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  child: Text('Voir les $optionCount itinéraires'),
                 ),
-                child: const Text('Démarrer'),
+              ],
+              const SizedBox(height: 10),
+              // §11.3 — CTA principal en zone basse, pleine largeur
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: onStart,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF53C6D8),
+                    foregroundColor: AppColors.gray900,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Démarrer'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -512,4 +627,106 @@ class _BottomCard extends StatelessWidget {
   static String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
+}
+
+class _RouteHeader extends StatelessWidget {
+  const _RouteHeader({
+    required this.origin,
+    required this.destination,
+    required this.onBack,
+  });
+  final String origin;
+  final String destination;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.gray900,
+    elevation: 6,
+    borderRadius: BorderRadius.circular(20),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          const Icon(Icons.my_location, color: Color(0xFF53C6D8), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  origin,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 7),
+                  child: Divider(color: AppColors.gray600, height: 1),
+                ),
+                Text(
+                  destination,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ModeTabs extends StatelessWidget {
+  const _ModeTabs({required this.selected, required this.onChanged});
+  final TransportMode selected;
+  final ValueChanged<TransportMode> onChanged;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: TransportMode.values.map((mode) {
+      final active = mode == selected;
+      final icon = switch (mode) {
+        TransportMode.car => Icons.directions_car,
+        TransportMode.pedestrian => Icons.directions_walk,
+        TransportMode.scooter => Icons.two_wheeler,
+      };
+      return Expanded(
+        child: InkWell(
+          onTap: () => onChanged(mode),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  color: active ? const Color(0xFF53C6D8) : Colors.white54,
+                  size: 21,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  mode.label,
+                  style: TextStyle(
+                    color: active ? const Color(0xFF53C6D8) : Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Container(
+                  height: 3,
+                  width: 38,
+                  color: active ? const Color(0xFF53C6D8) : Colors.transparent,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }).toList(),
+  );
 }

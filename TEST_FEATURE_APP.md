@@ -172,16 +172,16 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 2.1 | Splash | Lancer l'app | Fond `#1E6868`, logo dégradé, tagline, durée ≤ 1,8 s, navigation auto | ✅ | ☐ |
-| 2.2 | Personnalisation | Après splash | Question « Tu protèges qui ? » — 4 choix — **avant** toute demande de login | ✅ | ☐ |
-| 2.3 | Aucune permission en onboarding | Parcourir tout l'onboarding | **Aucune** demande GPS/notif pendant l'onboarding (R3) | ✅ | ☐ |
+| 2.1 | Splash | Lancer l'app | Fond `#1E6868`, logo dégradé, tagline, durée ≤ 1,8 s, navigation auto | ✅ | ✅ |
+| 2.2 | Personnalisation | Après splash | Question « Tu protèges qui ? » — 4 choix — **avant** toute demande de login | ✅ | ✅ |
+| 2.3 | Aucune permission en onboarding | Parcourir tout l'onboarding | **Aucune** demande GPS/notif pendant l'onboarding (R3) | ✅ | ✅ |
 | 2.4 | Ordre des méthodes d'auth | Écran login | Apple **en premier**, puis Google, puis Magic Link | ✅ | ☐ |
 | 2.5 | Login Google | Se connecter via Google | Retour dans l'app, token Bearer stocké | ✅ | ☐ |
 | 2.6 | Login Apple (iOS) | Se connecter via Apple | Idem | ✅ | ☐ |
-| 2.7 | Magic Link | Saisir email, recevoir le lien | Lien valable 1 h, renvoi possible après 30 s | ✅ | ☐ |
-| 2.8 | Invitation en onboarding | Étape invitation | Peut être **passée** (skip autorisé) | ✅ | ☐ |
-| 2.9 | Célébration Aha | Après acceptation d'une invitation | Animation de renforcement positif (R8) | ✅ | ☐ |
-| 2.10 | Reprise d'onboarding | Tuer l'app en cours d'onboarding, relancer | Reprend où on s'était arrêté | ✅ | ☐ |
+| 2.7 | Magic Link | Saisir email, recevoir le lien | Lien valable 1 h, renvoi possible après 30 s | ✅ | ✅ |
+| 2.8 | Invitation en onboarding | Étape invitation | Peut être **passée** (skip autorisé) | ✅ | ✅ |
+| 2.9 | Célébration Aha | Après acceptation d'une invitation | Animation de renforcement positif (R8) | ✅ | ✅ |
+| 2.10 | Reprise d'onboarding | Tuer l'app en cours d'onboarding, relancer | Reprend où on s'était arrêté | ✅ | ✅ |
 
 ---
 
@@ -189,10 +189,10 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 3.1 | Permission GPS en contexte | Ouvrir la carte pour la 1ʳᵉ fois | Écran d'explication **avant** la popup système | ✅ | ☐ |
+| 3.1 | Permission GPS en contexte | Ouvrir la carte pour la 1ʳᵉ fois | Écran d'explication **avant** la popup système | ✅ | ✅ |
 | 3.2 | Refus GPS non bloquant | Refuser la permission | L'app reste utilisable, message non bloquant | ✅ | ☐ |
-| 3.3 | Permission notifications | Au moment pertinent (1ʳᵉ zone / 1ᵉʳ proche) | Écran d'explication puis popup | ✅ | ☐ |
-| 3.4 | Réglage a posteriori | Paramètres → permissions | Lien vers les réglages système | ✅ | ☐ |
+| 3.3 | Permission notifications | Au moment pertinent (1ʳᵉ zone / 1ᵉʳ proche) | Écran d'explication puis popup | ✅ | ✅ |
+| 3.4 | Réglage a posteriori | Paramètres → permissions | Lien vers les réglages système | ✅ | ✅ |
 
 ---
 
@@ -202,18 +202,18 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 4.1 | Inviter un proche | Proches → Ajouter → envoyer l'invitation | Lien/deep link généré et partageable | ✅ | ☐ |
-| 4.2 | Accepter une invitation | Sur le compte B, ouvrir le lien | Relation créée, B apparaît chez A | ✅ | ☐ |
-| 4.3 | Bidirectionnalité | Après 4.2, regarder la carte de B | A apparaît **grisé** chez B + CTA « Invite A pour le voir aussi » | ✅ | ☐ |
-| 4.4 | Invitation retour | B invite A, A accepte | Les deux se voient mutuellement | ✅ | ☐ |
+| 4.1 | Inviter un proche | Proches → Ajouter → envoyer l'invitation | Lien/deep link généré et partageable | ✅ | ✅ |
+| 4.2 | Accepter une invitation | Sur le compte B, ouvrir le lien | Relation créée, B apparaît chez A | ✅ | ✅ |
+| 4.3 | Bidirectionnalité | Après 4.2, regarder la carte de B | A apparaît **grisé** chez B + CTA « Invite A pour le voir aussi » | ✅ | ✅ |
+| 4.4 | Invitation retour | B invite A, A accepte | Les deux se voient mutuellement | ✅ | ✅ |
 | 4.5 | Refus d'invitation | Refuser depuis le lien | Refus enregistré, notification à l'inviteur | ✅ | ☐ |
-| 4.6 | Voir un proche sur la carte | Carte avec 1 proche actif | Avatar positionné + fraîcheur de la position | ✅ | ☐ |
-| 4.7 | Proche hors ligne | Couper le réseau chez B | Avatar **grisé** + dernière position + timestamp | ✅ | ☐ |
-| 4.8 | **Limite atteinte (2 proches)** | Avoir 2 proches acceptés, tenter d'en inviter un 3ᵉ | **Paywall bloquant** `trigger: contact_limit` | 🔒 | ☐ |
-| 4.9 | **Limite côté serveur** | Avec 2 proches, faire accepter une 3ᵉ invitation par un compte C | Réponse **403 `SUBSCRIPTION_LIMIT_REACHED`** — la relation n'est PAS créée | 🔒 | ☐ |
-| 4.10 | Supprimer un proche | Proches → détail → supprimer | Suppression **bidirectionnelle** | ✅ | ☐ |
-| 4.11 | Après suppression | Supprimer 1 proche (retour à 1), réinviter | L'invitation repasse (limite libérée) | ✅ | ☐ |
-| 4.12 | Permissions de partage | Proches → détail → permissions | Modification du niveau de partage persistée | ✅ | ☐ |
+| 4.6 | Voir un proche sur la carte | Carte avec 1 proche actif | Avatar positionné + fraîcheur de la position | ✅ | ✅ |
+| 4.7 | Proche hors ligne | Couper le réseau chez B | Avatar **grisé** + dernière position + timestamp | ✅ | ✅ |
+| 4.8 | **Limite atteinte (2 proches)** | Avoir 2 proches acceptés, tenter d'en inviter un 3ᵉ | **Paywall bloquant** `trigger: contact_limit` | 🔒 | ✅ |
+| 4.9 | **Limite côté serveur** | Avec 2 proches, faire accepter une 3ᵉ invitation par un compte C | Réponse **403 `SUBSCRIPTION_LIMIT_REACHED`** — la relation n'est PAS créée | 🔒 | ✅ |
+| 4.10 | Supprimer un proche | Proches → détail → supprimer | Suppression **bidirectionnelle** | ✅ | ✅ |
+| 4.11 | Après suppression | Supprimer 1 proche (retour à 1), réinviter | L'invitation repasse (limite libérée) | ✅ | ✅ |
+| 4.12 | Permissions de partage | Proches → détail → permissions | Modification du niveau de partage persistée | ✅ | ✅ |
 
 ---
 
@@ -223,18 +223,18 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 5.1 | Créer la 1ʳᵉ zone | Carte → icône calque ⊞ → créer | Zone circulaire créée (rayon 50–500 m) | ✅ | ☐ |
-| 5.2 | Icône & couleur | Wizard de création | Choix d'icône et de couleur pris en compte | ✅ | ☐ |
-| 5.3 | Recherche d'adresse | Étape localisation | Autocomplétion fonctionnelle | ✅ | ☐ |
-| 5.4 | Assigner un proche | Zone → assigner des contacts | Seuls les proches **acceptés** sont proposés | ✅ | ☐ |
-| 5.5 | Notification d'assignation | Assigner un proche à une zone | Le proche reçoit une notification | ✅ | ☐ |
-| 5.6 | Détection d'entrée | Entrer physiquement dans la zone | Push « ✅ [Prénom] est arrivé(e) » — **langage naturel** | ✅ | ☐ |
-| 5.7 | Détection de sortie | Sortir de la zone | Push « 🚪 [Prénom] a quitté [Zone] » | ✅ | ☐ |
-| 5.8 | Pas de doublon de notif | Rester dans la zone, bouger un peu | **Une seule** notification d'entrée (table `user_zone_states`) | ✅ | ☐ |
-| 5.9 | Modifier une zone | Zone → éditer nom/rayon | Modification persistée | ✅ | ☐ |
-| 5.10 | Supprimer une zone | Zone → supprimer | Zone + assignations supprimées | ✅ | ☐ |
-| 5.11 | **Limite atteinte (1 zone)** | Avec 1 zone, tenter d'en créer une 2ᵉ | **Paywall bloquant** `trigger: zone_limit` | 🔒 | ☐ |
-| 5.12 | **Limite côté serveur** | Avec 1 zone, appeler `POST /api/safe-zones` directement (Postman + token) | **403 `SUBSCRIPTION_LIMIT_REACHED`** — zone non créée | 🔒 | ☐ |
+| 5.1 | Créer la 1ʳᵉ zone | Carte → icône calque ⊞ → créer | Zone circulaire créée (rayon 50–500 m) | ✅ | ✅ |
+| 5.2 | Icône & couleur | Wizard de création | Choix d'icône et de couleur pris en compte | ✅ | ✅ |
+| 5.3 | Recherche d'adresse | Étape localisation | Autocomplétion fonctionnelle | ✅ | ✅ |
+| 5.4 | Assigner un proche | Zone → assigner des contacts | Seuls les proches **acceptés** sont proposés | ✅ | ✅ |
+| 5.5 | Notification d'assignation | Assigner un proche à une zone | Le proche reçoit une notification | ✅ | ✅ |
+| 5.6 | Détection d'entrée | Entrer physiquement dans la zone | Push « ✅ [Prénom] est arrivé(e) » — **langage naturel** | ✅ | ✅ |
+| 5.7 | Détection de sortie | Sortir de la zone | Push « 🚪 [Prénom] a quitté [Zone] » | ✅ | ✅ |
+| 5.8 | Pas de doublon de notif | Rester dans la zone, bouger un peu | **Une seule** notification d'entrée (table `user_zone_states`) | ✅ | ✅ |
+| 5.9 | Modifier une zone | Zone → éditer nom/rayon | Modification persistée | ✅ | ✅ |
+| 5.10 | Supprimer une zone | Zone → supprimer | Zone + assignations supprimées | ✅ | ✅ |
+| 5.11 | **Limite atteinte (1 zone)** | Avec 1 zone, tenter d'en créer une 2ᵉ | **Paywall bloquant** `trigger: zone_limit` | 🔒 | ✅ |
+| 5.12 | **Limite côté serveur** | Avec 1 zone, appeler `POST /api/safe-zones` directement (Postman + token) | **403 `SUBSCRIPTION_LIMIT_REACHED`** — zone non créée | 🔒 | ✅ |
 | 5.13 | Paramètres de notification | Zone → réglages notif entrée/sortie | Toggles persistés | ✅ | ☐ |
 
 ---
@@ -245,13 +245,13 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 6.1 | Lecture des alertes | Onglet Alertes | Liste des alertes à proximité | ✅ | ☐ |
-| 6.2 | **Créer une alerte en Gratuit** | Alertes → FAB → parcours de signalement | **Aucun paywall.** Alerte créée en 3 taps max | ✅ | ☐ |
-| 6.3 | Parcours en 3 taps | Type → gravité → confirmer position | Pas de saisie de rayon (déduit du type) | ✅ | ☐ |
-| 6.4 | Couleur du CTA selon gravité | Changer la gravité dans le formulaire | Le CTA change de couleur (jaune/orange/rouge) | ✅ | ☐ |
-| 6.5 | Détection de doublon | Signaler un incident à < 150 m d'un incident compatible | « Un incident similaire est déjà signalé ici. Confirmer ? » | ✅ | ☐ |
-| 6.6 | Confirmer un incident | Fiche incident → « Je le vois aussi » | Compteur de signalements incrémenté | ✅ | ☐ |
-| 6.7 | Résoudre un incident | Fiche incident → « C'est terminé » | Compteur `clear_count` incrémenté | ✅ | ☐ |
+| 6.1 | Lecture des alertes | Onglet Alertes | Liste des alertes à proximité | ✅ | ✅ |
+| 6.2 | **Créer une alerte en Gratuit** | Alertes → FAB → parcours de signalement | **Aucun paywall.** Alerte créée en 3 taps max | ✅ | ✅ |
+| 6.3 | Parcours en 3 taps | Type → gravité → confirmer position | Pas de saisie de rayon (déduit du type) | ✅ | ✅ |
+| 6.4 | Couleur du CTA selon gravité | Changer la gravité dans le formulaire | Le CTA change de couleur (jaune/orange/rouge) | ✅ | ✅ |
+| 6.5 | Détection de doublon | Signaler un incident à < 150 m d'un incident compatible | « Un incident similaire est déjà signalé ici. Confirmer ? » | ✅ | ✅ |
+| 6.6 | Confirmer un incident | Fiche incident → « Je le vois aussi » | Compteur de signalements incrémenté | ✅ | ✅ |
+| 6.7 | Résoudre un incident | Fiche incident → « C'est terminé » | Compteur `clear_count` incrémenté | ✅ | ✅ |
 | 6.8 | Signaler un abus | Fiche incident → signaler | Signalement enregistré | ✅ | ☐ |
 | 6.9 | Indicateur de fiabilité | Incident à 1 signalement vs 3+ | « non confirmé » vs « confirmé » | ✅ | ☐ |
 | 6.10 | Wording non anxiogène | Parcourir les écrans d'alerte | Jamais « danger », « trajet dangereux », « sécurisé » (§6.7) | ✅ | ☐ |
@@ -283,13 +283,13 @@ Trois options, de la plus simple à la plus fiable :
 
 | # | Test | Étapes | Résultat attendu | Statut | OK ? |
 |---|---|---|---|---|---|
-| 8.1 | Barre de recherche | Onglet Carte | Barre « Où vas-tu ? » sous le header — **pas de 4ᵉ onglet** | ✅ | ☐ |
-| 8.2 | Autocomplétion | Saisir 3+ caractères | Suggestions après debounce ~300 ms | ✅ | ☐ |
-| 8.3 | Départ pré-rempli | Ouvrir la recherche | « Ma position », modifiable | ✅ | ☐ |
-| 8.4 | Inversion départ/arrivée | Bouton ⇅ | Les deux champs s'échangent | ✅ | ☐ |
+| 8.1 | Barre de recherche | Onglet Carte | Barre « Où vas-tu ? » sous le header — **pas de 4ᵉ onglet** | ✅ | ✅ |
+| 8.2 | Autocomplétion | Saisir 3+ caractères | Suggestions après debounce ~300 ms | ✅ | ✅ |
+| 8.3 | Départ pré-rempli | Ouvrir la recherche | « Ma position », modifiable | ✅ | ✅ |
+| 8.4 | Inversion départ/arrivée | Bouton ⇅ | Les deux champs s'échangent | ✅ | ✅ |
 | 8.5 | Mode de transport | Segmenté 🚗 / 🚶 / 🛵 | Le mode change le calcul | ✅ | ☐ |
-| 8.6 | **Calcul d'itinéraire** | Lancer un trajet | Tracé affiché en teal + durée + distance + ETA | ✅ | ☐ |
-| 8.7 | **Itinéraires alternatifs** | Voir les alternatives | Jusqu'à 3, libellés « via ... » issus de `routeLabels` | ✅ | ☐ |
+| 8.6 | **Calcul d'itinéraire** | Lancer un trajet | Tracé affiché en teal + durée + distance + ETA | ✅ | ✅ |
+| 8.7 | **Itinéraires alternatifs** | Voir les alternatives | Jusqu'à 3, libellés « via ... » issus de `routeLabels` | ✅ | ✅ |
 | 8.8 | Trajet sans incident | Trajet dans une zone sans alerte | Aucun bandeau, **1 seul appel** au moteur | ✅ | ☐ |
 | 8.9 | **Avertissement avant départ** | Trajet passant près d'un incident actif | Bandeau incident + boutons « Contourner » / « Continuer » | ✅ | ☐ |
 | 8.10 | **Contournement gravité Élevé** | Contourner un incident 🔴, **répéter 5+ fois** | **Jamais bloqué, illimité** — même en Gratuit (§10.3b) | ✅ | ☐ |

@@ -1,4 +1,5 @@
 import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as permission_handler;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PermissionsService {
@@ -131,7 +132,7 @@ class PermissionsService {
 
   /// Ouvre les paramètres de l'application
   static Future<void> openAppSettings() async {
-    await openAppSettings();
+    await permission_handler.openAppSettings();
   }
 
   /// Vérifie si toutes les permissions critiques sont accordées

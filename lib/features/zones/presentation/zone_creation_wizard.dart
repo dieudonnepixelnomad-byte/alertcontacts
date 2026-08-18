@@ -9,7 +9,8 @@ import '../../../core/models/places_autocomplete.dart';
 import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/paywall_trigger_service.dart';
 import '../../../core/services/places_service.dart';
-import '../../../features/paywall/presentation/paywall_page.dart';
+import '../../../core/services/prefs_service.dart';
+import '../../paywall/presentation/paywall_page.dart';
 import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../theme/colors.dart';
 import '../providers/zones_notifier.dart';
@@ -100,7 +101,20 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
                 nameController: _nameController,
                 selectedIcon: _selectedIcon,
                 icons: _icons,
-                onIconSelected: (icon) => setState(() => _selectedIcon = icon),
+                onIconSelected: (icon) {
+                  final suggestedName = _icons
+                      .firstWhere((entry) => entry.$1 == icon)
+                      .$3;
+                  setState(() {
+                    _selectedIcon = icon;
+                    _nameController.value = TextEditingValue(
+                      text: suggestedName,
+                      selection: TextSelection.collapsed(
+                        offset: suggestedName.length,
+                      ),
+                    );
+                  });
+                },
                 saving: _saving,
                 onSubmit: _submit,
               ),
@@ -118,10 +132,11 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
 
     final notifier = context.read<ZonesNotifier>();
 
-    if (PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
+    final profile = await PrefsService().getUserProfile();
+    if (profile?.isPaidTier != true &&
+        PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
       if (!mounted) return;
-      await Navigator.push(
-        context,
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => const PaywallPage(trigger: 'zone_limit'),
         ),

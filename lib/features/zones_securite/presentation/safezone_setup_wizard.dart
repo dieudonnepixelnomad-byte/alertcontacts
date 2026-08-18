@@ -6,10 +6,12 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/models/safe_zone.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/subscription_service.dart';
 import '../../../features/alertes/services/permissions_manager_service.dart';
 import '../../../core/repositories/safezone_repository.dart';
 import '../../../core/errors/auth_exceptions.dart';
 import '../../../theme/colors.dart';
+import '../../paywall/presentation/paywall_page.dart';
 import 'widgets/zone_name_icon_step.dart';
 import 'widgets/zone_place_radius_step.dart';
 class SafeZoneSetupWizard extends StatefulWidget {
@@ -75,6 +77,24 @@ class _SafeZoneSetupWizardState extends State<SafeZoneSetupWizard> {
     setState(() => _isCreating = true);
 
     try {
+      final profile = await PrefsService().getUserProfile();
+      if (profile?.isPaidTier != true && !SubscriptionService.instance.isPremium) {
+        // Contrôle secondaire en cas d'accès direct au wizard ; le backend
+        // refait impérativement ce contrôle pour les appels concurrents.
+        final existingZones = await _repo.getSafeZones(forceRefresh: true);
+        if (existingZones.isNotEmpty) {
+          if (mounted) {
+            setState(() => _isCreating = false);
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const PaywallPage(trigger: 'zone_limit'),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       final zone = SafeZone(
         id: '', // L'ID sera généré par le backend
         name: _name,

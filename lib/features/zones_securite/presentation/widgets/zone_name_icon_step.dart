@@ -128,8 +128,19 @@ class _ZoneNameIconStepState extends State<ZoneNameIconStep> {
 
               return GestureDetector(
                 onTap: () {
-                  setState(() => _iconKey = key);
-                  widget.onChanged(_ctrl.text, _iconKey);
+                  final suggestedName = iconData['label'] as String;
+                  setState(() {
+                    _iconKey = key;
+                    // L'icône représente aussi le choix de lieu : le nom est
+                    // prérempli, mais reste ensuite librement modifiable.
+                    _ctrl.value = TextEditingValue(
+                      text: suggestedName,
+                      selection: TextSelection.collapsed(
+                        offset: suggestedName.length,
+                      ),
+                    );
+                  });
+                  widget.onChanged(suggestedName, _iconKey);
                 },
                 child: Container(
                   decoration: BoxDecoration(

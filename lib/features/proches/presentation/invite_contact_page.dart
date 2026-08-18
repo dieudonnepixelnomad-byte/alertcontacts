@@ -7,6 +7,9 @@ import '../../../core/models/invitation.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/services/api_invitation_service.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../features/paywall/presentation/paywall_page.dart';
+import '../../../core/services/paywall_trigger_service.dart';
+import '../providers/relationship_provider.dart';
 import '../../../theme/colors.dart';
 
 class InviteContactPage extends StatefulWidget {
@@ -21,6 +24,7 @@ class _InviteContactPageState extends State<InviteContactPage> {
   final _nameController = TextEditingController();
   bool _isSending = false;
   bool _sent = false;
+  bool _checkingEligibility = true;
   String? _error;
 
   late final ApiInvitationService _invitationService;
@@ -31,11 +35,44 @@ class _InviteContactPageState extends State<InviteContactPage> {
     _invitationService =
         Provider.of<ApiInvitationService>(context, listen: false);
     _initAuth();
+    _checkEligibility();
   }
 
   Future<void> _initAuth() async {
     final token = await _prefs.getBearerToken();
     if (token != null) _invitationService.setAuthToken(token);
+  }
+
+  /// Protège aussi l'accès direct à la route /proches/add. Ainsi, tous les
+  /// boutons et les liens internes passent par la même règle avant d'afficher
+  /// le formulaire d'invitation.
+  Future<void> _checkEligibility() async {
+    try {
+      final profile = await _prefs.getUserProfile();
+
+      if (profile?.isPaidTier != true) {
+        final relationships = context.read<RelationshipProvider>();
+        await relationships.initialize();
+        await relationships.loadRelationships();
+
+        if (PaywallTriggerService.checkContactLimit(
+          relationships.acceptedRelationships.length,
+        )) {
+          if (!mounted) return;
+          await Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+            ),
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      // Une indisponibilité réseau ne doit pas bloquer l'écran. L'API refuse
+      // tout de même l'invitation si la limite est effectivement atteinte.
+    }
+
+    if (mounted) setState(() => _checkingEligibility = false);
   }
 
   @override
@@ -82,6 +119,16 @@ class _InviteContactPageState extends State<InviteContactPage> {
     } catch (e) {
       log('InviteContactPage error: $e');
       if (mounted) {
+        if (e is SubscriptionLimitException) {
+          setState(() => _isSending = false);
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+            ),
+          );
+          return;
+        }
         setState(() {
           _isSending = false;
           _error = 'Impossible d\'envoyer l\'invitation. Réessaie.';
@@ -92,6 +139,12 @@ class _InviteContactPageState extends State<InviteContactPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingEligibility) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 

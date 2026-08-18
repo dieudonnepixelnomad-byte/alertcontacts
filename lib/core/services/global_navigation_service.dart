@@ -9,6 +9,7 @@ import '../../features/app_shell/providers/navigation_provider.dart';
 class GlobalNavigationService {
   static BuildContext? _context;
   static NavigationProvider? _navigationProvider;
+  static Map<String, dynamic>? _pendingNotificationData;
 
   /// Définit le contexte global pour la navigation
   static void setContext(BuildContext context) {
@@ -18,12 +19,17 @@ class GlobalNavigationService {
   /// Définit le provider de navigation
   static void setNavigationProvider(NavigationProvider provider) {
     _navigationProvider = provider;
+    final pendingData = _pendingNotificationData;
+    if (pendingData != null) {
+      _pendingNotificationData = null;
+      Future.microtask(() => handleNotificationData(pendingData));
+    }
   }
 
   /// Naviguer vers l'onglet des proches depuis une notification
   static Future<void> navigateToProches() async {
-    if (_context == null || _navigationProvider == null) {
-      debugPrint('❌ Contexte global ou provider non défini pour la navigation');
+    if (_navigationProvider == null) {
+      debugPrint('❌ NavigationProvider non défini pour la navigation');
       return;
     }
 
@@ -34,6 +40,30 @@ class GlobalNavigationService {
     } catch (e) {
       debugPrint('❌ Erreur lors de la navigation vers les proches: $e');
     }
+  }
+
+  /// Naviguer vers l'onglet des alertes depuis une notification.
+  static Future<void> navigateToAlertes() async {
+    if (_navigationProvider == null) {
+      debugPrint('❌ NavigationProvider non défini pour la navigation');
+      return;
+    }
+
+    _navigationProvider!.goToAlertes();
+    debugPrint('✅ Navigation vers l\'onglet des alertes réussie');
+  }
+
+  /// Ouvre l'onglet Carte et centre sa caméra sur une position précise.
+  ///
+  /// Ce point d'entrée est aussi utilisable depuis une route poussée au-dessus
+  /// de l'AppShell, dont le BuildContext ne contient pas NavigationProvider.
+  static void navigateToMapLocation({required double lat, required double lng}) {
+    if (_navigationProvider == null) {
+      debugPrint('❌ NavigationProvider non défini pour la navigation vers la carte');
+      return;
+    }
+
+    _navigationProvider!.focusLocation(lat: lat, lng: lng);
   }
 
   /// Gérer la navigation basée sur le payload de notification
@@ -58,19 +88,33 @@ class GlobalNavigationService {
         debugPrint('⚠️ Impossible de parser le payload comme JSON: $e');
       }
 
-      // Vérifier s'il y a une instruction de navigation
-      final navigateTo = data['navigate_to'] as String?;
-      
-      switch (navigateTo) {
-        case 'proches':
-          await navigateToProches();
-          break;
-        default:
-          debugPrint('ℹ️ Aucune instruction de navigation spécifique trouvée');
-          break;
-      }
+      await handleNotificationData(data);
     } catch (e) {
       debugPrint('❌ Erreur lors de la gestion de la navigation: $e');
+    }
+  }
+
+  /// Traite directement les données FCM, y compris si l'app n'a pas encore
+  /// construit son AppShell (cas d'un lancement depuis une notification).
+  static Future<void> handleNotificationData(Map<String, dynamic> data) async {
+    if (_navigationProvider == null) {
+      _pendingNotificationData = Map<String, dynamic>.from(data);
+      debugPrint('ℹ️ Navigation de notification différée : AppShell indisponible');
+      return;
+    }
+
+    switch (data['navigate_to'] as String?) {
+      case 'proches':
+        await navigateToProches();
+        break;
+      case 'alertes':
+      // Il n'existe pas de page autonome de prévisualisation sans une recherche
+      // d'itinéraire. L'onglet Alertes est la destination utile de repli.
+      case 'route_preview':
+        await navigateToAlertes();
+        break;
+      default:
+        debugPrint('ℹ️ Aucune instruction de navigation spécifique trouvée');
     }
   }
 }

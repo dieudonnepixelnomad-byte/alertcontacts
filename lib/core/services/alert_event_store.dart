@@ -68,10 +68,10 @@ class AlertEventStore extends ChangeNotifier {
 
   int get retentionHours => _retentionHours;
 
-  /// Ajuste la fenêtre selon le tier de l'utilisateur ('free' | 'solo' | 'famille').
+  /// Ajuste la fenêtre selon le tier de l'utilisateur ('free' | 'premium').
   /// À appeler dès que le profil est connu, et à chaque changement d'abonnement.
   void applyTier(String tier) {
-    final hours = (tier == 'solo' || tier == 'famille')
+    final hours = tier == 'premium'
         ? paidRetentionHours
         : freeRetentionHours;
     if (hours == _retentionHours) return;

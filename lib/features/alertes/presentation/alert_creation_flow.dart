@@ -162,9 +162,13 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primaryLight : AppColors.gray100,
+                    color: selected
+                        ? AppColors.primaryLight
+                        : AppColors.gray100,
                     borderRadius: BorderRadius.circular(10),
-                    border: selected ? Border.all(color: AppColors.primary) : null,
+                    border: selected
+                        ? Border.all(color: AppColors.primary)
+                        : null,
                   ),
                   child: Row(
                     children: [
@@ -178,8 +182,12 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
                         child: Text(
                           type.label,
                           style: tt.bodySmall?.copyWith(
-                            color: selected ? AppColors.primary : AppColors.gray600,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.gray600,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -207,7 +215,10 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
               child: GestureDetector(
                 onTap: () => setState(() => _severity = severity),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: selected
                         ? severity.color.withValues(alpha: 0.1)
@@ -227,12 +238,18 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
                           severity.label,
                           style: tt.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: selected ? severity.color : AppColors.gray900,
+                            color: selected
+                                ? severity.color
+                                : AppColors.gray900,
                           ),
                         ),
                       ),
                       if (selected)
-                        Icon(Icons.check_circle, color: severity.color, size: 20),
+                        Icon(
+                          Icons.check_circle,
+                          color: severity.color,
+                          size: 20,
+                        ),
                     ],
                   ),
                 ),
@@ -291,7 +308,11 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on, color: AppColors.danger, size: 20),
+                  const Icon(
+                    Icons.location_on,
+                    color: AppColors.danger,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   _loadingLocation
                       ? const SizedBox(
@@ -305,13 +326,19 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
                       : Expanded(
                           child: Text(
                             _pickedAddress,
-                            style: tt.bodyMedium?.copyWith(color: AppColors.gray900),
+                            style: tt.bodyMedium?.copyWith(
+                              color: AppColors.gray900,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.edit_outlined, size: 16, color: AppColors.gray400),
+                  const Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: AppColors.gray400,
+                  ),
                 ],
               ),
             ),
@@ -329,7 +356,7 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
             decoration: InputDecoration(
               hintText: 'Ce que tu as vu, en quelques mots',
               filled: true,
-              fillColor: AppColors.gray100,
+              fillColor: AppColors.gray600,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -389,9 +416,13 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
         perm = await Geolocator.requestPermission();
       }
 
-      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
+      if (perm == LocationPermission.deniedForever ||
+          perm == LocationPermission.denied) {
         if (mounted) {
-          setState(() => _pickedAddress = 'Position non disponible — appuie pour choisir');
+          setState(
+            () => _pickedAddress =
+                'Position non disponible — appuie pour choisir',
+          );
         }
         return;
       }
@@ -414,8 +445,10 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
         _pickedAddress = 'Chargement adresse…';
       });
 
-      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
-          .timeout(const Duration(seconds: 8));
+      final placemarks = await placemarkFromCoordinates(
+        pos.latitude,
+        pos.longitude,
+      ).timeout(const Duration(seconds: 8));
 
       if (!mounted) return;
 
@@ -428,7 +461,9 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
         ];
 
         setState(() {
-          _pickedAddress = parts.isNotEmpty ? parts.join(', ') : 'Position actuelle';
+          _pickedAddress = parts.isNotEmpty
+              ? parts.join(', ')
+              : 'Position actuelle';
         });
       } else {
         setState(() {
@@ -440,7 +475,9 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
       log('[AlertCreationFlow] localisation: $e');
 
       if (mounted) {
-        setState(() => _pickedAddress = 'Position indisponible — appuie pour choisir');
+        setState(
+          () => _pickedAddress = 'Position indisponible — appuie pour choisir',
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
@@ -524,14 +561,19 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
 
         AnalyticsService().logCommunityAlertConfirmed();
         Navigator.pop(context);
-        _snack('Merci — ton témoignage renforce cette alerte.', AppColors.success);
+        _snack(
+          'Merci — ton témoignage renforce cette alerte.',
+          AppColors.success,
+        );
         return;
       }
     }
 
     try {
       // §4.6 cas 1 — la trace du porteur devient la géométrie de la voie.
-      final trace = _locationPickedManually ? null : GpsTraceRecorder().currentTrace();
+      final trace = _locationPickedManually
+          ? null
+          : GpsTraceRecorder().currentTrace();
 
       await provider.submitReport(
         type: _type,
@@ -605,9 +647,9 @@ class _AlertCreationFlowState extends State<AlertCreationFlow> {
   }
 
   void _snack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 }
 

@@ -4,13 +4,19 @@ import 'package:provider/provider.dart';
 import '../../../theme/colors.dart';
 import '../../../core/models/zone.dart';
 import '../../../core/models/contact_relation.dart';
+import '../../../core/services/paywall_trigger_service.dart';
+import '../../../core/services/prefs_service.dart';
+import '../../paywall/presentation/paywall_page.dart';
 import '../providers/zones_notifier.dart';
 import '../../proches/providers/relationship_provider.dart';
 import 'zone_creation_wizard.dart';
 import 'assign_contacts_sheet.dart';
 
 class ZonesPanel extends StatefulWidget {
-  const ZonesPanel({super.key});
+  /// Called after the panel has closed so the map behind it can focus the zone.
+  final ValueChanged<Zone>? onViewOnMap;
+
+  const ZonesPanel({super.key, this.onViewOnMap});
 
   @override
   State<ZonesPanel> createState() => _ZonesPanelState();
@@ -126,6 +132,7 @@ class _ZonesPanelState extends State<ZonesPanel> {
                                       itemBuilder: (_, i) => _ZoneRow(
                                         zone: safeZones[i],
                                         contacts: contacts,
+                                        onViewOnMap: _showZoneOnMap,
                                       ),
                                     ),
                     ),
@@ -147,12 +154,35 @@ class _ZonesPanelState extends State<ZonesPanel> {
     );
   }
 
-  void _openCreationWizard(BuildContext context) {
+  Future<void> _openCreationWizard(BuildContext context) async {
+    final profile = await PrefsService().getUserProfile();
+    final notifier = context.read<ZonesNotifier>();
+
+    if (profile?.isPaidTier != true &&
+        PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const PaywallPage(trigger: 'zone_limit'),
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
     Navigator.pop(context);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ZoneCreationWizard()),
     );
+  }
+
+  void _showZoneOnMap(Zone zone) {
+    // The panel is a dialog over the map. Close it before moving the camera so
+    // the user lands directly on the selected zone rather than on an overlay.
+    Navigator.of(context).pop();
+    widget.onViewOnMap?.call(zone);
   }
 }
 
@@ -161,8 +191,13 @@ class _ZonesPanelState extends State<ZonesPanel> {
 class _ZoneRow extends StatelessWidget {
   final Zone zone;
   final List<ContactRelation> contacts;
+  final ValueChanged<Zone> onViewOnMap;
 
-  const _ZoneRow({required this.zone, required this.contacts});
+  const _ZoneRow({
+    required this.zone,
+    required this.contacts,
+    required this.onViewOnMap,
+  });
 
   static const _iconMap = {
     'home':     (Icons.home_rounded,          Color(0xFFFFEBEE), Color(0xFFE53935)),
@@ -251,14 +286,14 @@ class _ZoneRow extends StatelessWidget {
     );
   }
 
-  void _openAssignSheet(BuildContext context) {
+  Future<void> _openAssignSheet(BuildContext context) async {
     final zonesNotifier = context.read<ZonesNotifier>();
     final relProvider = context.read<RelationshipProvider>();
     log('[ZonesPanel] opening assign sheet for zone: ${zone.id} "${zone.name}"');
     log('[ZonesPanel] relProvider hashCode: ${relProvider.hashCode}');
     log('[ZonesPanel] acceptedRelationships count: ${relProvider.acceptedRelationships.length}');
     log('[ZonesPanel] contacts: ${relProvider.acceptedRelationships.map((c) => "${c.contact.id}:${c.contact.name}").toList()}');
-    showModalBottomSheet(
+    final action = await showModalBottomSheet<ZoneSheetAction>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -272,6 +307,58 @@ class _ZoneRow extends StatelessWidget {
         child: AssignContactsSheet(zone: zone),
       ),
     );
+
+    if (!context.mounted || action == null) return;
+
+    switch (action) {
+      case ZoneSheetAction.viewOnMap:
+        onViewOnMap(zone);
+        return;
+      case ZoneSheetAction.delete:
+        await _confirmAndDelete(context, zonesNotifier);
+        return;
+    }
+  }
+
+  Future<void> _confirmAndDelete(
+    BuildContext context,
+    ZonesNotifier zonesNotifier,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Supprimer cette zone ?'),
+        content: Text(
+          '« ${zone.name} » sera supprimée, ainsi que ses '
+          'liaisons avec vos proches. Vos proches ne seront pas supprimés.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final deleted = await zonesNotifier.deleteZone(zone);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted
+              ? 'Zone « ${zone.name} » supprimée et proches dissociés.'
+              : 'Impossible de supprimer la zone. Réessayez.',
+        ),
+      ),
+    );
   }
 
   String get _subtitle {
@@ -281,6 +368,7 @@ class _ZoneRow extends StatelessWidget {
     return radius;
   }
 }
+
 
 // ─── Members Row ─────────────────────────────────────────────────────────────
 

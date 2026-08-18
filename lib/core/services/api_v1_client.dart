@@ -77,6 +77,14 @@ class ApiV1Client {
     return _unwrap(response, 'POST $path');
   }
 
+  Future<dynamic> delete(String path) async {
+    final response = await _client
+        .delete(Uri.parse('$_baseUrl$path'), headers: _headers)
+        .timeout(_timeout);
+
+    return _unwrap(response, 'DELETE $path');
+  }
+
   /// Déballe l'enveloppe `{status: ok, data: ...}` et traduit les erreurs.
   dynamic _unwrap(http.Response response, String context) {
     final status = response.statusCode;

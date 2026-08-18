@@ -29,7 +29,7 @@ class AvoidanceQuota {
   final int limit;
   final String tier;
 
-  bool get isPaid => tier == 'solo' || tier == 'famille';
+  bool get isPaid => tier == 'premium';
 
   int get remaining => isPaid ? -1 : (limit - used).clamp(0, limit);
 

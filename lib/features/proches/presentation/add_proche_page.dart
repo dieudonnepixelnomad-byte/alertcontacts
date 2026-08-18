@@ -11,6 +11,7 @@ import '../../../core/services/api_safezone_service.dart';
 import '../../../core/services/api_invitation_service.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/errors/auth_exceptions.dart';
+import '../../../features/paywall/presentation/paywall_page.dart';
 
 import '../../../core/config/api_config.dart';
 
@@ -102,6 +103,16 @@ class _InviteProchePageState extends State<InviteProchePage> {
         _isLoadingZones = false;
       });
     } catch (e) {
+      if (e is SubscriptionLimitException && mounted) {
+        setState(() => _isGeneratingInvitation = false);
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+          ),
+        );
+        return;
+      }
       setState(() {
         _isLoadingZones = false;
         _errorMessage = 'Erreur lors du chargement des zones: $e';

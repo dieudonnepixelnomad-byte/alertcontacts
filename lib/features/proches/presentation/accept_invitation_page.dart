@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/api_invitation_service.dart';
+import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../router/app_router.dart';
@@ -108,6 +109,15 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
     } catch (e) {
       if (!mounted) return;
       setState(() => _accepting = false);
+      if (e is SubscriptionLimitException) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaywallPage(trigger: 'contact_limit'),
+          ),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_parseError(e)),
@@ -126,6 +136,7 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
     if (e is InvitationNotFoundException) return 'Lien invalide ou expiré.';
     if (e is InvitationExpiredException) return 'Ce lien a expiré. Demandez un nouveau.';
     if (e is RelationAlreadyExistsException) return 'Vous êtes déjà connecté(e) à cette personne.';
+    if (e is SubscriptionLimitException) return e.message;
     return 'Une erreur s\'est produite. Réessayez.';
   }
 

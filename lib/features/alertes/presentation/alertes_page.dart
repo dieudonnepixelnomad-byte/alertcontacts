@@ -9,6 +9,7 @@ import '../../../theme/colors.dart';
 import '../providers/alert_provider.dart';
 import 'alert_creation_flow.dart';
 import 'alert_detail_page.dart';
+import 'my_community_alerts_page.dart';
 
 enum _AlertFilter { all, contacts, zones, community }
 
@@ -133,6 +134,7 @@ class _AlertesPageState extends State<AlertesPage> {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Consumer<AlertProvider>(
       builder: (context, provider, _) {
@@ -153,6 +155,16 @@ class _AlertesPageState extends State<AlertesPage> {
                     child: Row(
                       children: [
                         Expanded(child: Text('Alertes', style: tt.titleLarge)),
+                        IconButton(
+                          key: const Key('my_community_alerts_button'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const MyCommunityAlertsPage(),
+                            ),
+                          ),
+                          icon: const Icon(Icons.person_outline),
+                          tooltip: 'Mes alertes',
+                        ),
                         if (unread > 0)
                           TextButton(
                             onPressed: () => _markAllRead(provider),
@@ -192,12 +204,12 @@ class _AlertesPageState extends State<AlertesPage> {
                               decoration: BoxDecoration(
                                 color: selected
                                     ? AppColors.primary
-                                    : Colors.white,
+                                    : cs.surface,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: selected
                                       ? AppColors.primary
-                                      : AppColors.gray200,
+                                      : cs.outlineVariant,
                                 ),
                               ),
                               child: Text(
@@ -205,7 +217,7 @@ class _AlertesPageState extends State<AlertesPage> {
                                 style: tt.bodySmall?.copyWith(
                                   color: selected
                                       ? Colors.white
-                                      : AppColors.gray600,
+                                      : cs.onSurfaceVariant,
                                   fontWeight: selected
                                       ? FontWeight.w600
                                       : FontWeight.w400,
@@ -395,6 +407,8 @@ class _AlertTile extends StatelessWidget {
     final isRead = data['read'] as bool;
     final gravity = data['gravity'] as String?;
     final type = data['type'] as String;
+    final cs = Theme.of(context).colorScheme;
+    final foreground = isRead ? cs.onSurface : cs.onPrimaryContainer;
 
     return GestureDetector(
       onTap: onTap,
@@ -402,12 +416,12 @@ class _AlertTile extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isRead ? Colors.white : AppColors.primaryLight,
+          color: isRead ? cs.surface : cs.primaryContainer,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isRead
-                ? AppColors.gray200
-                : AppColors.primary.withValues(alpha: 0.2),
+                ? cs.outlineVariant
+                : cs.primary.withValues(alpha: 0.45),
           ),
         ),
         child: Row(
@@ -422,6 +436,7 @@ class _AlertTile extends StatelessWidget {
                   Text(
                     data['title'] as String,
                     style: tt.bodyMedium?.copyWith(
+                      color: foreground,
                       fontWeight: isRead
                           ? FontWeight.w400
                           : FontWeight.w600,
@@ -431,7 +446,7 @@ class _AlertTile extends StatelessWidget {
                   Text(
                     data['subtitle'] as String,
                     style: tt.labelMedium
-                        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ?.copyWith(color: foreground.withValues(alpha: 0.72)),
                   ),
                 ],
               ),

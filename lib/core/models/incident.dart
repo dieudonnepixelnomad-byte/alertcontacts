@@ -28,6 +28,7 @@ class Incident {
     required this.confidenceScore,
     required this.affectsRouting,
     required this.status,
+    this.expiredByTimeout = false,
     this.expiresAt,
     this.createdAt,
     this.geometryType,
@@ -55,6 +56,7 @@ class Incident {
   final bool affectsRouting;
 
   final IncidentStatus status;
+  final bool expiredByTimeout;
   final DateTime? expiresAt;
   final DateTime? createdAt;
 
@@ -65,6 +67,12 @@ class Incident {
   final int? dangerBufferM;
 
   gmaps.LatLng get position => gmaps.LatLng(lat, lng);
+
+  /// Protection côté client : une réponse ou un cache périmé ne doit jamais
+  /// maintenir une alerte sur la carte après son heure d'expiration.
+  bool get isExpired => expiresAt != null && !expiresAt!.isAfter(DateTime.now());
+
+  bool get isLive => status.isLive && !isExpired;
 
   /// Indicateur de fiabilité affiché sur la fiche — §6.5.
   /// 1 signalement → « non confirmé », 3+ → « confirmé ».
@@ -91,6 +99,7 @@ class Incident {
       confidenceScore: (json['confidence_score'] as num?)?.toDouble() ?? 0,
       affectsRouting: json['affects_routing'] as bool? ?? false,
       status: IncidentStatus.fromValue(json['status'] as String?),
+      expiredByTimeout: json['expired_by_timeout'] as bool? ?? false,
       expiresAt: _parseDate(json['expires_at']),
       createdAt: _parseDate(json['created_at']),
       geometryType: json['geometry_type'] as String?,
@@ -124,6 +133,7 @@ class Incident {
     int? clearCount,
     bool? affectsRouting,
     IncidentStatus? status,
+    bool? expiredByTimeout,
   }) {
     return Incident(
       id: id,
@@ -138,6 +148,7 @@ class Incident {
       confidenceScore: confidenceScore,
       affectsRouting: affectsRouting ?? this.affectsRouting,
       status: status ?? this.status,
+      expiredByTimeout: expiredByTimeout ?? this.expiredByTimeout,
       expiresAt: expiresAt,
       createdAt: createdAt,
       geometryType: geometryType,

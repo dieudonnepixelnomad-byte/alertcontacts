@@ -49,6 +49,14 @@ class ApiInvitationService implements InvitationServiceInterface {
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
       return Invitation.fromCreateResponse(data['data']['invitation']);
+    } else if (response.statusCode == 403) {
+      final error = jsonDecode(response.body);
+      if (error['message'] == 'SUBSCRIPTION_LIMIT_REACHED') {
+        throw SubscriptionLimitException(
+          error['details'] ?? 'La limite de proches est atteinte.',
+        );
+      }
+      throw Exception(error['message'] ?? 'Accès refusé');
     } else {
       final error = jsonDecode(response.body);
       throw Exception(
@@ -127,6 +135,14 @@ class ApiInvitationService implements InvitationServiceInterface {
       throw RelationAlreadyExistsException(
         'Une relation existe déjà entre vous',
       );
+    } else if (response.statusCode == 403) {
+      final error = jsonDecode(response.body);
+      if (error['message'] == 'SUBSCRIPTION_LIMIT_REACHED') {
+        throw SubscriptionLimitException(
+          error['details'] ?? 'La limite de proches est atteinte.',
+        );
+      }
+      throw Exception(error['message'] ?? 'Accès refusé');
     } else {
       final error = jsonDecode(response.body);
       throw Exception(
@@ -217,3 +233,7 @@ class RelationAlreadyExistsException implements Exception {
   RelationAlreadyExistsException(this.message);
 }
 
+class SubscriptionLimitException implements Exception {
+  final String message;
+  SubscriptionLimitException(this.message);
+}

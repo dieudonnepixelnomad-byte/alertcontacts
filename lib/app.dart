@@ -53,6 +53,7 @@ import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
 import 'package:alertcontacts/core/services/contact_rtdb_service.dart';
 import 'package:alertcontacts/core/services/device_info_service.dart';
+import 'package:alertcontacts/core/services/subscription_service.dart';
 import 'package:alertcontacts/core/providers/map_type_notifier.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -234,6 +235,16 @@ class _AlertContactAppState extends State<AlertContactApp> {
               DeepLinkService.initialize(_router, authNotifier: authNotifier);
             });
             return authNotifier;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthNotifier, SubscriptionService>(
+          create: (_) => SubscriptionService.instance,
+          update: (context, authNotifier, subscriptionService) {
+            final firebaseUid = authNotifier.isAuthenticated
+                ? context.read<FirebaseAuthService>().currentUser?.uid
+                : null;
+            subscriptionService?.syncAppUserId(firebaseUid);
+            return subscriptionService ?? SubscriptionService.instance;
           },
         ),
         ChangeNotifierProvider<ZonesNotifier>(

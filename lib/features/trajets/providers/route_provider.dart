@@ -47,6 +47,18 @@ class RouteProvider extends ChangeNotifier {
 
   List<RouteIncidentHit> get incidentsOnRoute => _preview?.incidentsOnRoute ?? const [];
   bool get hasIncidents => incidentsOnRoute.isNotEmpty;
+  List<RouteIncidentHit> get avoidableIncidents =>
+      incidentsOnRoute.where((hit) => hit.incident.affectsRouting).toList();
+  bool get hasAvoidableIncidents => avoidableIncidents.isNotEmpty;
+
+  /// Une alerte contournable est prioritaire dans le bandeau. Toutes les
+  /// alertes restent néanmoins visibles sur la carte de l'itinéraire.
+  RouteIncidentHit? get primaryIncidentHit {
+    for (final hit in incidentsOnRoute) {
+      if (hit.incident.affectsRouting) return hit;
+    }
+    return incidentsOnRoute.isEmpty ? null : incidentsOnRoute.first;
+  }
 
   /// Le tracé actuellement affiché sur la carte.
   List<gmaps.LatLng> get activePoints =>

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 
-class FocusContactRequest {
-  final String uid;
+class MapFocusRequest {
   final double lat;
   final double lng;
-  FocusContactRequest({required this.uid, required this.lat, required this.lng});
+  const MapFocusRequest({required this.lat, required this.lng});
 }
 
 class NavigationProvider extends ChangeNotifier {
   int _currentIndex = 0;
-  FocusContactRequest? _pendingFocus;
+  MapFocusRequest? _pendingFocus;
 
   int get currentIndex => _currentIndex;
-  FocusContactRequest? get pendingFocus => _pendingFocus;
+  MapFocusRequest? get pendingFocus => _pendingFocus;
 
   void setIndex(int index) {
     if (_currentIndex != index) {
@@ -26,7 +25,15 @@ class NavigationProvider extends ChangeNotifier {
   void goToAlertes() => setIndex(2);
 
   void focusContact({required String uid, required double lat, required double lng}) {
-    _pendingFocus = FocusContactRequest(uid: uid, lat: lat, lng: lng);
+    _pendingFocus = MapFocusRequest(lat: lat, lng: lng);
+    _currentIndex = 0;
+    notifyListeners();
+  }
+
+  /// Centre la carte sur une coordonnée qui ne correspond pas nécessairement à
+  /// un proche : incident communautaire, zone, ou résultat de recherche.
+  void focusLocation({required double lat, required double lng}) {
+    _pendingFocus = MapFocusRequest(lat: lat, lng: lng);
     _currentIndex = 0;
     notifyListeners();
   }

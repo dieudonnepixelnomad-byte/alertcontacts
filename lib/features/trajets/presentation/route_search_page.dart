@@ -31,9 +31,18 @@ class RouteSearchResult {
 
 /// Écran de recherche d'itinéraire — CDC V4.1 §6.2
 class RouteSearchPage extends StatefulWidget {
-  const RouteSearchPage({super.key, this.initialOrigin});
+  const RouteSearchPage({
+    super.key,
+    this.initialOrigin,
+    this.initialOriginLabel,
+    this.initialDestination,
+    this.initialDestinationLabel,
+  });
 
   final gmaps.LatLng? initialOrigin;
+  final String? initialOriginLabel;
+  final gmaps.LatLng? initialDestination;
+  final String? initialDestinationLabel;
 
   @override
   State<RouteSearchPage> createState() => _RouteSearchPageState();
@@ -70,6 +79,17 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
     super.initState();
 
     _origin = widget.initialOrigin;
+    _destination = widget.initialDestination;
+    _destinationLabel = widget.initialDestinationLabel;
+
+    if (widget.initialOriginLabel != null) {
+      _originController.text = widget.initialOriginLabel!;
+      _originIsCurrentPosition = widget.initialOriginLabel == 'Ma position';
+    }
+    if (widget.initialDestinationLabel != null) {
+      _destinationController.text = widget.initialDestinationLabel!;
+    }
+
     _resolveCurrentPositionIfNeeded();
 
     // §6.2 — focus automatique sur Arrivée à l'ouverture
@@ -104,7 +124,7 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
             locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
           ).timeout(const Duration(seconds: 8));
 
-      if (mounted) {
+      if (mounted && _originIsCurrentPosition) {
         setState(() => _origin = gmaps.LatLng(position.latitude, position.longitude));
       }
     } catch (_) {
@@ -114,12 +134,23 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
   }
 
   void _onOriginChanged(String value) {
-    _originIsCurrentPosition = false;
+    setState(() {
+      // Le texte peut être modifié après une sélection. Dans ce cas la
+      // coordonnée précédemment choisie ne représente plus ce champ.
+      _origin = null;
+      _originIsCurrentPosition = false;
+    });
     _searchingOrigin = true;
     _onQueryChanged(value);
   }
 
   void _onDestinationChanged(String value) {
+    setState(() {
+      // Évite de calculer un trajet vers une ancienne destination après que
+      // l'utilisateur a modifié son libellé.
+      _destination = null;
+      _destinationLabel = null;
+    });
     _searchingOrigin = false;
     _onQueryChanged(value);
   }
@@ -190,8 +221,6 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
       _originController.text = label;
       _predictions = const [];
     });
-
-    _submit();
   }
 
   void _applyDestination(gmaps.LatLng position, String label) {
@@ -201,12 +230,10 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
       _destinationController.text = label;
       _predictions = const [];
     });
-
-    _submit();
   }
 
   void _swap() {
-    if (_destination == null) return;
+    if (_origin == null || _destination == null) return;
 
     setState(() {
       final previousOrigin = _origin;
@@ -236,6 +263,8 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
       transportMode: _transportMode,
     ));
   }
+
+  bool get _canSubmit => _origin != null && _destination != null;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +304,8 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    onPressed: _destination == null ? null : _swap,
+                    key: const Key('route_search_swap_button'),
+                    onPressed: _canSubmit ? _swap : null,
                     icon: const Icon(Icons.swap_vert),
                     tooltip: 'Inverser départ et arrivée',
                   ),
@@ -331,7 +361,20 @@ class _RouteSearchPageState extends State<RouteSearchPage> {
                               ? 'Où veux-tu aller ?'
                               : 'Aucune adresse trouvée.',
                           textColor: colors.onSurfaceVariant,
-                        ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const Key('route_search_submit_button'),
+                  onPressed: _canSubmit ? _submit : null,
+                  icon: const Icon(Icons.alt_route),
+                  label: const Text('Voir les itinéraires'),
+                ),
+              ),
             ),
           ],
         ),

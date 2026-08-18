@@ -2,6 +2,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
 import '../enums/incident_type.dart';
 import '../models/incident.dart';
+import '../models/my_community_report.dart';
 import 'api_v1_client.dart';
 
 /// Résultat de la détection de doublon — CDC V4.1 §6.6
@@ -36,6 +37,21 @@ class ApiIncidentsService {
     final data = await _client.get('/incidents/$id');
 
     return Incident.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Signalements créés par le compte connecté, quelle que soit sa position.
+  Future<List<MyCommunityReport>> getMyReports() async {
+    final data = await _client.get('/reports/mine');
+
+    return (data as List? ?? const [])
+        .map((e) => MyCommunityReport.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Retire le signalement du compte connecté. L'incident agrégé est recalculé
+  /// côté serveur lorsqu'il est aussi porté par d'autres témoignages.
+  Future<void> deleteMyReport(int reportId) async {
+    await _client.delete('/reports/$reportId');
   }
 
   /// Création d'un signalement — §8.2.

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'alert_event_store.dart';
 import 'analytics_service.dart';
+import 'global_navigation_service.dart';
 import 'notification_manager.dart';
 import 'api_auth_service.dart';
 import 'prefs_service.dart';
@@ -23,6 +24,8 @@ class FCMService {
   String? _currentToken;
   String? _bearerToken;
   String? _baseUrl;
+  bool _messageHandlersConfigured = false;
+  bool _initialMessageHandled = false;
 
   /// Initialiser le service FCM
   Future<void> initialize({
@@ -305,6 +308,8 @@ class FCMService {
 
   /// Configurer les handlers de messages FCM
   void _setupMessageHandlers() {
+    if (_messageHandlersConfigured) return;
+
     try {
       log('FCMService: Setting up message handlers...');
 
@@ -314,10 +319,29 @@ class FCMService {
       // Handler pour les interactions avec les notifications
       FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
+      // Cas où l'application était totalement fermée avant le tap utilisateur.
+      _handleInitialMessage();
+
       // Note: Le handler de background est configuré dans main.dart
+      _messageHandlersConfigured = true;
       log('FCMService: Message handlers configured successfully');
     } catch (e) {
       log('FCMService: Error setting up message handlers: $e');
+    }
+  }
+
+  Future<void> _handleInitialMessage() async {
+    if (_initialMessageHandled) return;
+    _initialMessageHandled = true;
+
+    try {
+      final message = await _messaging.getInitialMessage();
+      if (message != null) {
+        log('FCMService: App launched from notification: ${message.messageId}');
+        await _handleNotificationTap(message);
+      }
+    } catch (e) {
+      log('FCMService: Error reading initial notification: $e');
     }
   }
 
@@ -373,7 +397,9 @@ class FCMService {
       if (type == 'route_incident') {
         AnalyticsService().logRouteIncidentNotificationOpened();
       }
-      await _processNotificationMessage(message);
+      await GlobalNavigationService.handleNotificationData(
+        _withNavigationTarget(message.data),
+      );
     } catch (e) {
       log('FCMService: Error handling notification tap: $e');
     }
@@ -432,6 +458,12 @@ class FCMService {
             notificationManager,
           );
           break;
+        case 'invitation':
+        case 'zone_assignment':
+        case 'relationship_removed':
+          log('FCMService: Handling contact notification...');
+          await _handleContactNotification(data, notification, notificationManager);
+          break;
         case 'community_alert':
         // V4.1 §4 — nouveau type émis par NotifyNearbyUsersJob
         case 'community_incident':
@@ -442,6 +474,13 @@ class FCMService {
         case 'route_incident':
           log('FCMService: Handling route incident...');
           await _handleRouteIncident(data, notification, notificationManager);
+          break;
+        case 'test':
+          await notificationManager.sendSimpleNotification(
+            title: notification?.title ?? 'Notification de test',
+            body: notification?.body ?? 'Test reçu',
+            payload: jsonEncode(_withNavigationTarget(data)),
+          );
           break;
         default:
           log('FCMService: Unhandled notification type: ${data['type']}');
@@ -517,6 +556,11 @@ class FCMService {
     NotificationManager notificationManager,
   ) async {
     try {
+      if (!await _shouldProcessSafeZoneMessage(data)) {
+        log('FCMService: Duplicate safe zone push ignored');
+        return;
+      }
+
       // Vérifier que zone_name est valide
       final zoneName = data['zone_name']?.toString().trim();
       if (zoneName == null || zoneName.isEmpty) {
@@ -531,7 +575,7 @@ class FCMService {
       final contactName = data['assigned_user_name'] ?? 'Contact';
 
       // Ne traiter que les sorties de zone
-      if (type != 'safe_zone_exit') {
+      if (type != 'safe_zone_exit' && type != 'safe_zone_exit_reminder') {
         log('FCMService: Ignoring safe zone entry notification');
         return;
       }
@@ -546,6 +590,30 @@ class FCMService {
     } catch (e) {
       log('FCMService: Error handling safe zone alert: $e');
     }
+  }
+
+  /// FCM can redeliver a message, notably after reconnecting. Keep a short
+  /// durable idempotency window so a repeated push cannot replay the local
+  /// notification and the voice alert.
+  static Future<bool> _shouldProcessSafeZoneMessage(
+    Map<String, dynamic> data,
+  ) async {
+    final eventId = data['safe_zone_event_id']?.toString();
+    final type = data['type']?.toString();
+    if (eventId == null || eventId.isEmpty || type == null || type.isEmpty) {
+      return true;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'safe_zone_push_seen_${type}_$eventId';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final previous = prefs.getInt(key);
+    if (previous != null && now - previous < const Duration(minutes: 5).inMilliseconds) {
+      return false;
+    }
+
+    await prefs.setInt(key, now);
+    return true;
   }
 
   /// Traiter une entrée de zone de sécurité
@@ -604,6 +672,33 @@ class FCMService {
     }
   }
 
+  /// Invitation initiale ou affectation à une zone : les deux concernent le
+  /// cercle de proches et doivent rester visibles dans le fil d'alertes.
+  static Future<void> _handleContactNotification(
+    Map<String, dynamic> data,
+    RemoteNotification? notification,
+    NotificationManager notificationManager,
+  ) async {
+    try {
+      final isAssignment = data['type'] == 'zone_assignment';
+      final title = notification?.title ??
+          (isAssignment ? 'Nouvelle zone partagée' : 'Nouvelle invitation');
+      final body = notification?.body ??
+          (isAssignment
+              ? 'Vous avez été ajouté(e) à une zone de sécurité'
+              : 'Un proche vous a envoyé une invitation');
+
+      AlertEventStore().addContactAlert(title: title, subtitle: body);
+      await notificationManager.sendSimpleNotification(
+        title: title,
+        body: body,
+        payload: jsonEncode(_withNavigationTarget(data)),
+      );
+    } catch (e) {
+      log('FCMService: Error handling contact notification: $e');
+    }
+  }
+
   /// Traiter une alerte communautaire reçue via FCM
   /// Le FCM hybride affiche la notification automatiquement — ce handler
   /// sert uniquement à la navigation on tap (onglet Alertes).
@@ -623,8 +718,7 @@ class FCMService {
         title: notification?.title ?? 'Alerte signalée à proximité',
         body: notification?.body ?? 'Touchez pour voir les détails',
         payload: jsonEncode({
-          ...data,
-          'navigate_to': 'alertes',
+          ..._withNavigationTarget(data),
         }),
       );
     } catch (e) {
@@ -652,13 +746,38 @@ class FCMService {
         title: notification?.title ?? '🔴 Alerte sur ta route',
         body: notification?.body ?? 'Touchez pour voir les itinéraires',
         payload: jsonEncode({
-          ...data,
-          'navigate_to': 'route_preview',
+          ..._withNavigationTarget(data),
         }),
       );
     } catch (e) {
       log('FCMService: Error handling route incident: $e');
     }
+  }
+
+  static Map<String, dynamic> _withNavigationTarget(
+    Map<String, dynamic> data,
+  ) {
+    final result = Map<String, dynamic>.from(data);
+    result.putIfAbsent('navigate_to', () {
+      switch (result['type']) {
+        case 'invitation':
+        case 'invitation_response':
+        case 'zone_assignment':
+        case 'relationship_removed':
+          return 'proches';
+        case 'community_alert':
+        case 'community_incident':
+        case 'route_incident':
+        case 'danger_zone_alert':
+        case 'safe_zone_entry':
+        case 'safe_zone_exit':
+        case 'safe_zone_exit_reminder':
+          return 'alertes';
+        default:
+          return null;
+      }
+    });
+    return result;
   }
 
   /// Obtenir le token actuel (getter)

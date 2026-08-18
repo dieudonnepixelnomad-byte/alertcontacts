@@ -9,7 +9,7 @@ class User extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Tier d'abonnement : 'free' | 'solo' | 'famille' (CDC §10.1).
+  /// Tier d'abonnement : 'free' | 'premium'.
   /// Défaut prudent à 'free' quand l'API ne le renvoie pas encore.
   final String tier;
 
@@ -24,7 +24,7 @@ class User extends Equatable {
     this.tier = 'free',
   });
 
-  bool get isPaidTier => tier == 'solo' || tier == 'famille';
+  bool get isPaidTier => tier == 'premium';
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(

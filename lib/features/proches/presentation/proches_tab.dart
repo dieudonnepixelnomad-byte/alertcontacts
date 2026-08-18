@@ -10,6 +10,7 @@ import '../providers/relationship_provider.dart';
 import 'invite_contact_page.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../core/services/paywall_trigger_service.dart';
+import '../../../core/services/prefs_service.dart';
 import '../../../core/services/contact_rtdb_service.dart';
 import '../../../features/zones/providers/zones_notifier.dart';
 import '../../../features/app_shell/providers/navigation_provider.dart';
@@ -151,8 +152,10 @@ class _ProchesTabState extends State<ProchesTab> {
   Future<void> _openInvite() async {
     final provider = context.read<RelationshipProvider>();
     final accepted = provider.acceptedRelationships;
+    final profile = await PrefsService().getUserProfile();
 
-    if (PaywallTriggerService.checkContactLimit(accepted.length)) {
+    if (profile?.isPaidTier != true &&
+        PaywallTriggerService.checkContactLimit(accepted.length)) {
       if (!mounted) return;
       await Navigator.push(
         context,

@@ -38,28 +38,39 @@ class IncidentWarningBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        // §11.2 — couleur de gravité en fond à 10 %
-        color: severityColor.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: severityColor.withValues(alpha: 0.35)),
+        color: const Color(0xFF171A1F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border(left: BorderSide(color: severityColor, width: 5)),
+        boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 14, offset: Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(color: severityColor, shape: BoxShape.circle),
+              child: Center(child: Text(hit.incident.type.emoji, style: const TextStyle(fontSize: 18))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(
+              hit.headline,
+              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+            )),
+          ]),
+          const SizedBox(height: 6),
           Text(
-            hit.headline,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            '${hit.detail} · à ${_formatDistance(hit.distanceFromOriginM)} du départ',
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
-          const SizedBox(height: 4),
-          Text(
+          if (destinationInside) ...[
+            const SizedBox(height: 4),
+            Text(
             destinationInside
                 ? 'Ta destination est dans la zone signalée. Sois prudent à l\'arrivée.'
-                : hit.detail,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+                : '',
+            style: const TextStyle(fontSize: 13, color: Colors.white70),
+          )],
           const SizedBox(height: 12),
           // §11.3 — boutons décisionnels en zone basse du bandeau, pleine largeur
           Row(
@@ -84,6 +95,8 @@ class IncidentWarningBanner extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onContinue,
                   style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
                     minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -98,4 +111,8 @@ class IncidentWarningBanner extends StatelessWidget {
       ),
     );
   }
+
+  static String _formatDistance(int meters) => meters < 1000
+      ? '$meters m'
+      : '${(meters / 1000).toStringAsFixed(1)} km';
 }
