@@ -515,7 +515,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
       final profile = await context.read<PrefsService>().getUserProfile();
       if (profile != null &&
           !profile.isPaidTier &&
-          !SubscriptionService.instance.isPremium) {
+          !SubscriptionService.instance.hasPremiumAccess('invisible_mode')) {
         if (!mounted) return;
         await Navigator.push(
           context,

@@ -28,7 +28,6 @@ class PaywallComparePage extends StatelessWidget {
             price: 'Formules et prix affichés par Google Play',
             color: AppColors.primary,
             features: [
-              '14 jours d’essai gratuit',
               'Proches sans limite',
               'Zones de sécurité sans limite',
               'Historique et alertes étendus',

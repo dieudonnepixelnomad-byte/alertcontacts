@@ -14,6 +14,7 @@ import '../../home_map/presentation/invisible_mode_sheet.dart';
 import '../../paywall/presentation/paywall_page.dart';
 import '../../../router/app_router.dart';
 import 'notification_settings_page.dart';
+import 'subscription_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -36,7 +37,9 @@ class _SettingsPageState extends State<SettingsPage> {
     // est déjà actif, la feuille reste accessible pour reprendre le partage.
     if (!_invisibleActive) {
       final profile = await context.read<PrefsService>().getUserProfile();
-      if (profile != null && !profile.isPaidTier && !SubscriptionService.instance.isPremium) {
+      if (profile != null &&
+          !profile.isPaidTier &&
+          !SubscriptionService.instance.hasPremiumAccess('invisible_mode')) {
         if (!mounted) return;
         await Navigator.push(
           context,
@@ -203,6 +206,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final displayName = user?.name ?? 'Mon compte';
     final email = user?.email ?? '';
     final photoUrl = user?.photoUrl;
+    final subscription = context.watch<SubscriptionService>();
+    final isPremium = subscription.isPremium;
 
     return Scaffold(
       backgroundColor: cs.surfaceContainerLow,
@@ -331,20 +336,27 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SettingsTile(
                   icon: Icons.workspace_premium_outlined,
                   label: 'Mon abonnement',
+                  subtitle: isPremium
+                      ? 'Gerer ou annuler ton abonnement'
+                      : 'Voir les offres Premium',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.orange.withValues(alpha: 0.12),
+                      color: (isPremium ? AppColors.success : AppColors.gray600)
+                          .withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'Premium',
-                      style: tt.labelMedium?.copyWith(color: AppColors.orange, fontWeight: FontWeight.w600),
+                      isPremium ? 'Premium' : 'Free',
+                      style: tt.labelMedium?.copyWith(
+                        color: isPremium ? AppColors.success : AppColors.gray600,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const PaywallPage(trigger: 'settings')),
+                    MaterialPageRoute(builder: (_) => const SubscriptionPage()),
                   ),
                 ),
                 _SettingsTile(

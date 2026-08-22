@@ -1,11 +1,11 @@
 package com.alertcontacts.alertcontacts
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Intent
 
-class MainActivity: FlutterActivity() {
+class MainActivity: FlutterFragmentActivity() {
     private val DEEP_LINK_CHANNEL = "alertcontact/deep_links"
     private var deepLinkMethodChannel: MethodChannel? = null
     private var initialLink: String? = null

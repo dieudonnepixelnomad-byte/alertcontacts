@@ -78,7 +78,8 @@ class _SafeZoneSetupWizardState extends State<SafeZoneSetupWizard> {
 
     try {
       final profile = await PrefsService().getUserProfile();
-      if (profile?.isPaidTier != true && !SubscriptionService.instance.isPremium) {
+      if (profile?.isPaidTier != true &&
+          !SubscriptionService.instance.hasPremiumAccess('unlimited_zones')) {
         // Contrôle secondaire en cas d'accès direct au wizard ; le backend
         // refait impérativement ce contrôle pour les appels concurrents.
         final existingZones = await _repo.getSafeZones(forceRefresh: true);

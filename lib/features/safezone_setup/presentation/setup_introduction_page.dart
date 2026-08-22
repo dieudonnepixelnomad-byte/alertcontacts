@@ -33,7 +33,8 @@ class _SetupIntroductionPageState extends State<SetupIntroductionPage> {
 
     // Un compte gratuit ne doit pas voir le formulaire s'il possède déjà sa
     // zone. Le backend refait le contrôle afin de couvrir les appels directs.
-    if (profile?.isPaidTier != true && !SubscriptionService.instance.isPremium) {
+    if (profile?.isPaidTier != true &&
+        !SubscriptionService.instance.hasPremiumAccess('unlimited_zones')) {
       try {
         final zones = await context
             .read<SafeZoneRepository>()
