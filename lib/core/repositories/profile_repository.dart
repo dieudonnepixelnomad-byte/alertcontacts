@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/user.dart';
 import '../services/prefs_service.dart';
+import '../services/http_client.dart';
 import '../errors/api_exceptions.dart';
 
 class ProfileRepository {
@@ -14,7 +15,7 @@ class ProfileRepository {
     PrefsService? prefs,
     http.Client? client,
   }) : _prefs = prefs ?? PrefsService(),
-       _client = client ?? http.Client();
+       _client = client ?? AppHttpClient();
 
   /// Headers pour les requêtes API
   Future<Map<String, String>> get _headers async {

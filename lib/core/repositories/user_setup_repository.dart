@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../services/prefs_service.dart';
+import '../services/http_client.dart';
 import '../errors/api_exceptions.dart';
 
 class UserSetupRepository {
@@ -11,7 +12,7 @@ class UserSetupRepository {
 
   UserSetupRepository({PrefsService? prefs, http.Client? client})
       : _prefs = prefs ?? PrefsService(),
-        _client = client ?? http.Client();
+        _client = client ?? AppHttpClient();
 
   Future<Map<String, String>> get _headers async {
     final bearerToken = await _prefs.getBearerToken();

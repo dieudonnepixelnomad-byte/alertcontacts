@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alertcontacts/core/providers/auth_aware_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_point.dart';
 import '../config/api_config.dart';
@@ -286,6 +287,10 @@ class BatchSenderService extends ChangeNotifier with AuthAwareProvider {
       'Accept': 'application/json',
       'User-Agent': 'AlertContacts/1.0 (Mobile; Flutter)',
     };
+    final packageInfo = await PackageInfo.fromPlatform();
+    headers['X-App-Version'] = packageInfo.version;
+    headers['X-App-Build'] = packageInfo.buildNumber;
+    headers['X-App-Platform'] = Platform.isIOS ? 'ios' : 'android';
 
     if (currentToken != null) {
       headers['Authorization'] = 'Bearer $currentToken';

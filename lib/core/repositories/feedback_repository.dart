@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../services/prefs_service.dart';
+import '../services/http_client.dart';
 import '../errors/api_exceptions.dart';
 
 class FeedbackRepository {
@@ -14,7 +15,7 @@ class FeedbackRepository {
   FeedbackRepository({
     http.Client? client,
     required PrefsService prefs,
-  })  : _client = client ?? http.Client(),
+  })  : _client = client ?? AppHttpClient(),
         _prefs = prefs;
 
   /// Headers pour les requêtes API

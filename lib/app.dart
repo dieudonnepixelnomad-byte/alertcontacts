@@ -72,12 +72,15 @@ class _AlertContactAppState extends State<AlertContactApp> {
   void initState() {
     super.initState();
     _router = AppRouter.create();
+    AppHttpClient.onRequiredUpdate =
+        (storeUrl) => _router.go(AppRoutes.forcedUpdate, extra: storeUrl);
 
   }
 
   @override
   void dispose() {
     DeepLinkService.dispose();
+    AppHttpClient.onRequiredUpdate = null;
     super.dispose();
   }
 

@@ -2,6 +2,7 @@
 
 import 'package:alertcontacts/core/config/api_config.dart';
 import 'package:alertcontacts/core/services/app_version_service.dart';
+import 'package:alertcontacts/core/services/immediate_update_service.dart';
 import 'package:alertcontacts/core/services/critical_notification_redundancy_service.dart';
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/location_service.dart';
@@ -56,6 +57,7 @@ class AppInitializationService {
       _isInitialized = true;
       log('$_tag: Initialisation des services terminée avec succès');
     } catch (e) {
+      if (e is ForcedUpdateException) rethrow;
       log('$_tag: Erreur lors de l\'initialisation des services: $e');
       // On ne rethrow pas pour ne pas crasher l'app, l'utilisateur verra peut-être un état dégradé
     } finally {
@@ -74,6 +76,7 @@ class AppInitializationService {
       final result = await versionService.checkForceUpdate();
 
       if (result.required) {
+        await ImmediateUpdateService().startIfAvailable();
         throw ForcedUpdateException(result.storeUrl);
       }
     } catch (e) {
