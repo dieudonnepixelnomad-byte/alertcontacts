@@ -13,6 +13,10 @@ class User extends Equatable {
   /// Défaut prudent à 'free' quand l'API ne le renvoie pas encore.
   final String tier;
 
+  /// Rôle accordé par le serveur. Il est uniquement informatif côté mobile :
+  /// les API protégées vérifient toujours ce rôle côté backend.
+  final bool isAdmin;
+
   const User({
     required this.id,
     required this.email,
@@ -22,9 +26,11 @@ class User extends Equatable {
     this.createdAt,
     this.updatedAt,
     this.tier = 'free',
+    this.isAdmin = false,
   });
 
   bool get isPaidTier => tier == 'premium';
+  bool get hasPremiumAccess => isAdmin || isPaidTier;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -40,6 +46,7 @@ class User extends Equatable {
           ? DateTime.parse(json['updated_at'] as String)
           : null,
       tier: json['tier'] as String? ?? 'free',
+      isAdmin: json['is_admin'] as bool? ?? false,
     );
   }
 
@@ -53,6 +60,7 @@ class User extends Equatable {
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'tier': tier,
+      'is_admin': isAdmin,
     };
   }
 
@@ -65,6 +73,7 @@ class User extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? tier,
+    bool? isAdmin,
   }) {
     return User(
       id: id ?? this.id,
@@ -75,6 +84,7 @@ class User extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       tier: tier ?? this.tier,
+      isAdmin: isAdmin ?? this.isAdmin,
     );
   }
 
@@ -88,5 +98,6 @@ class User extends Equatable {
         createdAt,
         updatedAt,
         tier,
+        isAdmin,
       ];
 }

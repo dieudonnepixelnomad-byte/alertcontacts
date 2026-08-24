@@ -68,6 +68,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       body: Consumer<SubscriptionService>(
         builder: (context, subscriptions, _) {
           final isPremium = subscriptions.isPremium;
+          final isAdmin = subscriptions.hasAdminAccess;
           final entitlement = subscriptions.customerInfo
               ?.entitlements.active[SubscriptionService.entitlementId];
           final productId = entitlement?.productIdentifier ??
@@ -93,13 +94,17 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                   rows: [
                     _DetailRow(
                       label: 'Offre',
-                      value: isPremium ? _productLabel(productId) : 'Free',
+                      value: isAdmin
+                          ? 'Accès administrateur'
+                          : (isPremium ? _productLabel(productId) : 'Free'),
                     ),
                     _DetailRow(
                       label: 'Statut',
-                      value: isPremium
-                          ? _renewalLabel(entitlement?.willRenew)
-                          : 'Aucun abonnement actif',
+                      value: isAdmin
+                          ? 'Exemption administrateur'
+                          : (isPremium
+                              ? _renewalLabel(entitlement?.willRenew)
+                              : 'Aucun abonnement actif'),
                     ),
                     if (purchaseDate != null)
                       _DetailRow(label: 'Dernier achat', value: purchaseDate),
@@ -115,7 +120,13 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (isPremium) ...[
+                if (isAdmin) ...[
+                  Text(
+                    'Votre compte administrateur a accès aux fonctionnalités Premium sans abonnement.',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                ] else if (isPremium) ...[
                   FilledButton.icon(
                     onPressed: hasManagementUrl ? _manageSubscription : null,
                     icon: const Icon(Icons.open_in_new_outlined),

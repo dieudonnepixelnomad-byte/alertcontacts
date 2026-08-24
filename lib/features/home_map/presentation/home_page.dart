@@ -514,7 +514,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
     if (!_invisibleActive) {
       final profile = await context.read<PrefsService>().getUserProfile();
       if (profile != null &&
-          !profile.isPaidTier &&
+          !profile.hasPremiumAccess &&
           !SubscriptionService.instance.hasPremiumAccess('invisible_mode')) {
         if (!mounted) return;
         await Navigator.push(
@@ -966,7 +966,7 @@ class _MapTabState extends State<MapTab> with WidgetsBindingObserver {
   Future<void> _openInvitation(RelationshipProvider relationshipProvider) async {
     final profile = await PrefsService().getUserProfile();
 
-    if (profile?.isPaidTier != true &&
+    if (profile?.hasPremiumAccess != true &&
         PaywallTriggerService.checkContactLimit(
           relationshipProvider.acceptedRelationships.length,
         )) {

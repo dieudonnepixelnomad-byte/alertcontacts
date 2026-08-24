@@ -38,7 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_invisibleActive) {
       final profile = await context.read<PrefsService>().getUserProfile();
       if (profile != null &&
-          !profile.isPaidTier &&
+          !profile.hasPremiumAccess &&
           !SubscriptionService.instance.hasPremiumAccess('invisible_mode')) {
         if (!mounted) return;
         await Navigator.push(

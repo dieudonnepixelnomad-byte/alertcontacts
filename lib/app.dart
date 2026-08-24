@@ -240,11 +240,15 @@ class _AlertContactAppState extends State<AlertContactApp> {
         ChangeNotifierProxyProvider<AuthNotifier, SubscriptionService>(
           create: (_) => SubscriptionService.instance,
           update: (context, authNotifier, subscriptionService) {
+            final service = subscriptionService ?? SubscriptionService.instance;
+            service.setAdminAccess(
+              authNotifier.isAuthenticated && authNotifier.user?.isAdmin == true,
+            );
             final firebaseUid = authNotifier.isAuthenticated
                 ? context.read<FirebaseAuthService>().currentUser?.uid
                 : null;
-            subscriptionService?.syncAppUserId(firebaseUid);
-            return subscriptionService ?? SubscriptionService.instance;
+            service.syncAppUserId(firebaseUid);
+            return service;
           },
         ),
         ChangeNotifierProvider<ZonesNotifier>(

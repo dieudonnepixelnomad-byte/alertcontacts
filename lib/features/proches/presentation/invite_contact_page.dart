@@ -50,7 +50,7 @@ class _InviteContactPageState extends State<InviteContactPage> {
     try {
       final profile = await _prefs.getUserProfile();
 
-      if (profile?.isPaidTier != true) {
+      if (profile?.hasPremiumAccess != true) {
         final relationships = context.read<RelationshipProvider>();
         await relationships.initialize();
         await relationships.loadRelationships();

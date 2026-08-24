@@ -31,14 +31,17 @@ class SubscriptionService extends ChangeNotifier {
   String? _error;
   CustomerInfo? _customerInfo;
   Offering? _offering;
+  bool _hasAdminAccess = false;
 
   bool get isLoading => _loading;
   bool get isConfigured => _configured;
   String? get error => _error;
   CustomerInfo? get customerInfo => _customerInfo;
   Offering? get offering => _offering;
+  bool get hasAdminAccess => _hasAdminAccess;
   bool get isPremium =>
-      _customerInfo?.entitlements.active.containsKey(entitlementId) ?? false;
+      _hasAdminAccess ||
+      (_customerInfo?.entitlements.active.containsKey(entitlementId) ?? false);
   bool get purchasesAvailable => Platform.isAndroid && _configured;
 
   /// Contrôle client traçable des fonctionnalités Premium.
@@ -52,11 +55,20 @@ class SubscriptionService extends ChangeNotifier {
     return allowed;
   }
 
+  /// Met à jour l'exemption accordée par le backend à un administrateur.
+  /// Elle ne crée ni achat ni entitlement RevenueCat.
+  void setAdminAccess(bool enabled) {
+    if (_hasAdminAccess == enabled) return;
+    _hasAdminAccess = enabled;
+    _log('Accès administrateur: ${enabled ? 'activé' : 'désactivé'}');
+    notifyListeners();
+  }
+
   /// Etat non sensible pour vérifier RevenueCat en développement.
   /// Ne contient ni la clé RevenueCat ni l'identifiant Firebase.
   String get debugSnapshot {
     final entitlement = _customerInfo?.entitlements.active[entitlementId];
-    return 'configured=$_configured, premium=$isPremium, '
+    return 'configured=$_configured, admin=$_hasAdminAccess, premium=$isPremium, '
         'offering=${_offering?.identifier ?? 'none'}, '
         'product=${entitlement?.productIdentifier ?? 'none'}, '
         'activeEntitlements=${_customerInfo?.entitlements.active.keys.join(',') ?? 'none'}, '

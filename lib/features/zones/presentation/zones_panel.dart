@@ -158,7 +158,7 @@ class _ZonesPanelState extends State<ZonesPanel> {
     final profile = await PrefsService().getUserProfile();
     final notifier = context.read<ZonesNotifier>();
 
-    if (profile?.isPaidTier != true &&
+    if (profile?.hasPremiumAccess != true &&
         PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
       if (!context.mounted) return;
       Navigator.pop(context);

@@ -133,7 +133,7 @@ class _ZoneCreationWizardState extends State<ZoneCreationWizard> {
     final notifier = context.read<ZonesNotifier>();
 
     final profile = await PrefsService().getUserProfile();
-    if (profile?.isPaidTier != true &&
+    if (profile?.hasPremiumAccess != true &&
         PaywallTriggerService.checkZoneLimit(notifier.safeZonesCount)) {
       if (!mounted) return;
       await Navigator.of(context).push(

@@ -154,7 +154,7 @@ class _ProchesTabState extends State<ProchesTab> {
     final accepted = provider.acceptedRelationships;
     final profile = await PrefsService().getUserProfile();
 
-    if (profile?.isPaidTier != true &&
+    if (profile?.hasPremiumAccess != true &&
         PaywallTriggerService.checkContactLimit(accepted.length)) {
       if (!mounted) return;
       await Navigator.push(

@@ -96,7 +96,7 @@ class _OnboardingZoneCreationPageState
 
     try {
       final profile = await _prefs.getUserProfile();
-      if (profile?.isPaidTier != true &&
+      if (profile?.hasPremiumAccess != true &&
           !SubscriptionService.instance.hasPremiumAccess('unlimited_zones')) {
         final existingZones = await _repo.getSafeZones(forceRefresh: true);
         if (existingZones.isNotEmpty) {

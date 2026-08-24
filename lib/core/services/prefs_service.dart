@@ -52,7 +52,7 @@ class PrefsService {
   Future<void> setUserProfile(User user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyUserProfile, jsonEncode(user.toJson()));
-    AlertEventStore().applyTier(user.tier);
+    AlertEventStore().applyTier(user.hasPremiumAccess ? 'premium' : user.tier);
   }
 
   Future<User?> getUserProfile() async {
@@ -65,7 +65,7 @@ class PrefsService {
       final user = User.fromJson(profileMap);
       // Restauration au démarrage : rouvre la fenêtre d'historique des alertes
       // correspondant au tier avant que la page Alertes ne lise le store (§10.1).
-      AlertEventStore().applyTier(user.tier);
+      AlertEventStore().applyTier(user.hasPremiumAccess ? 'premium' : user.tier);
       return user;
     } catch (e) {
       return null;
