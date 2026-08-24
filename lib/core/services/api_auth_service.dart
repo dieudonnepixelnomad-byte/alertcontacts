@@ -14,6 +14,7 @@ class ApiAuthService {
   final AppHttpClient _client;
   final PrefsService _prefsService = PrefsService();
   String? _bearerToken;
+  bool _lastFirebaseLoginCreatedAccount = false;
 
   ApiAuthService({required this.baseUrl, AppHttpClient? client})
       : _client = client ?? AppHttpClient() {
@@ -42,6 +43,7 @@ class ApiAuthService {
   /// Échanger le token Firebase contre une session Sanctum
   Future<User> exchangeFirebaseToken(String idToken, Map<String, dynamic> userData) async {
     try {
+      _lastFirebaseLoginCreatedAccount = false;
       log('ApiAuthService.exchangeFirebaseToken: Starting token exchange');
       log('ApiAuthService.exchangeFirebaseToken: baseUrl = $baseUrl');
       log('ApiAuthService.exchangeFirebaseToken: idToken length = ${idToken.length}');
@@ -67,6 +69,8 @@ class ApiAuthService {
       log('ApiAuthService.exchangeFirebaseToken: Response body = ${response.body}');
 
       final data = _handleResponse(response);
+      _lastFirebaseLoginCreatedAccount =
+          data['account_created'] as bool? ?? false;
 
       // Stocker le token Bearer pour les futures requêtes
       await _saveToken(data['token'] as String?);
@@ -245,6 +249,10 @@ class ApiAuthService {
 
   /// Obtenir le token Bearer actuel
   String? get bearerToken => _bearerToken;
+
+  /// Vrai uniquement après le dernier échange Firebase qui a créé le compte
+  /// Laravel associé. Cette information est fournie par le backend.
+  bool get lastFirebaseLoginCreatedAccount => _lastFirebaseLoginCreatedAccount;
 
   /// Envoyer le token FCM au backend (route publique - sans authentification)
   Future<void> sendFcmToken(String fcmToken, String platform, String email, {String? oldFcmToken}) async {

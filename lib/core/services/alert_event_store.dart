@@ -133,6 +133,16 @@ class AlertEventStore extends ChangeNotifier {
     }
   }
 
+  /// Efface l'historique affiché et sa persistance, notamment lorsqu'un compte
+  /// backend a été recréé après une réinitialisation serveur.
+  Future<void> clear() async {
+    _events.clear();
+    _loaded = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
+    notifyListeners();
+  }
+
   String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   void addZoneEntry({required String zoneName, required String contactName}) {

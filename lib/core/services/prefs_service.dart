@@ -77,6 +77,18 @@ class PrefsService {
     await prefs.remove(_keyUserProfile);
   }
 
+  /// Réinitialise les données locales qui appartiennent à un compte backend.
+  /// Le serveur vient de créer un nouveau compte pour un utilisateur Firebase
+  /// déjà connu de l'app : conserver des zones, alertes ou flags d'onboarding
+  /// de l'ancien compte produirait des incohérences et des appels en erreur.
+  Future<void> resetForRecreatedBackendAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final baseUrl = prefs.getString(_keyBaseUrl);
+    await prefs.clear();
+    if (baseUrl != null) await prefs.setString(_keyBaseUrl, baseUrl);
+    await AlertEventStore().clear();
+  }
+
   /// Marque le setup initial comme terminé (première zone de sécurité créée)
   Future<void> setInitialSetupDone() async {
     final prefs = await SharedPreferences.getInstance();

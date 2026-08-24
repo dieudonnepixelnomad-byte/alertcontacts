@@ -3,6 +3,9 @@ import '../models/user.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/api_auth_service.dart';
 import '../services/prefs_service.dart';
+import '../services/batch_sender_service.dart';
+import '../services/gps_trace_recorder.dart';
+import '../services/zones_cache_service.dart';
 import '../errors/auth_exceptions.dart';
 
 class AuthRepository {
@@ -63,6 +66,16 @@ class AuthRepository {
       final idToken = await _firebaseAuth.getIdToken(forceRefresh: true);
       final userData = _extractUserDataFromFirebase(firebaseUser);
       final user = await _apiAuth.refreshSession(idToken, userData);
+
+      // Un compte Laravel vient d'être créé alors que l'app avait déjà un
+      // profil : les données locales décrivent donc un backend supprimé.
+      // Réinitialiser avant de sauvegarder la nouvelle session propre.
+      if (_apiAuth.lastFirebaseLoginCreatedAccount && savedUser != null) {
+        await _prefs.resetForRecreatedBackendAccount();
+        ZonesCacheService().invalidateAllCache();
+        GpsTraceRecorder().stop();
+        await BatchSenderService().clearOfflineCache();
+      }
 
       // Sauvegarder le nouveau token
       await _saveAuthState(user, _apiAuth.bearerToken);

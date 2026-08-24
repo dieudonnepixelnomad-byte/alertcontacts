@@ -1,5 +1,6 @@
 // lib/features/proches/presentation/contact_locations_page.dart
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
@@ -9,7 +10,8 @@ import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/contact_locations_service.dart';
 import '../../../core/services/app_review_service.dart';
 import '../../../core/services/safety_aha_service.dart';
-import '../../../core/services/api_relationship_service.dart' as relationship_api;
+import '../../../core/services/api_relationship_service.dart'
+    as relationship_api;
 import '../../../core/services/prefs_service.dart';
 import '../../../core/models/safe_zone.dart' as safe_zone;
 import '../../../shared/widgets/map_type_toggle_button.dart';
@@ -18,10 +20,7 @@ import '../../../shared/widgets/map_type_toggle_button.dart';
 class ContactLocationsPage extends StatefulWidget {
   final ContactRelation contactRelation;
 
-  const ContactLocationsPage({
-    super.key,
-    required this.contactRelation,
-  });
+  const ContactLocationsPage({super.key, required this.contactRelation});
 
   @override
   State<ContactLocationsPage> createState() => _ContactLocationsPageState();
@@ -34,7 +33,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
   final PrefsService _prefsService = PrefsService();
   final Completer<GoogleMapController> _mapController = Completer();
   GoogleMapController? _controller;
-  
+
   List<ContactLocation> _locations = [];
   bool _isLoading = true;
   String? _error;
@@ -58,7 +57,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
         contactId: widget.contactRelation.contact.id,
         limit: 50,
       );
-      
+
       setState(() {
         _locations = locations;
         _isLoading = false;
@@ -78,9 +77,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
     }
   }
 
-  Future<void> _evaluateSafetyAhaMoment(
-    List<ContactLocation> locations,
-  ) async {
+  Future<void> _evaluateSafetyAhaMoment(List<ContactLocation> locations) async {
     if (locations.isEmpty) return;
 
     try {
@@ -93,7 +90,8 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
       final activeZones = assignedZones
           .where(
             (zone) =>
-                zone.isAssigned && zone.assignmentStatus?.toLowerCase() == 'active',
+                zone.isAssigned &&
+                zone.assignmentStatus?.toLowerCase() == 'active',
           )
           .map(
             (zone) => safe_zone.SafeZone(
@@ -118,8 +116,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
       // toute éventuelle sollicitation d'avis.
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      final reviewEligible =
-          await AppReviewService().registerSafetyAhaMoment();
+      final reviewEligible = await AppReviewService().registerSafetyAhaMoment();
       if (reviewEligible && mounted) {
         final choice = await AppReviewService().showPrompt(context);
         if (choice == AppReviewPromptChoice.feedback && mounted) {
@@ -135,14 +132,14 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
   Future<void> _centerMapOnLocation(ContactLocation location) async {
     try {
       GoogleMapController? controller = _controller;
-      
+
       // Si le contrôleur n'est pas encore disponible, attendre qu'il soit complété
       if (controller == null && !_mapController.isCompleted) {
         controller = await _mapController.future;
       } else if (controller == null) {
         controller = await _mapController.future;
       }
-      
+
       await controller.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(location.latitude, location.longitude),
@@ -156,16 +153,16 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
 
   Set<Marker> _buildMarkers() {
     final markers = <Marker>{};
-    
+
     for (int i = 0; i < _locations.length; i++) {
       final location = _locations[i];
       final isLatest = i == 0;
-      
+
       markers.add(
         Marker(
           markerId: MarkerId('location_${location.id}'),
           position: LatLng(location.latitude, location.longitude),
-          icon: isLatest 
+          icon: isLatest
               ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
               : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           infoWindow: InfoWindow(
@@ -176,15 +173,17 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
         ),
       );
     }
-    
+
     return markers;
   }
 
   Set<Polyline> _buildPolylines() {
     if (_locations.length < 2) return {};
-    
-    final points = _locations.map((loc) => LatLng(loc.latitude, loc.longitude)).toList();
-    
+
+    final points = _locations
+        .map((loc) => LatLng(loc.latitude, loc.longitude))
+        .toList();
+
     return {
       Polyline(
         polylineId: const PolylineId('path'),
@@ -214,10 +213,16 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
             _buildDetailRow('Précision', location.accuracyText),
             _buildDetailRow('Source', location.source.toUpperCase()),
             if (location.speed != null)
-              _buildDetailRow('Vitesse', '${location.speed!.toStringAsFixed(1)} km/h'),
+              _buildDetailRow(
+                'Vitesse',
+                '${location.speed!.toStringAsFixed(1)} km/h',
+              ),
             if (location.batteryLevel != null)
               _buildDetailRow('Batterie', '${location.batteryLevel}%'),
-            _buildDetailRow('Mode', location.foreground ? 'Premier plan' : 'Arrière-plan'),
+            _buildDetailRow(
+              'Mode',
+              location.foreground ? 'Premier plan' : 'Arrière-plan',
+            ),
           ],
         ),
       ),
@@ -260,17 +265,18 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildErrorState()
-              : _locations.isEmpty
-                  ? _buildEmptyState()
-                  : _showMap
-                      ? _buildMapView()
-                      : _buildListView(),
+          ? _buildErrorState()
+          : _locations.isEmpty
+          ? _buildEmptyState()
+          : _showMap
+          ? _buildMapView()
+          : _buildListView(),
     );
   }
 
   Widget _buildErrorState() {
-    final isAuthError = _error != null &&
+    final isAuthError =
+        _error != null &&
         (_error!.contains("403") ||
             _error!.contains("Vous n'avez pas l'autorisation"));
 
@@ -297,30 +303,38 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                 '${widget.contactRelation.contact.name} n\'a pas activé le partage de sa position en temps réel avec vous.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: 24),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.shield_outlined,
-                        color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      Icons.shield_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         "Rassurez-vous, vous recevrez toujours les alertes de sécurité importantes.",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onPrimaryContainer),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
                       ),
                     ),
                   ],
@@ -375,7 +389,9 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                   Text('Contact ID: ${widget.contactRelation.contact.id}'),
                   Text('Relation ID: ${widget.contactRelation.id}'),
                   Text('Statut: ${widget.contactRelation.status.name}'),
-                  Text('Niveau de partage: ${widget.contactRelation.shareLevel.name}'),
+                  Text(
+                    'Niveau de partage: ${widget.contactRelation.shareLevel.name}',
+                  ),
                   Text('Peut me voir: ${widget.contactRelation.canSeeMe}'),
                   Text('Relation active: ${widget.contactRelation.isActive}'),
                 ],
@@ -437,7 +453,10 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                 },
                 initialCameraPosition: CameraPosition(
                   target: _locations.isNotEmpty
-                      ? LatLng(_locations.first.latitude, _locations.first.longitude)
+                      ? LatLng(
+                          _locations.first.latitude,
+                          _locations.first.longitude,
+                        )
                       : const LatLng(48.8566, 2.3522), // Paris par défaut
                   zoom: 15.0,
                 ),
@@ -447,18 +466,11 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                 zoomControlsEnabled: false,
                 mapType: context.watch<MapTypeNotifier>().type,
               ),
-              const Positioned(
-                top: 8,
-                right: 8,
-                child: MapTypeToggleButton(),
-              ),
+              const Positioned(top: 8, right: 8, child: MapTypeToggleButton()),
             ],
           ),
         ),
-        Expanded(
-          flex: 1,
-          child: _buildLocationsList(),
-        ),
+        Expanded(flex: 1, child: _buildLocationsList()),
       ],
     );
   }
@@ -535,7 +547,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
               itemBuilder: (context, index) {
                 final location = _locations[index];
                 final isLatest = index == 0;
-                
+
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: isLatest
@@ -573,14 +585,16 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                       Icon(
                         Icons.map,
                         size: 16,
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.7),
                       ),
                     ],
                   ),
                   onTap: () async {
                     // Centrer la caméra sur la position sélectionnée
                     await _centerMapOnLocation(location);
-                    
+
                     // Si on est en mode liste, basculer vers la carte
                     if (!_showMap) {
                       setState(() {
@@ -590,7 +604,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
                       await Future.delayed(const Duration(milliseconds: 300));
                       await _centerMapOnLocation(location);
                     }
-                    
+
                     // Afficher les détails de la position
                     _showLocationDetails(location);
                   },
