@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,14 +18,12 @@ class AppReviewService {
   static const _successfulValueEventsKey = 'app_review_successful_value_events';
   static const _lastPromptAtKey = 'app_review_last_prompt_at';
   static const _lastErrorAtKey = 'app_review_last_error_at';
-  static const _declineCountKey = 'app_review_decline_count';
   static const _safetyAhaMomentAtKey = 'app_review_safety_aha_moment_at';
 
   static const minimumSuccessfulValueEvents = 3;
   static const minimumUseDuration = Duration(days: 7);
   static const promptCooldown = Duration(days: 90);
   static const errorQuietPeriod = Duration(hours: 48);
-  static const maximumDeclines = 2;
 
   final SharedPreferences? _preferences;
   final DateTime Function() _now;
@@ -89,9 +86,6 @@ class AppReviewService {
       return false;
     }
     if (!prefs.containsKey(_safetyAhaMomentAtKey)) return false;
-    if ((prefs.getInt(_declineCountKey) ?? 0) >= maximumDeclines) {
-      return false;
-    }
     if (_isWithin(prefs.getInt(_lastPromptAtKey), promptCooldown, now) ||
         _isWithin(prefs.getInt(_lastErrorAtKey), errorQuietPeriod, now)) {
       return false;
@@ -105,57 +99,14 @@ class AppReviewService {
         duration;
   }
 
-  /// Présente les deux canaux à égalité : avis public ou retour privé. Aucun
-  /// choix ne conditionne l'accès à Google Play, afin d'éviter le review gating.
-  Future<AppReviewPromptChoice?> showPrompt(BuildContext context) async {
-    if (!await isEligible() || !context.mounted) return null;
+  /// Demande directement à Google Play d'afficher sa fiche native si le quota
+  /// et l'appareil le permettent. Aucun écran ou choix maison ne précède ce
+  /// flux : Google Play l'interdit pour les demandes d'avis intégrées.
+  Future<void> requestReviewIfEligible() async {
+    if (!await isEligible()) return;
 
-    final choice = await showDialog<AppReviewPromptChoice>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Votre expérience compte'),
-        content: const Text(
-          'AlertContacts vous aide à garder l’esprit plus tranquille ?\n\n'
-          'Votre avis public aide d’autres familles à découvrir l’application. '
-          'Votre retour privé nous aide à la rendre plus fiable.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, AppReviewPromptChoice.later),
-            child: const Text('Pas maintenant'),
-          ),
-          OutlinedButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, AppReviewPromptChoice.feedback),
-            child: const Text('Envoyer un retour'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, AppReviewPromptChoice.review),
-            child: const Text('Donner un avis'),
-          ),
-        ],
-      ),
-    );
-
-    if (choice == null) return null;
     final prefs = await _prefs;
     await prefs.setInt(_lastPromptAtKey, _now().millisecondsSinceEpoch);
-
-    if (choice == AppReviewPromptChoice.later) {
-      await prefs.setInt(
-        _declineCountKey,
-        (prefs.getInt(_declineCountKey) ?? 0) + 1,
-      );
-      AnalyticsService().logAppReviewPrompt(action: 'later');
-      return choice;
-    }
-    if (choice == AppReviewPromptChoice.feedback) {
-      AnalyticsService().logAppReviewPrompt(action: 'feedback');
-      return choice;
-    }
-
     AnalyticsService().logAppReviewPrompt(action: 'requested');
     try {
       if (await _inAppReview.isAvailable()) {
@@ -164,7 +115,6 @@ class AppReviewService {
     } catch (_) {
       // Une indisponibilité du flux Play ne doit jamais perturber le succès métier.
     }
-    return choice;
   }
 
   /// Action volontaire depuis les paramètres : ouvre directement la fiche Store.
@@ -177,5 +127,3 @@ class AppReviewService {
     }
   }
 }
-
-enum AppReviewPromptChoice { review, feedback, later }

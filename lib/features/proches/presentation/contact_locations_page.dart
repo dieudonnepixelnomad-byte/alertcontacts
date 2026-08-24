@@ -117,12 +117,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
       final reviewEligible = await AppReviewService().registerSafetyAhaMoment();
-      if (reviewEligible && mounted) {
-        final choice = await AppReviewService().showPrompt(context);
-        if (choice == AppReviewPromptChoice.feedback && mounted) {
-          context.push('/feedback');
-        }
-      }
+      if (reviewEligible) await AppReviewService().requestReviewIfEligible();
     } catch (_) {
       // La carte et l'historique restent accessibles si la vérification de zone
       // échoue. Cette vérification ne doit pas modifier le parcours principal.

@@ -24,11 +24,7 @@ class _InvitationSuccessPageState extends State<InvitationSuccessPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final eligible = await AppReviewService().registerSuccessfulValueEvent();
-      if (!eligible || !mounted) return;
-      final choice = await AppReviewService().showPrompt(context);
-      if (choice == AppReviewPromptChoice.feedback && mounted) {
-        context.push('/feedback');
-      }
+      if (eligible) await AppReviewService().requestReviewIfEligible();
     });
   }
 
