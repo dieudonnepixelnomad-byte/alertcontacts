@@ -174,6 +174,9 @@ class AnalyticsService {
   void logAha3ZoneAlertReceived() =>
       _fire(_analytics.logEvent(name: 'aha_3_zone_alert_received'));
 
+  void logSafetyAhaMomentConfirmed() =>
+      _fire(_analytics.logEvent(name: 'safety_aha_moment_confirmed'));
+
   // ── Contacts ──────────────────────────────────────────────────────────────
 
   void logContactInvited() =>
@@ -329,4 +332,10 @@ class AnalyticsService {
 
   void logAppOpenedFromBackground() =>
       _fire(_analytics.logEvent(name: 'app_opened_from_background'));
+
+  void logAppReviewPrompt({required String action}) =>
+      _fire(_analytics.logEvent(
+        name: 'app_review_prompt',
+        parameters: {'action': action},
+      ));
 }

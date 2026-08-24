@@ -7,6 +7,11 @@ import '../../../core/models/contact_location.dart';
 import '../../../core/models/contact_relation.dart';
 import '../../../core/providers/map_type_notifier.dart';
 import '../../../core/services/contact_locations_service.dart';
+import '../../../core/services/app_review_service.dart';
+import '../../../core/services/safety_aha_service.dart';
+import '../../../core/services/api_relationship_service.dart' as relationship_api;
+import '../../../core/services/prefs_service.dart';
+import '../../../core/models/safe_zone.dart' as safe_zone;
 import '../../../shared/widgets/map_type_toggle_button.dart';
 
 /// Page pour afficher les positions récentes d'un proche
@@ -24,6 +29,9 @@ class ContactLocationsPage extends StatefulWidget {
 
 class _ContactLocationsPageState extends State<ContactLocationsPage> {
   final ContactLocationsService _locationsService = ContactLocationsService();
+  final relationship_api.ApiRelationshipService _relationshipService =
+      relationship_api.ApiRelationshipService();
+  final PrefsService _prefsService = PrefsService();
   final Completer<GoogleMapController> _mapController = Completer();
   GoogleMapController? _controller;
   
@@ -31,6 +39,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
   bool _isLoading = true;
   String? _error;
   bool _showMap = true;
+  SafetyPresence? _confirmedPresence;
 
   @override
   void initState() {
@@ -55,6 +64,8 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
         _isLoading = false;
       });
 
+      await _evaluateSafetyAhaMoment(locations);
+
       // Centrer la carte sur la première position si disponible
       if (locations.isNotEmpty && _showMap) {
         _centerMapOnLocation(locations.first);
@@ -64,6 +75,60 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _evaluateSafetyAhaMoment(
+    List<ContactLocation> locations,
+  ) async {
+    if (locations.isEmpty) return;
+
+    try {
+      final token = await _prefsService.getBearerToken();
+      if (token == null) return;
+      _relationshipService.setAuthToken(token);
+      final assignedZones = await _relationshipService.getAssignableZones(
+        widget.contactRelation.contact.id,
+      );
+      final activeZones = assignedZones
+          .where(
+            (zone) =>
+                zone.isAssigned && zone.assignmentStatus?.toLowerCase() == 'active',
+          )
+          .map(
+            (zone) => safe_zone.SafeZone(
+              id: zone.id,
+              name: zone.name,
+              iconKey: zone.icon,
+              center: safe_zone.LatLng(zone.lat, zone.lng),
+              radiusMeters: zone.radiusM,
+              memberIds: [widget.contactRelation.contact.id],
+            ),
+          )
+          .toList();
+      final presence = SafetyAhaService().findConfirmedPresence(
+        contactId: widget.contactRelation.contact.id,
+        latestLocation: locations.first,
+        zones: activeZones,
+      );
+      if (presence == null || !mounted) return;
+
+      setState(() => _confirmedPresence = presence);
+      // L'utilisateur doit d'abord voir la confirmation de sécurité avant
+      // toute éventuelle sollicitation d'avis.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final reviewEligible =
+          await AppReviewService().registerSafetyAhaMoment();
+      if (reviewEligible && mounted) {
+        final choice = await AppReviewService().showPrompt(context);
+        if (choice == AppReviewPromptChoice.feedback && mounted) {
+          context.push('/feedback');
+        }
+      }
+    } catch (_) {
+      // La carte et l'historique restent accessibles si la vérification de zone
+      // échoue. Cette vérification ne doit pas modifier le parcours principal.
     }
   }
 
@@ -358,6 +423,7 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
   Widget _buildMapView() {
     return Column(
       children: [
+        if (_confirmedPresence != null) _buildSafetyConfirmationCard(),
         Expanded(
           flex: 2,
           child: Stack(
@@ -394,6 +460,33 @@ class _ContactLocationsPageState extends State<ContactLocationsPage> {
           child: _buildLocationsList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildSafetyConfirmationCard() {
+    final presence = _confirmedPresence!;
+    final contactName = widget.contactRelation.contact.name;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_outlined, color: Colors.green),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$contactName est bien dans la zone « ${presence.zone.name} ».',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

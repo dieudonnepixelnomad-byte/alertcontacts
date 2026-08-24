@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
+import '../../../core/services/app_review_service.dart';
 
-class InvitationSuccessPage extends StatelessWidget {
+class InvitationSuccessPage extends StatefulWidget {
   final String inviterName;
   final String myInitials;
 
@@ -14,8 +15,28 @@ class InvitationSuccessPage extends StatelessWidget {
   });
 
   @override
+  State<InvitationSuccessPage> createState() => _InvitationSuccessPageState();
+}
+
+class _InvitationSuccessPageState extends State<InvitationSuccessPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final eligible = await AppReviewService().registerSuccessfulValueEvent();
+      if (!eligible || !mounted) return;
+      final choice = await AppReviewService().showPrompt(context);
+      if (choice == AppReviewPromptChoice.feedback && mounted) {
+        context.push('/feedback');
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final inviterInitial = inviterName.isNotEmpty ? inviterName[0].toUpperCase() : '?';
+    final inviterInitial = widget.inviterName.isNotEmpty
+        ? widget.inviterName[0].toUpperCase()
+        : '?';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -43,7 +64,7 @@ class InvitationSuccessPage extends StatelessWidget {
               const SizedBox(height: 28),
 
               Text(
-                '$inviterName a rejoint !',
+                '${widget.inviterName} a rejoint !',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -103,7 +124,9 @@ class InvitationSuccessPage extends StatelessWidget {
                           radius: 32,
                           backgroundColor: AppColors.primary,
                           child: Text(
-                            myInitials.isNotEmpty ? myInitials[0].toUpperCase() : '?',
+                            widget.myInitials.isNotEmpty
+                                ? widget.myInitials[0].toUpperCase()
+                                : '?',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -133,7 +156,7 @@ class InvitationSuccessPage extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    'Voir $inviterName sur la carte →',
+                    'Voir ${widget.inviterName} sur la carte →',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

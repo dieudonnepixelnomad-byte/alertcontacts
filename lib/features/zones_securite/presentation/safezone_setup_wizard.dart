@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/models/safe_zone.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../core/services/app_review_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/subscription_service.dart';
 import '../../../features/alertes/services/permissions_manager_service.dart';
@@ -120,6 +121,7 @@ class _SafeZoneSetupWizardState extends State<SafeZoneSetupWizard> {
         '/safezone/setup/success?zoneName=${Uri.encodeComponent(createdZone.name)}&iconKey=${createdZone.iconKey}',
       );
     } catch (e) {
+      await AppReviewService().recordRecentError();
       if (!mounted) return;
 
       setState(() => _isCreating = false);

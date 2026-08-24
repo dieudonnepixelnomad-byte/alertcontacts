@@ -5,6 +5,7 @@ import '../../../core/services/api_invitation_service.dart';
 import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/services/prefs_service.dart';
+import '../../../core/services/app_review_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../auth/providers/auth_notifier.dart';
@@ -73,6 +74,7 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
       });
       _animCtrl.forward();
     } catch (e) {
+      await AppReviewService().recordRecentError();
       if (!mounted) return;
       setState(() {
         _loading = false;

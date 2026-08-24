@@ -249,7 +249,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Vos retours sont anonymes et utilisés uniquement pour améliorer l\'application.',
+                            'Votre retour est associé à votre compte et utilisé uniquement pour améliorer l\'application et vous répondre si nécessaire.',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: Theme.of(context).colorScheme.secondary),
                           ),

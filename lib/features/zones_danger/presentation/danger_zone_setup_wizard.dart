@@ -8,6 +8,7 @@ import '../../../core/models/safe_zone.dart'; // Pour LatLng
 import '../../../core/enums/danger_type.dart';
 import '../../../core/services/location_service.dart';
 import '../../../theme/colors.dart';
+import '../../../core/services/app_review_service.dart';
 import '../providers/danger_zone_notifier.dart';
 import 'widgets/danger_zone_info_step.dart';
 import 'widgets/danger_zone_location_step.dart';
@@ -92,6 +93,7 @@ class _DangerZoneSetupWizardState extends State<DangerZoneSetupWizard> {
         // Naviguer vers l'écran de succès
         context.go('/zone-danger/create/success');
       } else if (notifier.state.status == DangerZoneStatus.error) {
+        await AppReviewService().recordRecentError();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/api_config.dart';
 import 'core/services/pending_deep_link_service.dart';
+import 'core/services/app_review_service.dart';
 import 'core/services/fcm_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
@@ -128,8 +129,10 @@ Future<void> main() async {
         _firebaseMessagingBackgroundHandler,
       );
 
-      FlutterError.onError =
-          FirebaseCrashlytics.instance.recordFlutterFatalError;
+      FlutterError.onError = (details) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+        AppReviewService().recordRecentError();
+      };
 
       if (kReleaseMode) {
         await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
@@ -142,6 +145,7 @@ Future<void> main() async {
       }
 
       runApp(const AlertContactApp());
+      await AppReviewService().initialize();
 
       // Enregistrer le handler headless background_fetch (Android uniquement)
       BackgroundFetch.registerHeadlessTask(_backgroundFetchHeadlessEvent);
@@ -160,6 +164,7 @@ Future<void> main() async {
     },
     (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      AppReviewService().recordRecentError();
     },
   );
 }

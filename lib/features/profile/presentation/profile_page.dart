@@ -6,6 +6,7 @@ import '../../../core/models/user.dart';
 import '../../auth/providers/auth_notifier.dart';
 import '../providers/profile_provider.dart';
 import '../../../router/app_router.dart';
+import '../../../core/services/app_review_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -84,6 +85,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildPrivacySection(),
                 /* const SizedBox(height: 24),
                 _buildDataManagementSection(), */
+                const SizedBox(height: 24),
+                _buildAppFeedbackSection(),
                 const SizedBox(height: 24),
                 _buildDangerZone(),
               ],
@@ -327,6 +330,32 @@ class _ProfilePageState extends State<ProfilePage> {
               subtitle: const Text('Corrigez vos informations personnelles'),
               trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () => setState(() => _isEditing = true),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppFeedbackSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'À propos de l’application',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.star_outline),
+              title: const Text('Noter l’application'),
+              subtitle: const Text('Ouvrir la fiche AlertContacts sur le Play Store'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => AppReviewService().openStoreListing(),
               contentPadding: EdgeInsets.zero,
             ),
           ],

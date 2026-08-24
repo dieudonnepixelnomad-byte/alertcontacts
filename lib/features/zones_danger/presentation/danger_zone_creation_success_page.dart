@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/colors.dart';
+import '../../../core/services/app_review_service.dart';
 
-class DangerZoneCreationSuccessPage extends StatelessWidget {
+class DangerZoneCreationSuccessPage extends StatefulWidget {
   const DangerZoneCreationSuccessPage({super.key});
+
+  @override
+  State<DangerZoneCreationSuccessPage> createState() =>
+      _DangerZoneCreationSuccessPageState();
+}
+
+class _DangerZoneCreationSuccessPageState
+    extends State<DangerZoneCreationSuccessPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final eligible = await AppReviewService().registerSuccessfulValueEvent();
+      if (!eligible || !mounted) return;
+      final choice = await AppReviewService().showPrompt(context);
+      if (choice == AppReviewPromptChoice.feedback && mounted) {
+        context.push('/feedback');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
