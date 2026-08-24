@@ -38,7 +38,9 @@ workflows:
       - name: Create .env
         script: |
           cat > .env << EOF
-          BASE_URL=$BASE_URL
+          # La variable sécurisée BASE_URL reste prioritaire. Ce repli évite
+          # d'embarquer accidentellement une URL de développement dans une IPA.
+          BASE_URL=${BASE_URL:-https://mobile.alertcontacts.net}
           GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY
           EOF
 
