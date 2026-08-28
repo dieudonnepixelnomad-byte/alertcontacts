@@ -23,6 +23,7 @@ class NavigationProvider extends ChangeNotifier {
   void goToMap() => setIndex(0);
   void goToProches() => setIndex(1);
   void goToAlertes() => setIndex(2);
+  void goToTraceurs() => setIndex(3);
 
   void focusContact({required String uid, required double lat, required double lng}) {
     _pendingFocus = MapFocusRequest(lat: lat, lng: lng);

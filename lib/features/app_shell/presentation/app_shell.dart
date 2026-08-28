@@ -9,6 +9,7 @@ import '../providers/navigation_provider.dart';
 import '../../home_map/presentation/home_page.dart';
 import '../../proches/presentation/proches_tab.dart';
 import '../../alertes/presentation/alertes_page.dart';
+import '../../traceurs/presentation/traceurs_tab.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -18,7 +19,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _servicesInitialized = false;
-  final List<bool> _tabsActivated = [true, false, false];
+  final List<bool> _tabsActivated = [true, false, false, false];
 
   @override
   void initState() {
@@ -68,13 +69,11 @@ class _AppShellState extends State<AppShell> {
             _tabsActivated[0] ? const MapTab() : const SizedBox.shrink(),
             _tabsActivated[1] ? const ProchesTab() : const SizedBox.shrink(),
             _tabsActivated[2] ? const AlertesPage() : const SizedBox.shrink(),
+            _tabsActivated[3] ? const TraceursTab() : const SizedBox.shrink(),
           ];
 
           return Scaffold(
-            body: IndexedStack(
-              index: nav.currentIndex,
-              children: tabs,
-            ),
+            body: IndexedStack(index: nav.currentIndex, children: tabs),
             bottomNavigationBar: NavigationBar(
               selectedIndex: nav.currentIndex,
               onDestinationSelected: (i) {
@@ -107,6 +106,7 @@ class _AppShellState extends State<AppShell> {
                   ),
                   label: 'Alertes',
                 ),
+                // const NavigationDestination(icon: Icon(Icons.gps_fixed_outlined), selectedIcon: Icon(Icons.gps_fixed), label: 'Traceurs'),
               ],
             ),
           );
@@ -124,9 +124,6 @@ class _BadgeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (count == 0) return Icon(icon);
-    return Badge(
-      label: Text(count > 99 ? '99+' : '$count'),
-      child: Icon(icon),
-    );
+    return Badge(label: Text(count > 99 ? '99+' : '$count'), child: Icon(icon));
   }
 }

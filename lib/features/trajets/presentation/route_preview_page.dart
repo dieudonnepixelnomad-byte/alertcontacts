@@ -13,14 +13,14 @@ import '../../../shared/widgets/map_type_toggle_button.dart';
 import '../../../theme/colors.dart';
 import '../providers/route_provider.dart';
 import 'route_search_page.dart';
-import 'widgets/incident_warning_banner.dart';
+import 'widgets/route_alerts_sheet.dart';
 import 'widgets/route_option_sheet.dart';
 
 /// Aperçu de l'itinéraire — CDC V4.1 §6.3
 ///
 /// La valeur d'AlertContacts n'est pas de guider mais de **prévenir avant de
 /// partir et de veiller pendant le trajet** (§5.1). Il n'y a donc ni guidage
-/// turn-by-turn ni voix : cet écran s'arrête à « Démarrer ».
+/// turn-by-turn ni voix : le suivi reste volontairement sur cette carte.
 class RoutePreviewPage extends StatefulWidget {
   const RoutePreviewPage({super.key, required this.search});
 
@@ -32,7 +32,6 @@ class RoutePreviewPage extends StatefulWidget {
 
 class _RoutePreviewPageState extends State<RoutePreviewPage> {
   GoogleMapController? _mapController;
-  bool _bannerDismissed = false;
   late TransportMode _transportMode;
   final Map<String, BitmapDescriptor> _incidentMarkerIcons = {};
   final Set<String> _incidentMarkerIconsLoading = {};
@@ -79,7 +78,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
     if (mode == _transportMode) return;
     setState(() {
       _transportMode = mode;
-      _bannerDismissed = false;
     });
     _load();
   }
@@ -144,7 +142,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
       AnalyticsService().logRouteAvoidancePartial();
     }
 
-    setState(() => _bannerDismissed = true);
     _fitBounds();
 
     await RouteOptionSheet.show(
@@ -175,7 +172,21 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
       avoidanceApplied: provider.route?.avoidanceApplied ?? false,
     );
 
-    Navigator.of(context).pop();
+    _snack('Suivi du trajet démarré.');
+  }
+
+  Future<void> _stop() async {
+    final provider = context.read<RouteProvider>();
+    final stopped = await provider.endRoute();
+
+    if (!mounted) return;
+
+    if (!stopped) {
+      _snack('Impossible d’arrêter le suivi du trajet pour le moment.');
+      return;
+    }
+
+    _snack('Suivi du trajet arrêté.');
   }
 
   void _showQuotaPaywall(String message) {
@@ -261,7 +272,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
             myLocationButtonEnabled: false,
             mapType: context.watch<MapTypeNotifier>().type,
             polylines: _buildPolylines(provider),
-            circles: _buildIncidentHalos(provider),
             markers: _buildMarkers(provider),
           ),
           Positioned(
@@ -279,6 +289,26 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
             right: 16,
             child: const MapTypeToggleButton(),
           ),
+          if (route != null && provider.hasIncidents)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 100,
+              left: 16,
+              right: 86,
+              child: RouteAlertsSummary(
+                hits: provider.incidentsOnRoute,
+                onTap: () => RouteAlertsSheet.show(
+                  context,
+                  hits: provider.incidentsOnRoute,
+                  canAvoid:
+                      provider.hasAvoidableIncidents &&
+                      !(provider.preview?.destinationInside ?? false) &&
+                      !provider.isActive,
+                  destinationInside:
+                      provider.preview?.destinationInside ?? false,
+                  onAvoid: _avoid,
+                ),
+              ),
+            ),
           if (provider.status == RouteFlowStatus.loading ||
               provider.status == RouteFlowStatus.avoiding)
             const LinearProgressIndicator(minHeight: 3),
@@ -300,6 +330,7 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
                 selectedMode: _transportMode,
                 onModeChanged: _changeTransportMode,
                 onStart: _start,
+                onStop: _stop,
                 onShowOptions: provider.options.length < 2
                     ? null
                     : () => RouteOptionSheet.show(
@@ -311,21 +342,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
                           if (mounted) _fitBounds();
                         },
                       ),
-              ),
-            ),
-          if (route != null && provider.hasIncidents && !_bannerDismissed)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 246,
-              child: IncidentWarningBanner(
-                hit: provider.primaryIncidentHit!,
-                canAvoid:
-                    provider.hasAvoidableIncidents &&
-                    !(provider.preview?.destinationInside ?? false),
-                destinationInside: provider.preview?.destinationInside ?? false,
-                onAvoid: _avoid,
-                onContinue: () => setState(() => _bannerDismissed = true),
               ),
             ),
         ],
@@ -390,22 +406,6 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
     return polylines;
   }
 
-  /// §4.4 — le halo exprime l'incertitude, jamais la géométrie d'évitement.
-  Set<Circle> _buildIncidentHalos(RouteProvider provider) {
-    return provider.incidentsOnRoute.map((hit) {
-      final incident = hit.incident;
-
-      return Circle(
-        circleId: CircleId('incident_${incident.id}'),
-        center: incident.position,
-        radius: incident.displayRadiusM.toDouble(),
-        fillColor: incident.severity.color.withValues(alpha: 0.15),
-        strokeColor: incident.severity.color,
-        strokeWidth: 2,
-      );
-    }).toSet();
-  }
-
   Set<Marker> _buildMarkers(RouteProvider provider) {
     for (final hit in provider.incidentsOnRoute) {
       _ensureIncidentMarker(hit.incident);
@@ -416,17 +416,27 @@ class _RoutePreviewPageState extends State<RoutePreviewPage> {
         position: widget.search.destination,
       ),
       for (final hit in provider.incidentsOnRoute)
-        if (_incidentMarkerIcons['${hit.incident.type.value}_${hit.incident.severity.value}']
-            case final icon?)
-          Marker(
-            markerId: MarkerId('route_incident_${hit.incident.id}'),
-            position: hit.incident.position,
-            icon: icon,
-            anchor: const Offset(.5, .5),
-            zIndex: 5,
+        Marker(
+          markerId: MarkerId('route_incident_${hit.incident.id}'),
+          position: hit.incident.position,
+          // Le repère par défaut évite que l'alerte soit invisible pendant la
+          // génération asynchrone de son icône personnalisée.
+          icon:
+              _incidentMarkerIcons['${hit.incident.type.value}_${hit.incident.severity.value}'] ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          anchor: const Offset(.5, .5),
+          zIndex: 5,
+          infoWindow: InfoWindow(
+            title: hit.headline,
+            snippet:
+                '${hit.detail} · à ${_formatIncidentDistance(hit.distanceFromOriginM)} du départ',
           ),
+        ),
     };
   }
+
+  static String _formatIncidentDistance(int meters) =>
+      meters < 1000 ? '$meters m' : '${(meters / 1000).toStringAsFixed(1)} km';
 
   void _ensureIncidentMarker(Incident incident) {
     final key = '${incident.type.value}_${incident.severity.value}';
@@ -501,6 +511,7 @@ class _BottomCard extends StatelessWidget {
     required this.selectedMode,
     required this.onModeChanged,
     required this.onStart,
+    required this.onStop,
     this.onShowOptions,
   });
 
@@ -509,6 +520,7 @@ class _BottomCard extends StatelessWidget {
   final TransportMode selectedMode;
   final ValueChanged<TransportMode> onModeChanged;
   final VoidCallback onStart;
+  final VoidCallback onStop;
   final VoidCallback? onShowOptions;
 
   @override
@@ -587,20 +599,33 @@ class _BottomCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 10),
-              // §11.3 — CTA principal en zone basse, pleine largeur
+              // §11.3 — CTA principal en zone basse, pleine largeur.
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: onStart,
+                  onPressed: route.status == 'active'
+                      ? onStop
+                      : route.status == 'planned'
+                      ? onStart
+                      : null,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF53C6D8),
-                    foregroundColor: AppColors.gray900,
+                    backgroundColor: route.status == 'active'
+                        ? AppColors.gravityHigh
+                        : const Color(0xFF53C6D8),
+                    foregroundColor: route.status == 'active'
+                        ? Colors.white
+                        : AppColors.gray900,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Démarrer'),
+                  child: Text(switch (route.status) {
+                    'active' => 'Arrêter le suivi',
+                    'completed' => 'Suivi arrêté',
+                    'cancelled' => 'Trajet annulé',
+                    _ => 'Démarrer',
+                  }),
                 ),
               ),
             ],
