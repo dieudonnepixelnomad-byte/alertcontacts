@@ -106,7 +106,11 @@ class _AppShellState extends State<AppShell> {
                   ),
                   label: 'Alertes',
                 ),
-                // const NavigationDestination(icon: Icon(Icons.gps_fixed_outlined), selectedIcon: Icon(Icons.gps_fixed), label: 'Traceurs'),
+                const NavigationDestination(
+                  icon: Icon(Icons.gps_fixed_outlined),
+                  selectedIcon: Icon(Icons.gps_fixed),
+                  label: 'Traceurs',
+                ),
               ],
             ),
           );
