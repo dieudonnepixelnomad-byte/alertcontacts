@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/gps_tracker.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/gps_tracker_service.dart';
 import '../../../theme/colors.dart';
 import '../../paywall/presentation/paywall_page.dart';
@@ -68,6 +69,7 @@ class _TraceursTabState extends State<TraceursTab> {
         );
       }
     } catch (_) {
+      AnalyticsService().logTrackerActivationFailed(reason: 'create_failed');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Impossible d’ajouter ce traceur.')),

@@ -1,9 +1,8 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:alertcontacts/core/services/analytics_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
-import 'package:firebase_performance/firebase_performance.dart';
 import 'package:http/http.dart' as http;
 import 'http_client.dart';
 import '../models/user.dart';
@@ -17,7 +16,7 @@ class ApiAuthService {
   bool _lastFirebaseLoginCreatedAccount = false;
 
   ApiAuthService({required this.baseUrl, AppHttpClient? client})
-      : _client = client ?? AppHttpClient() {
+    : _client = client ?? AppHttpClient() {
     _loadToken();
   }
 
@@ -41,17 +40,22 @@ class ApiAuthService {
   };
 
   /// Échanger le token Firebase contre une session Sanctum
-  Future<User> exchangeFirebaseToken(String idToken, Map<String, dynamic> userData) async {
+  Future<User> exchangeFirebaseToken(
+    String idToken,
+    Map<String, dynamic> userData,
+  ) async {
     try {
       _lastFirebaseLoginCreatedAccount = false;
       log('ApiAuthService.exchangeFirebaseToken: Starting token exchange');
       log('ApiAuthService.exchangeFirebaseToken: baseUrl = $baseUrl');
-      log('ApiAuthService.exchangeFirebaseToken: idToken length = ${idToken.length}');
+      log(
+        'ApiAuthService.exchangeFirebaseToken: idToken length = ${idToken.length}',
+      );
       log('ApiAuthService.exchangeFirebaseToken: userData = $userData');
 
       final metric = await AnalyticsService().startHttpTrace(
         '$baseUrl/auth/firebase-login',
-        HttpMethod.Post,
+        HttpMethod.post,
       );
       late final http.Response response;
       try {
@@ -65,8 +69,12 @@ class ApiAuthService {
         await metric.stop();
       }
 
-      log('ApiAuthService.exchangeFirebaseToken: Response status = ${response.statusCode}');
-      log('ApiAuthService.exchangeFirebaseToken: Response body = ${response.body}');
+      log(
+        'ApiAuthService.exchangeFirebaseToken: Response status = ${response.statusCode}',
+      );
+      log(
+        'ApiAuthService.exchangeFirebaseToken: Response body = ${response.body}',
+      );
 
       final data = _handleResponse(response);
       _lastFirebaseLoginCreatedAccount =
@@ -78,7 +86,9 @@ class ApiAuthService {
 
       // Retourner le profil utilisateur
       final user = User.fromJson(data['user'] as Map<String, dynamic>);
-      log('ApiAuthService.exchangeFirebaseToken: User created successfully: ${user.id}');
+      log(
+        'ApiAuthService.exchangeFirebaseToken: User created successfully: ${user.id}',
+      );
       return user;
     } on SocketException catch (e) {
       log('ApiAuthService.exchangeFirebaseToken: SocketException: $e');
@@ -104,7 +114,7 @@ class ApiAuthService {
       );
       final metric = await AnalyticsService().startHttpTrace(
         '$baseUrl/auth/register',
-        HttpMethod.Post,
+        HttpMethod.post,
       );
       late final http.Response response;
       try {
@@ -151,7 +161,7 @@ class ApiAuthService {
     try {
       final metric = await AnalyticsService().startHttpTrace(
         '$baseUrl/auth/login',
-        HttpMethod.Post,
+        HttpMethod.post,
       );
       late final http.Response response;
       try {
@@ -215,7 +225,10 @@ class ApiAuthService {
   }
 
   /// Rafraîchir la session avec un nouveau token Firebase
-  Future<User> refreshSession(String idToken, Map<String, dynamic> userData) async {
+  Future<User> refreshSession(
+    String idToken,
+    Map<String, dynamic> userData,
+  ) async {
     return exchangeFirebaseToken(idToken, userData);
   }
 
@@ -255,20 +268,25 @@ class ApiAuthService {
   bool get lastFirebaseLoginCreatedAccount => _lastFirebaseLoginCreatedAccount;
 
   /// Envoyer le token FCM au backend (route publique - sans authentification)
-  Future<void> sendFcmToken(String fcmToken, String platform, String email, {String? oldFcmToken}) async {
+  Future<void> sendFcmToken(
+    String fcmToken,
+    String platform,
+    String email, {
+    String? oldFcmToken,
+  }) async {
     try {
       log('ApiAuthService.sendFcmToken: Sending FCM token to backend');
-      
+
       final body = {
         'fcm_token': fcmToken,
         'platform': platform,
         'email': email,
       };
-      
+
       if (oldFcmToken != null) {
         body['old_fcm_token'] = oldFcmToken;
       }
-      
+
       final response = await _client.post(
         Uri.parse('$baseUrl/users/fcm_token'),
         headers: {
@@ -278,12 +296,16 @@ class ApiAuthService {
         body: jsonEncode(body),
       );
 
-      log('ApiAuthService.sendFcmToken: Response status = ${response.statusCode}');
-      
+      log(
+        'ApiAuthService.sendFcmToken: Response status = ${response.statusCode}',
+      );
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         log('ApiAuthService.sendFcmToken: FCM token sent successfully');
       } else {
-        log('ApiAuthService.sendFcmToken: Failed to send FCM token: ${response.body}');
+        log(
+          'ApiAuthService.sendFcmToken: Failed to send FCM token: ${response.body}',
+        );
         throw Exception('Failed to send FCM token: ${response.statusCode}');
       }
     } on SocketException {
@@ -403,4 +425,3 @@ class ApiAuthService {
     _client.close();
   }
 }
-

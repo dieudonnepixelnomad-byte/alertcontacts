@@ -5,7 +5,6 @@ plugins {
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
-    id("com.google.firebase.firebase-perf")
     // END: FlutterFire Configuration
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -45,16 +44,33 @@ android {
     if (localPropertiesFile.exists()) {
         localPropertiesFile.reader().use { localProperties.load(it) }
     }
+    val envProperties = Properties()
+    val envPropertiesFile = rootProject.file("../.env")
+    if (envPropertiesFile.exists()) {
+        envPropertiesFile.reader().use { envProperties.load(it) }
+    }
     val mapsApiKey = localProperties.getProperty("MAPS_API_KEY_ANDROID") ?: ""
+    val posthogProjectApiKey =
+        localProperties.getProperty("POSTHOG_PROJECT_API_KEY")
+            ?: envProperties.getProperty("POSTHOG_PROJECT_API_KEY")
+            ?: ""
+    val posthogHost =
+        localProperties.getProperty("POSTHOG_HOST")
+            ?: envProperties.getProperty("POSTHOG_HOST")
+            ?: "https://us.i.posthog.com"
 
     defaultConfig {
         applicationId = "com.alertcontacts.alertcontacts"
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(21, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        manifestPlaceholders["POSTHOG_PROJECT_API_KEY"] = posthogProjectApiKey
+        manifestPlaceholders["POSTHOG_HOST"] = posthogHost
+        manifestPlaceholders["POSTHOG_TRACK_LIFECYCLE"] = "false"
+        manifestPlaceholders["POSTHOG_DEBUG"] = "false"
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
     }
 

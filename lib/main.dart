@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/api_config.dart';
+import 'core/services/analytics_service.dart';
 import 'core/services/pending_deep_link_service.dart';
 import 'core/services/app_review_service.dart';
 import 'core/services/fcm_service.dart';
@@ -143,6 +144,7 @@ Future<void> main() async {
           false,
         );
       }
+      await AnalyticsService().initializeProductAnalytics();
 
       runApp(const AlertContactApp());
       await AppReviewService().initialize();

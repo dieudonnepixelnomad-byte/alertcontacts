@@ -1,6 +1,5 @@
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:alertcontacts/core/services/permissions_service.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:alertcontacts/features/about/presentation/about_page.dart';
 import 'package:alertcontacts/features/app_shell/presentation/app_shell.dart';
 import 'package:alertcontacts/features/auth/presentation/login_page.dart';
@@ -116,7 +115,6 @@ class AppRouter {
     return GoRouter(
       navigatorKey: _rootKey,
       initialLocation: AppRoutes.splash,
-      observers: [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)],
       // Gestion d'erreur personnalisée
       errorPageBuilder: (context, state) {
         // Pour les erreurs, afficher une page d'erreur standard

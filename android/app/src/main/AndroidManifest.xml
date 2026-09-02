@@ -59,6 +59,18 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
+        <meta-data
+            android:name="com.posthog.posthog.PROJECT_TOKEN"
+            android:value="${POSTHOG_PROJECT_API_KEY}" />
+        <meta-data
+            android:name="com.posthog.posthog.POSTHOG_HOST"
+            android:value="${POSTHOG_HOST}" />
+        <meta-data
+            android:name="com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS"
+            android:value="${POSTHOG_TRACK_LIFECYCLE}" />
+        <meta-data
+            android:name="com.posthog.posthog.DEBUG"
+            android:value="${POSTHOG_DEBUG}" />
 
     </application>
     <!-- Required to query activities that can process text, see:

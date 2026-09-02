@@ -225,30 +225,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
-  firebase_analytics:
-    dependency: "direct main"
-    description:
-      name: firebase_analytics
-      sha256: "1f68d8a30265149035e9bb0b73962e43f3bf2debef4a7ae2d1d588361d5858a9"
-      url: "https://pub.dev"
-    source: hosted
-    version: "12.4.2"
-  firebase_analytics_platform_interface:
-    dependency: transitive
-    description:
-      name: firebase_analytics_platform_interface
-      sha256: "65f97fb923f036d487aa95be99eab90e0f8f636e4783c94deeb52c0e6f5dbae7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.2"
-  firebase_analytics_web:
-    dependency: transitive
-    description:
-      name: firebase_analytics_web
-      sha256: ec49a95c6abaadbd6a4327cc2680d911f86e62fdf6f2c96a3a326603410e2abf
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.1+8"
   firebase_auth:
     dependency: "direct main"
     description:
@@ -361,30 +337,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.2.0"
-  firebase_performance:
-    dependency: "direct main"
-    description:
-      name: firebase_performance
-      sha256: a6b88d6933e02e4ba71f0641121dd7024f036b32a9929a01b638b3696a98e9ce
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.11.4+2"
-  firebase_performance_platform_interface:
-    dependency: transitive
-    description:
-      name: firebase_performance_platform_interface
-      sha256: "6b9912709d315f4f2e0c87ddada8fe4f4d1b06aa74df52a8ced19fed087f0591"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.0+2"
-  firebase_performance_web:
-    dependency: transitive
-    description:
-      name: firebase_performance_web
-      sha256: "5ccf0a4511cd477406fe4c02ee2cabee5bd7d3c9e8cc5effdba5dcbd46b90064"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.8+8"
   firebase_remote_config:
     dependency: "direct main"
     description:
@@ -1077,6 +1029,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.5.0"
+  posthog_flutter:
+    dependency: "direct main"
+    description:
+      name: posthog_flutter
+      sha256: "7b61aca485bcef80ac5d76c4855da8c81a9d65872002562b9dce63ad97bd6260"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.39.0"
   provider:
     dependency: "direct main"
     description:

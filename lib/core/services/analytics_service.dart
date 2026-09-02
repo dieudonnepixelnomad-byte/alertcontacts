@@ -1,341 +1,284 @@
-import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_performance/firebase_performance.dart';
+import 'crash_reporting_service.dart';
+import 'product_analytics_service.dart';
+
+enum HttpMethod { get, post, put, delete, patch }
+
+class NoopHttpMetric {
+  int? httpResponseCode;
+
+  Future<void> stop() async {}
+}
+
+class NoopTrace {
+  Future<void> stop() async {}
+}
 
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._();
   factory AnalyticsService() => _instance;
   AnalyticsService._();
 
-  final _analytics = FirebaseAnalytics.instance;
-  final _crashlytics = FirebaseCrashlytics.instance;
-  final _performance = FirebasePerformance.instance;
+  final _product = ProductAnalyticsService();
+  final _crash = CrashReportingService();
 
   void _fire(Future<void> fn) => fn.catchError((Object _) {});
 
-  // ── Identity ──────────────────────────────────────────────────────────────
+  Future<void> initializeProductAnalytics() => _product.initialize();
 
   Future<void> setUser(String userId, {String? email}) async {
-    await _analytics.setUserId(id: userId);
-    await _crashlytics.setUserIdentifier(userId);
+    await _crash.setUser(userId);
+    await _product.identify(userId);
   }
 
   Future<void> clearUser() async {
-    await _analytics.setUserId(id: null);
-    await _crashlytics.setUserIdentifier('');
-    await _crashlytics.setCustomKey('user_email', '');
+    await _crash.clearUser();
+    await _crash.setCustomKey('user_email', '');
+    await _product.reset();
   }
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
 
   void logAuthStarted(String method) =>
-      _fire(_analytics.logEvent(
-        name: 'auth_started',
-        parameters: {'method': method},
-      ));
+      _capture('auth_started', {'method': method});
 
   void logLoginSuccess(String method) =>
-      _fire(_analytics.logLogin(loginMethod: method));
+      _capture('login_success', {'method': method});
 
   void logSignUp(String method) =>
-      _fire(_analytics.logSignUp(signUpMethod: method));
+      _capture('signup_success', {'method': method});
 
   void logLoginFailure({required String method, required String errorCode}) {
-    _fire(_analytics.logEvent(
-      name: 'login_failure',
-      parameters: {'method': method, 'error_code': errorCode},
-    ));
-    _fire(_crashlytics.setCustomKey('last_auth_error', '$method:$errorCode'));
+    _capture('login_failure', {'method': method, 'error_code': errorCode});
+    _fire(_crash.setCustomKey('last_auth_error', '$method:$errorCode'));
   }
 
-  void logLogout() => _fire(_analytics.logEvent(name: 'logout'));
+  void logLogout() => _capture('logout');
 
-  void logPasswordReset() =>
-      _fire(_analytics.logEvent(name: 'password_reset_requested'));
+  void logPasswordReset() => _capture('password_reset_requested');
 
-  // ── Screen tracking ───────────────────────────────────────────────────────
+  void logScreenView(String screenName) => _fire(_product.screen(screenName));
 
-  void logScreenView(String screenName) =>
-      _fire(_analytics.logScreenView(screenName: screenName));
+  void logOnboardingStarted() => _capture('onboarding_started');
 
-  // ── Onboarding ────────────────────────────────────────────────────────────
-
-  void logOnboardingStarted() =>
-      _fire(_analytics.logEvent(name: 'onboarding_started'));
-
-  void logOnboardingSlideViewed(int index) => _fire(
-        _analytics.logEvent(
-          name: 'onboarding_slide_viewed',
-          parameters: {'slide_index': index},
-        ),
-      );
+  void logOnboardingSlideViewed(int index) =>
+      _capture('onboarding_slide_viewed', {'slide_index': index});
 
   void logOnboardingSlidesCompleted() =>
-      _fire(_analytics.logEvent(name: 'onboarding_slides_completed'));
+      _capture('onboarding_slides_completed');
 
-  void logOnboardingSlidesSkipped(int atSlide) => _fire(
-        _analytics.logEvent(
-          name: 'onboarding_slides_skipped',
-          parameters: {'at_slide': atSlide},
-        ),
-      );
+  void logOnboardingSlidesSkipped(int atSlide) =>
+      _capture('onboarding_slides_skipped', {'at_slide': atSlide});
 
-  void logOnboardingSandboxViewed() =>
-      _fire(_analytics.logEvent(name: 'onboarding_sandbox_viewed'));
+  void logOnboardingSandboxViewed() => _capture('onboarding_sandbox_viewed');
 
-  void logOnboardingSandboxSkipped() =>
-      _fire(_analytics.logEvent(name: 'onboarding_sandbox_skipped'));
+  void logOnboardingSandboxSkipped() => _capture('onboarding_sandbox_skipped');
 
-  void logOnboardingAhaMomentTriggered(String dangerType) => _fire(
-        _analytics.logEvent(
-          name: 'onboarding_aha_moment_triggered',
-          parameters: {'danger_type': dangerType},
-        ),
-      );
+  void logOnboardingAhaMomentTriggered(String dangerType) =>
+      _capture('onboarding_aha_moment_triggered', {'danger_type': dangerType});
 
   void logOnboardingCelebrationViewed() =>
-      _fire(_analytics.logEvent(name: 'onboarding_celebration_viewed'));
+      _capture('onboarding_celebration_viewed');
 
-  void logOnboardingPersonaSelected(String persona) => _fire(
-        _analytics.logEvent(
-          name: 'onboarding_persona_selected',
-          parameters: {'persona': persona},
-        ),
-      );
+  void logOnboardingPersonaSelected(String persona) {
+    _capture('onboarding_persona_selected', {'persona': persona});
+    setProfileType(persona);
+  }
 
-  void logInvitationScreenViewed() =>
-      _fire(_analytics.logEvent(name: 'invitation_screen_viewed'));
+  void logInvitationScreenViewed() => _capture('invitation_screen_viewed');
 
-  void logOnboardingInvitationSent() =>
-      _fire(_analytics.logEvent(name: 'onboarding_invitation_sent'));
+  void logOnboardingInvitationSent() => _capture('onboarding_invitation_sent');
 
   void logOnboardingInvitationSkipped() =>
-      _fire(_analytics.logEvent(name: 'onboarding_invitation_skipped'));
+      _capture('onboarding_invitation_skipped');
 
   void logPermissionResult({required String type, required bool granted}) {
-    _fire(_analytics.logEvent(
-      name: 'permission_result',
-      parameters: {
-        'permission_type': type,
-        'granted': granted ? 'true' : 'false',
-      },
-    ));
-    _fire(_crashlytics.setCustomKey(
-        'perm_$type', granted ? 'granted' : 'denied'));
+    _capture('permission_result', {
+      'permission_type': type,
+      'granted': granted,
+    });
+    _fire(_crash.setCustomKey('perm_$type', granted ? 'granted' : 'denied'));
   }
 
-  void logOnboardingZoneCreated() =>
-      _fire(_analytics.logEvent(name: 'onboarding_zone_created'));
+  void logOnboardingZoneCreated() => _capture('onboarding_zone_created');
 
-  void logAppShellReached() =>
-      _fire(_analytics.logEvent(name: 'app_shell_reached'));
+  void logAppShellReached() => _capture('app_shell_reached');
 
-  void logOnboardingCompleted() {
-    _fire(_analytics.logEvent(name: 'onboarding_completed'));
-    _fire(_analytics.logTutorialComplete());
-  }
-
-  // ── Errors (non-fatals) ───────────────────────────────────────────────────
+  void logOnboardingCompleted() => _capture('onboarding_completed');
 
   Future<void> recordError(
     Object error,
     StackTrace? stack, {
     String? reason,
     bool fatal = false,
-  }) =>
-      _crashlytics.recordError(error, stack, reason: reason, fatal: fatal);
+  }) => _crash.recordError(error, stack, reason: reason, fatal: fatal);
 
-  void addBreadcrumb(String message) => _fire(_crashlytics.log(message));
+  void addBreadcrumb(String message) => _fire(_crash.log(message));
 
-  // ── Performance — HTTP traces ─────────────────────────────────────────────
+  Future<NoopHttpMetric> startHttpTrace(String url, HttpMethod method) async =>
+      NoopHttpMetric();
 
-  Future<HttpMetric> startHttpTrace(String url, HttpMethod method) async {
-    final metric = _performance.newHttpMetric(url, method);
-    await metric.start();
-    return metric;
-  }
+  Future<NoopTrace> startTrace(String name) async => NoopTrace();
 
-  // ── Performance — custom traces ───────────────────────────────────────────
+  void logAha1ContactAccepted() => _capture('aha_1_contact_accepted');
 
-  Future<Trace> startTrace(String name) async {
-    final trace = _performance.newTrace(name);
-    await trace.start();
-    return trace;
-  }
+  void logAha2ContactOnMap() => _capture('aha_2_contact_on_map');
 
-  // ── Aha Moments ───────────────────────────────────────────────────────────
+  void logAha3ZoneAlertReceived() => _capture('aha_3_zone_alert_received');
 
-  void logAha1ContactAccepted() =>
-      _fire(_analytics.logEvent(name: 'aha_1_contact_accepted'));
+  void logSafetyAhaMomentConfirmed() => _capture('safety_aha_moment_confirmed');
 
-  void logAha2ContactOnMap() =>
-      _fire(_analytics.logEvent(name: 'aha_2_contact_on_map'));
-
-  void logAha3ZoneAlertReceived() =>
-      _fire(_analytics.logEvent(name: 'aha_3_zone_alert_received'));
-
-  void logSafetyAhaMomentConfirmed() =>
-      _fire(_analytics.logEvent(name: 'safety_aha_moment_confirmed'));
-
-  // ── Contacts ──────────────────────────────────────────────────────────────
-
-  void logContactInvited() =>
-      _fire(_analytics.logEvent(name: 'contact_invited'));
+  void logContactInvited() => _capture('contact_invited');
 
   void logContactInvitationAccepted() =>
-      _fire(_analytics.logEvent(name: 'contact_invitation_accepted'));
+      _capture('contact_invitation_accepted');
 
-  void logContactRemoved() =>
-      _fire(_analytics.logEvent(name: 'contact_removed'));
+  void logContactRemoved() => _capture('contact_removed');
 
-  // ── Zones ─────────────────────────────────────────────────────────────────
+  void logZoneCreated({required String icon, required int radius}) => _capture(
+    'zone_created',
+    {'icon': icon, 'radius_bucket': _radiusBucket(radius)},
+  );
 
-  void logZoneCreated({required String icon, required int radius}) =>
-      _fire(_analytics.logEvent(
-        name: 'zone_created',
-        parameters: {'icon': icon, 'radius': radius},
-      ));
+  void logZoneEntryDetected() => _capture('zone_entry_detected');
 
-  void logZoneEntryDetected() =>
-      _fire(_analytics.logEvent(name: 'zone_entry_detected'));
-
-  void logZoneExitDetected() =>
-      _fire(_analytics.logEvent(name: 'zone_exit_detected'));
-
-  // ── Community alerts ──────────────────────────────────────────────────────
+  void logZoneExitDetected() => _capture('zone_exit_detected');
 
   void logCommunityAlertViewed({required String gravity}) =>
-      _fire(_analytics.logEvent(
-        name: 'community_alert_viewed',
-        parameters: {'gravity': gravity},
-      ));
+      _capture('community_alert_viewed', {'gravity': gravity});
 
-  void logCommunityAlertCreated({required String gravity, required String type}) =>
-      _fire(_analytics.logEvent(
-        name: 'community_alert_created',
-        parameters: {'gravity': gravity, 'type': type},
-      ));
+  void logCommunityAlertCreated({
+    required String gravity,
+    required String type,
+  }) => _capture('community_alert_created', {'gravity': gravity, 'type': type});
 
-  void logCommunityAlertConfirmed() =>
-      _fire(_analytics.logEvent(name: 'community_alert_confirmed'));
+  void logCommunityAlertConfirmed() => _capture('community_alert_confirmed');
 
-  // ── Trajets (CDC V4.1 §13) ────────────────────────────────────────────────
-  //
-  // Ces événements sont l'instrumentation minimale du §13.1 : sans eux,
-  // l'arbitrage sur l'avenir du module se ferait à l'opinion.
+  void logRoutePreviewed({
+    required String transportMode,
+    required int incidentCount,
+  }) => _capture('route_previewed', {
+    'transport_mode': transportMode,
+    'incident_count': incidentCount,
+  });
 
-  void logRoutePreviewed({required String transportMode, required int incidentCount}) =>
-      _fire(_analytics.logEvent(
-        name: 'route_previewed',
-        parameters: {'transport_mode': transportMode, 'incident_count': incidentCount},
-      ));
-
-  /// Taux de rencontre (§13.1) — sous 5 %, la feature ne sert à rien et le
-  /// problème est ailleurs : la densité de signalements.
   void logRouteIncidentDetected({
     required String gravity,
     required String type,
     required int reportCount,
-  }) =>
-      _fire(_analytics.logEvent(
-        name: 'route_incident_detected',
-        parameters: {'gravity': gravity, 'type': type, 'report_count': reportCount},
-      ));
+  }) => _capture('route_incident_detected', {
+    'gravity': gravity,
+    'type': type,
+    'report_count_bucket': _countBucket(reportCount),
+  });
 
-  /// Taux de contournement (§13.1) — sous 20 %, la valeur perçue est faible
-  /// ou le wording est mauvais.
   void logRouteAvoidanceRequested({required int incidentCount}) =>
-      _fire(_analytics.logEvent(
-        name: 'route_avoidance_requested',
-        parameters: {'incident_count': incidentCount},
-      ));
+      _capture('route_avoidance_requested', {'incident_count': incidentCount});
 
-  /// Taux d'échec (§13.1) — au-delà de 15 %, les géométries sont trop larges
-  /// et les buffers du §4.9 sont à revoir.
-  void logRouteAvoidancePartial() =>
-      _fire(_analytics.logEvent(name: 'route_avoidance_partial'));
+  void logRouteAvoidancePartial() => _capture('route_avoidance_partial');
 
-  void logRouteStarted({required String transportMode, required bool avoidanceApplied}) =>
-      _fire(_analytics.logEvent(
-        name: 'route_started',
-        parameters: {
-          'transport_mode': transportMode,
-          'avoidance_applied': avoidanceApplied ? 1 : 0,
-        },
-      ));
+  void logRouteStarted({
+    required String transportMode,
+    required bool avoidanceApplied,
+  }) => _capture('route_started', {
+    'transport_mode': transportMode,
+    'avoidance_applied': avoidanceApplied,
+  });
 
   void logRouteIncidentNotificationOpened() =>
-      _fire(_analytics.logEvent(name: 'route_incident_notification_opened'));
-
-  // ── Monetisation ─────────────────────────────────────────────────────────
+      _capture('route_incident_notification_opened');
 
   void logPaywallDisplayed({required String trigger}) =>
-      _fire(_analytics.logEvent(
-        name: 'paywall_displayed',
-        parameters: {'trigger': trigger},
-      ));
+      _capture('paywall_displayed', {'trigger': trigger});
 
-  void logPaywallDismissed() =>
-      _fire(_analytics.logEvent(name: 'paywall_dismissed'));
+  void logPaywallDismissed() => _capture('paywall_dismissed');
 
-  void logSubscriptionTrialStarted({required String tier, required String billing}) =>
-      _fire(_analytics.logEvent(
-        name: 'subscription_trial_started',
-        parameters: {'tier': tier, 'billing': billing},
-      ));
+  void logSubscriptionTrialStarted({
+    required String tier,
+    required String billing,
+  }) => _capture('subscription_trial_started', {
+    'tier': tier,
+    'billing': billing,
+  });
 
-  void logSubscriptionPurchased({required String tier, required String billing}) =>
-      _fire(_analytics.logEvent(
-        name: 'subscription_purchased',
-        parameters: {'tier': tier, 'billing': billing},
-      ));
+  void logSubscriptionPurchased({
+    required String tier,
+    required String billing,
+  }) {
+    _capture('subscription_purchased', {'tier': tier, 'billing': billing});
+    setUserTier(tier);
+  }
 
   void logSubscriptionCancelled({required String tier}) =>
-      _fire(_analytics.logEvent(
-        name: 'subscription_cancelled',
-        parameters: {'tier': tier},
-      ));
+      _capture('subscription_cancelled', {'tier': tier});
 
   void setUserTier(String tier) =>
-      _fire(_analytics.setUserProperty(name: 'subscription_tier', value: tier));
+      _fire(_product.setPersonProperties({'subscription_tier': tier}));
 
   void setProfileType(String profileType) =>
-      _fire(_analytics.setUserProperty(name: 'profile_type', value: profileType));
+      _fire(_product.setPersonProperties({'profile_type': profileType}));
 
   void setHasActiveContact(bool value) =>
-      _fire(_analytics.setUserProperty(
-        name: 'has_active_contact',
-        value: value ? 'true' : 'false',
-      ));
-
-  // ── Géolocalisation ───────────────────────────────────────────────────────
+      _fire(_product.setPersonProperties({'has_active_contact': value}));
 
   void logLocationPermissionGranted() =>
-      _fire(_analytics.logEvent(name: 'location_permission_granted'));
+      logPermissionResult(type: 'location', granted: true);
 
   void logLocationPermissionDenied() =>
-      _fire(_analytics.logEvent(name: 'location_permission_denied'));
+      logPermissionResult(type: 'location', granted: false);
 
-  void logInvisibleModeActivated({required int durationMinutes}) =>
-      _fire(_analytics.logEvent(
-        name: 'invisible_mode_activated',
-        parameters: {'duration': durationMinutes.toString()},
-      ));
-
-  // ── Engagement ────────────────────────────────────────────────────────────
+  void logInvisibleModeActivated({required int durationMinutes}) => _capture(
+    'invisible_mode_activated',
+    {'duration_bucket': _durationBucket(durationMinutes)},
+  );
 
   void logNotificationOpened({required String type}) =>
-      _fire(_analytics.logEvent(
-        name: 'notification_opened',
-        parameters: {'type': type},
-      ));
+      _capture('notification_opened', {'type': type});
 
-  void logAppOpenedFromBackground() =>
-      _fire(_analytics.logEvent(name: 'app_opened_from_background'));
+  void logAppOpenedFromBackground() => _capture('app_opened_from_background');
 
   void logAppReviewPrompt({required String action}) =>
-      _fire(_analytics.logEvent(
-        name: 'app_review_prompt',
-        parameters: {'action': action},
-      ));
+      _capture('app_review_prompt', {'action': action});
+
+  void logTrackerAdded({
+    required bool hasProvider,
+    required bool hasIdentifier,
+  }) => _capture('tracker_added', {
+    'has_provider': hasProvider,
+    'has_identifier': hasIdentifier,
+  });
+
+  void logTrackerActivationStarted({required String status}) =>
+      _capture('tracker_activation_started', {'tracker_status': status});
+
+  void logTrackerActivated() => _capture('tracker_activated');
+
+  void logTrackerActivationFailed({required String reason}) =>
+      _capture('tracker_activation_failed', {'reason': reason});
+
+  void logTrackerSuspended({required String reason}) =>
+      _capture('tracker_suspended', {'reason': reason});
+
+  void _capture(
+    String eventName, [
+    Map<String, Object?> properties = const {},
+  ]) {
+    _fire(_product.capture(eventName, properties: properties));
+  }
+
+  String _radiusBucket(int radius) {
+    if (radius < 100) return '<100m';
+    if (radius <= 200) return '100-200m';
+    if (radius <= 500) return '201-500m';
+    return '>500m';
+  }
+
+  String _durationBucket(int minutes) {
+    if (minutes <= 60) return '<=1h';
+    if (minutes <= 240) return '1-4h';
+    return '>4h';
+  }
+
+  String _countBucket(int count) {
+    if (count <= 1) return '1';
+    if (count <= 3) return '2-3';
+    return '4+';
+  }
 }

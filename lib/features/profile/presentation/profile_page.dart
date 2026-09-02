@@ -7,6 +7,7 @@ import '../../auth/providers/auth_notifier.dart';
 import '../providers/profile_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../core/services/app_review_service.dart';
+import '../../alertes/services/consent_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -106,7 +107,8 @@ class _ProfilePageState extends State<ProfilePage> {
             CircleAvatar(
               radius: 40,
               backgroundColor: const Color(0xFF006970),
-              backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
+              backgroundImage:
+                  user.photoUrl != null && user.photoUrl!.isNotEmpty
                   ? NetworkImage(user.photoUrl!)
                   : null,
               child: user.photoUrl == null || user.photoUrl!.isEmpty
@@ -353,7 +355,9 @@ class _ProfilePageState extends State<ProfilePage> {
             ListTile(
               leading: const Icon(Icons.star_outline),
               title: const Text('Noter l’application'),
-              subtitle: const Text('Ouvrir la fiche AlertContacts sur le Play Store'),
+              subtitle: const Text(
+                'Ouvrir la fiche AlertContacts sur le Play Store',
+              ),
               trailing: const Icon(Icons.open_in_new),
               onTap: () => AppReviewService().openStoreListing(),
               contentPadding: EdgeInsets.zero,
@@ -427,48 +431,86 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _showConsentManagement() {
+  Future<void> _showConsentManagement() async {
+    final consentService = ConsentService();
+    final initialAnalyticsConsent = await consentService.hasAnalyticsConsent();
+    if (!mounted) return;
+
+    var analyticsConsent = initialAnalyticsConsent;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Gestion des consentements'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Gérez vos consentements pour le traitement de vos données :',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Gestion des consentements'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Gérez vos consentements pour le traitement de vos données :',
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                title: const Text('Localisation'),
+                subtitle: const Text('Partage de position avec vos proches'),
+                value: true,
+                onChanged: null,
+              ),
+              CheckboxListTile(
+                title: const Text('Notifications'),
+                subtitle: const Text('Alertes de sécurité'),
+                value: true,
+                onChanged: null,
+              ),
+              SwitchListTile(
+                title: const Text('Amélioration du service'),
+                subtitle: const Text(
+                  'Données d’usage non sensibles pour améliorer l’app',
+                ),
+                value: analyticsConsent,
+                onChanged: (value) {
+                  setDialogState(() => analyticsConsent = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
             ),
-            const SizedBox(height: 16),
-            CheckboxListTile(
-              title: const Text('Localisation'),
-              subtitle: const Text('Partage de position avec vos proches'),
-              value: true,
-              onChanged: null, // Requis pour le fonctionnement de l'app
-            ),
-            CheckboxListTile(
-              title: const Text('Notifications'),
-              subtitle: const Text('Alertes de sécurité'),
-              value: true,
-              onChanged: (value) {},
-            ),
-            CheckboxListTile(
-              title: const Text('Amélioration du service'),
-              subtitle: const Text('Données d\'usage anonymisées'),
-              value: false,
-              onChanged: (value) {},
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (mounted) {
+                    await context.read<ProfileProvider>().updateConsents(
+                      analyticsConsent: analyticsConsent,
+                    );
+                  }
+                  await consentService.setAnalyticsConsent(analyticsConsent);
+
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Consentements mis à jour.')),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Erreur lors de la mise à jour des consentements: $e',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Sauvegarder'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: _saveProfile,
-            child: const Text('Sauvegarder'),
-          ),
-        ],
       ),
     );
   }

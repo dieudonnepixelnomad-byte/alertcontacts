@@ -1,6 +1,7 @@
 // lib/features/alertes/services/consent_service.dart
 import 'dart:convert';
 import 'dart:developer';
+import 'package:alertcontacts/core/services/product_analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service de gestion du consentement explicite pour le partage de localisation
@@ -35,12 +36,14 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyGlobalConsent, granted);
-      
+
       // Enregistrer dans l'historique
       await _recordConsentChange(
         type: ConsentType.globalLocationSharing,
         granted: granted,
-        reason: granted ? 'User granted global consent' : 'User revoked global consent',
+        reason: granted
+            ? 'User granted global consent'
+            : 'User revoked global consent',
       );
 
       // Si le consentement global est révoqué, révoquer tous les consentements individuels
@@ -64,12 +67,12 @@ class ConsentService {
 
       final prefs = await SharedPreferences.getInstance();
       final consentsJson = prefs.getString(_keyContactConsents);
-      
+
       if (consentsJson == null) return false;
 
       final consents = Map<String, dynamic>.from(jsonDecode(consentsJson));
       final contactConsent = consents[contactId] as Map<String, dynamic>?;
-      
+
       if (contactConsent == null) return false;
 
       return contactConsent['granted'] as bool? ?? false;
@@ -88,10 +91,10 @@ class ConsentService {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Charger les consentements existants
       final consentsJson = prefs.getString(_keyContactConsents);
-      final consents = consentsJson != null 
+      final consents = consentsJson != null
           ? Map<String, dynamic>.from(jsonDecode(consentsJson))
           : <String, dynamic>{};
 
@@ -100,7 +103,9 @@ class ConsentService {
         'granted': granted,
         'contactName': contactName,
         'timestamp': DateTime.now().toIso8601String(),
-        'reason': reason ?? (granted ? 'User granted consent' : 'User revoked consent'),
+        'reason':
+            reason ??
+            (granted ? 'User granted consent' : 'User revoked consent'),
       };
 
       // Sauvegarder
@@ -126,7 +131,7 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final consentsJson = prefs.getString(_keyContactConsents);
-      
+
       if (consentsJson == null) return [];
 
       final consents = Map<String, dynamic>.from(jsonDecode(consentsJson));
@@ -135,12 +140,14 @@ class ConsentService {
       for (final entry in consents.entries) {
         final contactData = entry.value as Map<String, dynamic>;
         if (contactData['granted'] as bool? ?? false) {
-          result.add(ContactConsent(
-            contactId: entry.key,
-            contactName: contactData['contactName'] as String,
-            grantedAt: DateTime.parse(contactData['timestamp'] as String),
-            reason: contactData['reason'] as String?,
-          ));
+          result.add(
+            ContactConsent(
+              contactId: entry.key,
+              contactName: contactData['contactName'] as String,
+              grantedAt: DateTime.parse(contactData['timestamp'] as String),
+              reason: contactData['reason'] as String?,
+            ),
+          );
         }
       }
 
@@ -156,7 +163,7 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyContactConsents);
-      
+
       await _recordConsentChange(
         type: ConsentType.allContactsRevoked,
         granted: false,
@@ -185,11 +192,13 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyDataProcessingConsent, granted);
-      
+
       await _recordConsentChange(
         type: ConsentType.dataProcessing,
         granted: granted,
-        reason: granted ? 'User granted data processing consent' : 'User revoked data processing consent',
+        reason: granted
+            ? 'User granted data processing consent'
+            : 'User revoked data processing consent',
       );
 
       log('ConsentService: Data processing consent set to $granted');
@@ -209,17 +218,31 @@ class ConsentService {
     }
   }
 
+  /// Vérifier si l'utilisateur a déjà fait un choix analytics.
+  Future<bool> hasAnalyticsConsentDecision() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_keyAnalyticsConsent);
+    } catch (e) {
+      log('ConsentService: Error checking analytics consent decision: $e');
+      return true;
+    }
+  }
+
   /// Accorder ou révoquer le consentement pour l'analytics
   Future<void> setAnalyticsConsent(bool granted) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyAnalyticsConsent, granted);
-      
+
       await _recordConsentChange(
         type: ConsentType.analytics,
         granted: granted,
-        reason: granted ? 'User granted analytics consent' : 'User revoked analytics consent',
+        reason: granted
+            ? 'User granted analytics consent'
+            : 'User revoked analytics consent',
       );
+      await ProductAnalyticsService().setAnalyticsConsent(granted);
 
       log('ConsentService: Analytics consent set to $granted');
     } catch (e) {
@@ -238,8 +261,8 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getString(_keyConsentHistory);
-      
-      final history = historyJson != null 
+
+      final history = historyJson != null
           ? List<Map<String, dynamic>>.from(jsonDecode(historyJson))
           : <Map<String, dynamic>>[];
 
@@ -271,23 +294,27 @@ class ConsentService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getString(_keyConsentHistory);
-      
+
       if (historyJson == null) return [];
 
       final history = List<Map<String, dynamic>>.from(jsonDecode(historyJson));
-      
-      return history.map((entry) => ConsentHistoryEntry(
-        type: ConsentType.values.firstWhere(
-          (t) => t.name == entry['type'],
-          orElse: () => ConsentType.unknown,
-        ),
-        granted: entry['granted'] as bool,
-        timestamp: DateTime.parse(entry['timestamp'] as String),
-        reason: entry['reason'] as String?,
-        contactId: entry['contactId'] as String?,
-        contactName: entry['contactName'] as String?,
-        version: entry['version'] as int? ?? 1,
-      )).toList();
+
+      return history
+          .map(
+            (entry) => ConsentHistoryEntry(
+              type: ConsentType.values.firstWhere(
+                (t) => t.name == entry['type'],
+                orElse: () => ConsentType.unknown,
+              ),
+              granted: entry['granted'] as bool,
+              timestamp: DateTime.parse(entry['timestamp'] as String),
+              reason: entry['reason'] as String?,
+              contactId: entry['contactId'] as String?,
+              contactName: entry['contactName'] as String?,
+              version: entry['version'] as int? ?? 1,
+            ),
+          )
+          .toList();
     } catch (e) {
       log('ConsentService: Error getting consent history: $e');
       return [];
@@ -309,12 +336,14 @@ class ConsentService {
   /// Exporter les données de consentement (RGPD)
   Future<Map<String, dynamic>> exportConsentData() async {
     final report = await getConsentReport();
-    
+
     return {
       'globalLocationSharing': report.globalLocationSharing,
       'dataProcessing': report.dataProcessing,
       'analytics': report.analytics,
-      'contactsWithConsent': report.contactsWithConsent.map((c) => c.toJson()).toList(),
+      'contactsWithConsent': report.contactsWithConsent
+          .map((c) => c.toJson())
+          .toList(),
       'consentHistory': report.consentHistory.map((h) => h.toJson()).toList(),
       'version': report.version,
       'exportedAt': DateTime.now().toIso8601String(),

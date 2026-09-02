@@ -44,8 +44,6 @@ dependencies:
   background_fetch: ^1.2.5
   version: ^3.0.2
   firebase_database: ^12.4.2
-  firebase_analytics: ^12.1.2
-  firebase_performance: ^0.11.1+4
   firebase_crashlytics: ^5.0.7
   firebase_remote_config: ^6.5.2
   logger: ^2.6.2
@@ -54,6 +52,7 @@ dependencies:
   google_fonts: ^6.2.1
   app_tracking_transparency: ^2.0.7
   flutter_dotenv: ^5.2.1
+  posthog_flutter: ^5.39.0
   purchases_flutter: ^10.9.0
   purchases_ui_flutter: ^10.9.0
 
