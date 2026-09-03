@@ -45,7 +45,6 @@ dependencies:
   version: ^3.0.2
   firebase_database: ^12.4.2
   firebase_crashlytics: ^5.0.7
-  firebase_remote_config: ^6.5.2
   logger: ^2.6.2
   sign_in_with_apple: ^6.1.2
   confetti: ^0.8.0

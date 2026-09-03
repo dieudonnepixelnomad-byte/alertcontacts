@@ -1,4 +1,4 @@
-﻿import 'dart:developer';
+import 'dart:developer';
 
 import 'package:alertcontacts/core/config/api_config.dart';
 import 'package:alertcontacts/core/services/app_version_service.dart';
@@ -7,7 +7,6 @@ import 'package:alertcontacts/core/services/critical_notification_redundancy_ser
 import 'package:alertcontacts/core/services/fcm_service.dart';
 import 'package:alertcontacts/core/services/location_service.dart';
 import 'package:alertcontacts/core/services/proactive_system_monitor.dart';
-import 'package:alertcontacts/core/services/remote_config_service.dart';
 import 'package:alertcontacts/core/services/unified_critical_alert_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
@@ -38,8 +37,8 @@ class AppInitializationService {
     log('$_tag: Début de l\'initialisation des services');
 
     try {
-      // 0. Remote Config + vérification de version — bloquant, avant tout le reste
-      await _checkForceUpdateWithRemoteConfig();
+      // 0. Vérification backend de version — bloquant, avant tout le reste
+      await _checkForceUpdateWithBackendStatus();
 
       // Utilisation de Future.wait pour paralléliser les initialisations indépendantes
       await Future.wait([
@@ -48,7 +47,6 @@ class AppInitializationService {
 
         // 2. Initialiser le service FCM pour les notifications push
         _initializeFCMService(context),
-
       ]);
 
       // 3. Initialiser le service de géolocalisation intégré (peut dépendre des permissions)
@@ -65,14 +63,11 @@ class AppInitializationService {
     }
   }
 
-  /// Initialise Remote Config puis vérifie si une MAJ forcée est requise.
+  /// Interroge le backend puis vérifie si une MAJ forcée est requise.
   /// Bloquant — lève [ForcedUpdateException] si la version actuelle est trop ancienne.
-  Future<void> _checkForceUpdateWithRemoteConfig() async {
+  Future<void> _checkForceUpdateWithBackendStatus() async {
     try {
-      final remoteConfig = RemoteConfigService();
-      await remoteConfig.initialize();
-
-      final versionService = AppVersionService(remoteConfig);
+      final versionService = AppVersionService();
       final result = await versionService.checkForceUpdate();
 
       if (result.required) {
@@ -88,14 +83,21 @@ class AppInitializationService {
   /// Initialise les services critiques de sécurité
   Future<void> _initializeCriticalSecurityServices(BuildContext context) async {
     try {
-      final redundancyService = context.read<CriticalNotificationRedundancyService>();
+      final redundancyService = context
+          .read<CriticalNotificationRedundancyService>();
       final systemMonitor = context.read<ProactiveSystemMonitor>();
       final unifiedAlertService = context.read<UnifiedCriticalAlertService>();
 
       await Future.wait([
-        redundancyService.initialize().then((_) => log('$_tag: Service de redondance critique initialisé')),
-        systemMonitor.initialize().then((_) => log('$_tag: Service de monitoring proactif initialisé')),
-        unifiedAlertService.initialize().then((_) => log('$_tag: Service unifié d\'alertes critiques initialisé')),
+        redundancyService.initialize().then(
+          (_) => log('$_tag: Service de redondance critique initialisé'),
+        ),
+        systemMonitor.initialize().then(
+          (_) => log('$_tag: Service de monitoring proactif initialisé'),
+        ),
+        unifiedAlertService.initialize().then(
+          (_) => log('$_tag: Service unifié d\'alertes critiques initialisé'),
+        ),
       ]);
 
       log('$_tag: Tous les services critiques de sécurité sont initialisés');
@@ -115,7 +117,6 @@ class AppInitializationService {
       // Ne pas faire échouer l'initialisation complète pour ce service
     }
   }
-
 
   /// Initialise le service de géolocalisation intégré
   Future<void> _initializeGeolocationService(BuildContext context) async {
@@ -142,7 +143,6 @@ class AppInitializationService {
       final locationService = context.read<LocationService>();
       await locationService.stopTracking();
       log('$_tag: Service unifié de géolocalisation arrêté');
-
 
       _isInitialized = false;
       log('$_tag: Tous les services ont été arrêtés');
