@@ -211,10 +211,10 @@ class ConsentService {
   Future<bool> hasAnalyticsConsent() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_keyAnalyticsConsent) ?? false;
+      return prefs.getBool(_keyAnalyticsConsent) ?? true;
     } catch (e) {
       log('ConsentService: Error checking analytics consent: $e');
-      return false;
+      return true;
     }
   }
 

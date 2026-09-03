@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import '../config/api_config.dart';
 import 'dart:io';
 import 'analytics_service.dart';
 
@@ -25,7 +26,9 @@ class AppHttpClient extends http.BaseClient {
     final label = '${request.method} ${request.url.path}';
     AnalyticsService().addBreadcrumb('http: $label');
     try {
-      final response = await _inner.send(request);
+      final response = await _inner
+          .send(request)
+          .timeout(const Duration(seconds: ApiConfig.defaultTimeoutSeconds));
       if (response.statusCode == 426) {
         onRequiredUpdate?.call(response.headers['x-update-store-url'] ?? '');
       }

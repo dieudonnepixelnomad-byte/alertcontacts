@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:async';
 import 'package:alertcontacts/core/services/analytics_service.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
 import 'package:http/http.dart' as http;
@@ -90,8 +91,14 @@ class ApiAuthService {
         'ApiAuthService.exchangeFirebaseToken: User created successfully: ${user.id}',
       );
       return user;
+    } on TimeoutException catch (e) {
+      log('ApiAuthService.exchangeFirebaseToken: TimeoutException: $e');
+      throw const NetworkException();
     } on SocketException catch (e) {
       log('ApiAuthService.exchangeFirebaseToken: SocketException: $e');
+      throw const NetworkException();
+    } on http.ClientException catch (e) {
+      log('ApiAuthService.exchangeFirebaseToken: ClientException: $e');
       throw const NetworkException();
     } catch (e) {
       log('ApiAuthService.exchangeFirebaseToken: Exception: $e');

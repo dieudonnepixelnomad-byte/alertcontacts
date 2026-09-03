@@ -284,8 +284,8 @@ class _ProfilePageState extends State<ProfilePage> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.security),
-              title: const Text('Consentements'),
-              subtitle: const Text('Gérez vos consentements de données'),
+              title: const Text('Confidentialité'),
+              subtitle: const Text('Gérez vos préférences de données'),
               trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () => _showConsentManagement(),
               contentPadding: EdgeInsets.zero,
@@ -442,13 +442,11 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Gestion des consentements'),
+          title: const Text('Préférences de confidentialité'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Gérez vos consentements pour le traitement de vos données :',
-              ),
+              const Text('Gérez les traitements utilisés par AlertContacts :'),
               const SizedBox(height: 16),
               CheckboxListTile(
                 title: const Text('Localisation'),
@@ -463,9 +461,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 onChanged: null,
               ),
               SwitchListTile(
-                title: const Text('Amélioration du service'),
+                title: const Text('Mesure d’usage'),
                 subtitle: const Text(
-                  'Données d’usage non sensibles pour améliorer l’app',
+                  'Événements produit non sensibles pour améliorer l’app',
                 ),
                 value: analyticsConsent,
                 onChanged: (value) {
@@ -493,7 +491,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.pop(dialogContext);
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Consentements mis à jour.')),
+                    const SnackBar(content: Text('Préférences mises à jour.')),
                   );
                 } catch (e) {
                   if (!mounted) return;

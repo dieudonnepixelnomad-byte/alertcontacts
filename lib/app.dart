@@ -18,6 +18,7 @@ import 'package:alertcontacts/core/repositories/zones_repository.dart';
 import 'package:alertcontacts/core/repositories/ignored_danger_zone_repository.dart';
 import 'package:alertcontacts/core/repositories/profile_repository.dart';
 import 'package:alertcontacts/core/repositories/feedback_repository.dart';
+import 'package:alertcontacts/core/services/analytics_service.dart';
 import 'package:alertcontacts/features/profile/providers/profile_provider.dart';
 import 'package:alertcontacts/features/feedback/providers/feedback_provider.dart';
 import 'package:alertcontacts/core/services/prefs_service.dart';
@@ -67,21 +68,82 @@ class AlertContactApp extends StatefulWidget {
 
 class _AlertContactAppState extends State<AlertContactApp> {
   late final GoRouter _router;
+  String? _lastTrackedScreen;
 
   @override
   void initState() {
     super.initState();
     _router = AppRouter.create();
+    _router.routerDelegate.addListener(_trackCurrentScreen);
     AppHttpClient.onRequiredUpdate =
         (storeUrl) => _router.go(AppRoutes.forcedUpdate, extra: storeUrl);
-
+    WidgetsBinding.instance.addPostFrameCallback((_) => _trackCurrentScreen());
   }
 
   @override
   void dispose() {
+    _router.routerDelegate.removeListener(_trackCurrentScreen);
     DeepLinkService.dispose();
     AppHttpClient.onRequiredUpdate = null;
     super.dispose();
+  }
+
+  void _trackCurrentScreen() {
+    final path = _router.routerDelegate.currentConfiguration.uri.path;
+    final screenName = _screenNameForPath(path);
+    if (screenName == _lastTrackedScreen) return;
+
+    _lastTrackedScreen = screenName;
+    AnalyticsService().logScreenView(screenName);
+  }
+
+  String _screenNameForPath(String path) {
+    if (path.startsWith(AppRoutes.acceptInvite)) return 'accept_invitation';
+    if (path.startsWith(AppRoutes.dangerDetail)) return 'danger_detail';
+    if (path.startsWith('/debug/')) return 'debug';
+
+    return switch (path) {
+      AppRoutes.splash => 'splash',
+      AppRoutes.forcedUpdate => 'forced_update',
+      AppRoutes.onboarding => 'onboarding',
+      AppRoutes.onboardingSlides => 'onboarding_slides',
+      AppRoutes.onboardingSandbox => 'onboarding_sandbox',
+      AppRoutes.onboardingCelebration => 'onboarding_celebration',
+      AppRoutes.onboardingPersonalization => 'onboarding_personalization',
+      AppRoutes.onboardingBackgroundDisclosure =>
+        'onboarding_background_disclosure',
+      AppRoutes.onboardingInvitation => 'onboarding_invitation',
+      AppRoutes.onboardingNotificationPermission =>
+        'onboarding_notification_permission',
+      AppRoutes.onboardingLocationPermission => 'onboarding_location_permission',
+      AppRoutes.onboardingZoneCreation => 'onboarding_zone_creation',
+      AppRoutes.onboardingConfirmation => 'onboarding_confirmation',
+      AppRoutes.onboardingResume => 'onboarding_resume',
+      AppRoutes.auth => 'auth',
+      AppRoutes.magicLinkSent => 'magic_link_sent',
+      AppRoutes.userSetup => 'user_setup',
+      AppRoutes.permissionLocation => 'permission_location',
+      AppRoutes.permissionNotification => 'permission_notification',
+      AppRoutes.permissionBackgroundLocation => 'permission_background_location',
+      AppRoutes.appShell => 'app_shell',
+      AppRoutes.safezoneSetup => 'safezone_setup',
+      AppRoutes.dangerCreate => 'danger_create',
+      AppRoutes.safezoneCreate => 'safezone_create',
+      AppRoutes.proches => 'proches',
+      AppRoutes.addProche => 'add_proche',
+      AppRoutes.alertes => 'alertes',
+      AppRoutes.ignoredZones => 'ignored_zones',
+      AppRoutes.settings => 'settings',
+      AppRoutes.notificationSettings => 'notification_settings',
+      AppRoutes.profile => 'profile',
+      AppRoutes.about => 'about',
+      AppRoutes.help => 'help',
+      AppRoutes.feedback => 'feedback',
+      AppRoutes.debugPermissions => 'debug_permissions',
+      AppRoutes.debugFcm => 'debug_fcm',
+      AppRoutes.debugNotifications => 'debug_notifications',
+      _ => 'unknown',
+    };
   }
 
   @override

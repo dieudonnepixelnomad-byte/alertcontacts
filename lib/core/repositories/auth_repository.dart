@@ -39,7 +39,7 @@ class AuthRepository {
       // Restaurer le token Bearer sauvegardé au démarrage
       final savedToken = await _getSavedBearerToken();
       final savedUser = await _prefs.getUserProfile();
-      
+
       if (savedToken != null) {
         _apiAuth.setBearerToken(savedToken);
       }
@@ -93,6 +93,15 @@ class AuthRepository {
       await Future.wait([_firebaseAuth.signOut(), _apiAuth.logout()]);
     } finally {
       // Nettoyer les données locales même en cas d'erreur
+      await _clearAuthState();
+    }
+  }
+
+  /// Nettoie une connexion externe partielle sans appeler le backend.
+  Future<void> clearLocalSession() async {
+    try {
+      await _firebaseAuth.signOut();
+    } finally {
       await _clearAuthState();
     }
   }

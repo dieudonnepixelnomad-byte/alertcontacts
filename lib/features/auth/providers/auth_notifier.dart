@@ -66,6 +66,14 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
+  Future<void> _discardPartialExternalSignIn() async {
+    try {
+      await _authRepository.clearLocalSession();
+    } catch (e) {
+      log('AuthNotifier: nettoyage session partielle ignoré: $e');
+    }
+  }
+
   // Méthode pour effacer les messages
   void clearMessage() {
     _updateState(_state.copyWith(message: null, errorCode: null));
@@ -194,9 +202,22 @@ class AuthNotifier extends ChangeNotifier {
           ),
         );
       }
+    } on GoogleSignInCancelledException {
+      log('AuthNotifier.signInWithGoogle: Annulé par l\'utilisateur');
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: null,
+          errorCode: null,
+        ),
+      );
     } on UserDisabledException {
       log('AuthNotifier.signInWithGoogle: Compte désactivé');
-      AnalyticsService().logLoginFailure(method: 'google', errorCode: 'user_disabled');
+      AnalyticsService().logLoginFailure(
+        method: 'google',
+        errorCode: 'user_disabled',
+      );
+      await _discardPartialExternalSignIn();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -204,9 +225,27 @@ class AuthNotifier extends ChangeNotifier {
           errorCode: 'user_disabled',
         ),
       );
+    } on AuthException catch (error) {
+      log('AuthNotifier.signInWithGoogle: Erreur auth: $error');
+      AnalyticsService().logLoginFailure(
+        method: 'google',
+        errorCode: error.code,
+      );
+      await _discardPartialExternalSignIn();
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: error.message,
+          errorCode: error.code,
+        ),
+      );
     } catch (error) {
       log('AuthNotifier.signInWithGoogle: Erreur inattendue: $error');
-      AnalyticsService().logLoginFailure(method: 'google', errorCode: 'google_sign_in_error');
+      AnalyticsService().logLoginFailure(
+        method: 'google',
+        errorCode: 'google_sign_in_error',
+      );
+      await _discardPartialExternalSignIn();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -275,7 +314,11 @@ class AuthNotifier extends ChangeNotifier {
       );
     } on UserDisabledException {
       log('AuthNotifier.signInWithApple: Compte désactivé');
-      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'user_disabled');
+      AnalyticsService().logLoginFailure(
+        method: 'apple',
+        errorCode: 'user_disabled',
+      );
+      await _discardPartialExternalSignIn();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -285,7 +328,11 @@ class AuthNotifier extends ChangeNotifier {
       );
     } on AppleSignInFailedException catch (error) {
       log('AuthNotifier.signInWithApple: Échec Apple: $error');
-      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'apple_sign_in_error');
+      AnalyticsService().logLoginFailure(
+        method: 'apple',
+        errorCode: 'apple_sign_in_error',
+      );
+      await _discardPartialExternalSignIn();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -293,9 +340,27 @@ class AuthNotifier extends ChangeNotifier {
           errorCode: 'apple_sign_in_error',
         ),
       );
+    } on AuthException catch (error) {
+      log('AuthNotifier.signInWithApple: Erreur auth: $error');
+      AnalyticsService().logLoginFailure(
+        method: 'apple',
+        errorCode: error.code,
+      );
+      await _discardPartialExternalSignIn();
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: error.message,
+          errorCode: error.code,
+        ),
+      );
     } catch (error) {
       log('AuthNotifier.signInWithApple: Erreur inattendue: $error');
-      AnalyticsService().logLoginFailure(method: 'apple', errorCode: 'apple_sign_in_error');
+      AnalyticsService().logLoginFailure(
+        method: 'apple',
+        errorCode: 'apple_sign_in_error',
+      );
+      await _discardPartialExternalSignIn();
       _updateState(
         _state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -308,11 +373,13 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Envoyer un Magic Link (email sign-in link)
   Future<void> sendMagicLink(String email) async {
-    _updateState(_state.copyWith(
-      status: AuthStatus.authenticating,
-      message: null,
-      errorCode: null,
-    ));
+    _updateState(
+      _state.copyWith(
+        status: AuthStatus.authenticating,
+        message: null,
+        errorCode: null,
+      ),
+    );
 
     try {
       const continueUrl = 'https://alertcontacts.web.app/magic-link';
@@ -329,24 +396,30 @@ class AuthNotifier extends ChangeNotifier {
 
       AnalyticsService().logSignUp('magic_link');
 
-      _updateState(_state.copyWith(
-        status: AuthStatus.unauthenticated,
-        message: 'magic_link_sent',
-        errorCode: null,
-      ));
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'magic_link_sent',
+          errorCode: null,
+        ),
+      );
     } on TooManyRequestsException {
-      _updateState(_state.copyWith(
-        status: AuthStatus.unauthenticated,
-        message: 'Trop de tentatives. Veuillez réessayer plus tard',
-        errorCode: 'too_many_requests',
-      ));
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Trop de tentatives. Veuillez réessayer plus tard',
+          errorCode: 'too_many_requests',
+        ),
+      );
     } catch (e) {
       log('AuthNotifier.sendMagicLink error: $e');
-      _updateState(_state.copyWith(
-        status: AuthStatus.unauthenticated,
-        message: 'Erreur lors de l\'envoi du lien. Vérifiez votre email.',
-        errorCode: 'magic_link_error',
-      ));
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Erreur lors de l\'envoi du lien. Vérifiez votre email.',
+          errorCode: 'magic_link_error',
+        ),
+      );
     }
   }
 
@@ -359,11 +432,13 @@ class AuthNotifier extends ChangeNotifier {
     final email = await prefs.getPendingMagicLinkEmail();
     if (email == null) return;
 
-    _updateState(_state.copyWith(
-      status: AuthStatus.authenticating,
-      message: null,
-      errorCode: null,
-    ));
+    _updateState(
+      _state.copyWith(
+        status: AuthStatus.authenticating,
+        message: null,
+        errorCode: null,
+      ),
+    );
 
     try {
       await firebaseAuthService.signInWithEmailLink(
@@ -374,30 +449,36 @@ class AuthNotifier extends ChangeNotifier {
 
       final user = await _authRepository.refreshSession();
       if (user != null) {
-        _updateState(_state.copyWith(
-          status: AuthStatus.authenticated,
-          user: user,
-          message: null,
-        ));
+        _updateState(
+          _state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user,
+            message: null,
+          ),
+        );
         AnalyticsService().logLoginSuccess('magic_link');
         await AnalyticsService().setUser(user.id, email: user.email);
         await _setUserAnalyticsProperties();
         final bearerToken = await prefs.getBearerToken();
         if (bearerToken != null) await _initializeFCMAfterLogin(bearerToken);
       } else {
-        _updateState(_state.copyWith(
-          status: AuthStatus.unauthenticated,
-          message: 'Lien invalide ou expiré',
-          errorCode: 'magic_link_invalid',
-        ));
+        _updateState(
+          _state.copyWith(
+            status: AuthStatus.unauthenticated,
+            message: 'Lien invalide ou expiré',
+            errorCode: 'magic_link_invalid',
+          ),
+        );
       }
     } catch (e) {
       log('AuthNotifier.verifyMagicLink error: $e');
-      _updateState(_state.copyWith(
-        status: AuthStatus.unauthenticated,
-        message: 'Lien invalide ou expiré',
-        errorCode: 'magic_link_invalid',
-      ));
+      _updateState(
+        _state.copyWith(
+          status: AuthStatus.unauthenticated,
+          message: 'Lien invalide ou expiré',
+          errorCode: 'magic_link_invalid',
+        ),
+      );
     }
   }
 
@@ -433,5 +514,4 @@ class AuthNotifier extends ChangeNotifier {
       );
     }
   }
-
 }

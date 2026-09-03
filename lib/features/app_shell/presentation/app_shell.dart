@@ -4,9 +4,7 @@ import 'dart:developer';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/services/app_initialization_service.dart';
 import '../../../core/services/global_navigation_service.dart';
-import '../../alertes/services/consent_service.dart';
 import '../../alertes/providers/alert_provider.dart';
-import '../../profile/providers/profile_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../../home_map/presentation/home_page.dart';
 import '../../proches/presentation/proches_tab.dart';
@@ -28,51 +26,6 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     AnalyticsService().logAppShellReached();
     _initializeServices();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _askAnalyticsConsentIfNeeded();
-    });
-  }
-
-  Future<void> _askAnalyticsConsentIfNeeded() async {
-    if (!mounted) return;
-    final consentService = ConsentService();
-    if (await consentService.hasAnalyticsConsentDecision()) return;
-    if (!mounted) return;
-
-    final granted = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Améliorer AlertContacts'),
-        content: const Text(
-          'Acceptez-vous de partager des données d’usage non sensibles pour nous aider à améliorer les parcours, corriger les abandons et mesurer les fonctionnalités utiles ?\n\n'
-          'Aucune position GPS précise, aucun nom de proche, aucun email et aucun identifiant matériel de traceur ne sera envoyé.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Refuser'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Accepter'),
-          ),
-        ],
-      ),
-    );
-
-    final analyticsConsent = granted ?? false;
-    await consentService.setAnalyticsConsent(analyticsConsent);
-
-    try {
-      if (mounted) {
-        await context.read<ProfileProvider>().updateConsents(
-          analyticsConsent: analyticsConsent,
-        );
-      }
-    } catch (e) {
-      log('AppShell: erreur synchronisation consentement analytics: $e');
-    }
   }
 
   Future<void> _initializeServices() async {

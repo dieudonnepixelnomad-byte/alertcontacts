@@ -46,6 +46,11 @@ class ProductAnalyticsService {
       _configured = true;
       await _loadAppInfo();
       await setAnalyticsConsent(consentGranted);
+      if (kDebugMode) {
+        log(
+          'PostHog setup complete: host=${config.host}, optOut=${!consentGranted}',
+        );
+      }
     } catch (error, stack) {
       _configured = false;
       log('PostHog setup failed: $error', stackTrace: stack);
@@ -60,6 +65,9 @@ class ProductAnalyticsService {
         await Posthog().enable();
       } else {
         await Posthog().disable();
+      }
+      if (kDebugMode) {
+        log('PostHog analytics ${granted ? 'enabled' : 'disabled'}');
       }
     });
   }
@@ -98,6 +106,9 @@ class ProductAnalyticsService {
         eventName: eventName,
         properties: _baseProperties()..addAll(_sanitize(properties)),
       );
+      if (kDebugMode) {
+        log('PostHog event captured: $eventName');
+      }
     });
   }
 
@@ -109,6 +120,9 @@ class ProductAnalyticsService {
         screenName: screenName,
         properties: _baseProperties(),
       );
+      if (kDebugMode) {
+        log('PostHog screen captured: $screenName');
+      }
     });
   }
 
@@ -123,9 +137,7 @@ class ProductAnalyticsService {
   }
 
   Map<String, Object> _baseProperties() {
-    final properties = <String, Object>{
-      'platform': _platform,
-    };
+    final properties = <String, Object>{'platform': _platform};
     final version = _appVersion;
     final build = _buildNumber;
     if (version != null) properties['app_version'] = version;
@@ -192,9 +204,9 @@ class ProductAnalyticsService {
   Future<bool> _hasAnalyticsConsent() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_analyticsConsentKey) ?? false;
+      return prefs.getBool(_analyticsConsentKey) ?? true;
     } catch (_) {
-      return false;
+      return true;
     }
   }
 
