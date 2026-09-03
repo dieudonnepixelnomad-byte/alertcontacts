@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'analytics_service.dart';
+
 /// Unique source client des droits RevenueCat.
 ///
 /// Le serveur reste l'autorité pour les appels protégés : ce service permet
@@ -128,6 +130,7 @@ class SubscriptionService extends ChangeNotifier {
     await _initialize();
     if (!_configured) {
       _log('Achat ignoré: RevenueCat non configuré.');
+      AnalyticsService().logSubscriptionPurchaseFailed(reason: 'not_configured');
       return null;
     }
 
@@ -142,6 +145,11 @@ class SubscriptionService extends ChangeNotifier {
     } on PlatformException catch (exception) {
       final errorCode = PurchasesErrorHelper.getErrorCode(exception);
       _log('Achat RevenueCat interrompu: code=$errorCode, message=${exception.message ?? 'none'}');
+      AnalyticsService().logSubscriptionPurchaseFailed(
+        reason: errorCode == PurchasesErrorCode.purchaseCancelledError
+            ? 'cancelled'
+            : 'platform_error',
+      );
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
         _error =
             'Le paiement n’a pas abouti. Vérifiez votre connexion puis réessayez.';
@@ -149,6 +157,7 @@ class SubscriptionService extends ChangeNotifier {
       return null;
     } catch (error, stackTrace) {
       _logError('Échec d’achat inattendu', error, stackTrace);
+      AnalyticsService().logSubscriptionPurchaseFailed(reason: 'unexpected');
       _error = 'Le paiement n’a pas abouti. Vérifiez votre connexion puis réessayez.';
       return null;
     } finally {
@@ -160,19 +169,23 @@ class SubscriptionService extends ChangeNotifier {
     await _initialize();
     if (!_configured) {
       _log('Restauration ignorée: RevenueCat non configuré.');
+      AnalyticsService().logSubscriptionRestoreFailed(reason: 'not_configured');
       return null;
     }
 
     _log('Restauration RevenueCat demandée.');
+    AnalyticsService().logSubscriptionRestoreRequested();
     _setLoading(true);
     try {
       final info = await Purchases.restorePurchases();
       _applyCustomerInfo(info);
       _error = null;
       _log('Restauration terminée: $debugSnapshot');
+      AnalyticsService().logSubscriptionRestoreSucceeded();
       return info;
     } catch (error, stackTrace) {
       _logError('Échec de restauration', error, stackTrace);
+      AnalyticsService().logSubscriptionRestoreFailed(reason: 'unexpected');
       _error = 'Impossible de restaurer les achats pour le moment.';
       return null;
     } finally {

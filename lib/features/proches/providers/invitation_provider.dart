@@ -79,6 +79,7 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
     } catch (e, stack) {
       _setError('Erreur lors de la création de l\'invitation: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().logContactInviteFailed(reason: _analyticsReason(e));
       AnalyticsService().recordError(e, stack, reason: 'createInvitation failed');
       return null;
     }
@@ -88,18 +89,26 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   Future<Invitation?> checkInvitation(String token) async {
     _setLoading(true);
     _clearError();
-    AnalyticsService().addBreadcrumb('invitation_provider: checkInvitation token=${token.substring(0, 8)}…');
+    AnalyticsService().logInvitationLinkOpened(hasPrefilledPin: false);
+    AnalyticsService().addBreadcrumb(
+      'invitation_provider: checkInvitation token=${_tokenPreview(token)}...',
+    );
 
     try {
       final invitation = await _apiService.checkInvitation(token);
       _currentInvitation = invitation;
       _setLoading(false);
       notifyListeners();
+      AnalyticsService().logInvitationCheckSucceeded(
+        requiresPin: invitation.requiresPin,
+        shareLevel: _shareLevelValue(invitation.defaultShareLevel),
+      );
 
       return invitation;
     } catch (e, stack) {
       _setError('Erreur lors de la vérification: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().logInvitationCheckFailed(reason: _analyticsReason(e));
       AnalyticsService().recordError(e, stack, reason: 'checkInvitation failed');
       return null;
     }
@@ -114,6 +123,10 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   }) async {
     _setLoading(true);
     _clearError();
+    AnalyticsService().logInvitationAcceptStarted(
+      hasPin: pin?.isNotEmpty == true,
+      shareLevel: _shareLevelValue(shareLevel),
+    );
     AnalyticsService().addBreadcrumb('invitation_provider: acceptInvitation start');
 
     try {
@@ -135,6 +148,7 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
     } catch (e, stack) {
       _setError('Erreur lors de l\'acceptation: ${e.toString()}');
       _setLoading(false);
+      AnalyticsService().logInvitationAcceptFailed(reason: _analyticsReason(e));
       AnalyticsService().recordError(e, stack, reason: 'acceptInvitation failed');
       return false;
     }
@@ -248,5 +262,32 @@ class InvitationProvider extends ChangeNotifier with AuthAwareProvider {
   void dispose() {
     clear();
     super.dispose();
+  }
+
+  String _tokenPreview(String token) {
+    if (token.length <= 8) return token;
+    return token.substring(0, 8);
+  }
+
+  String _analyticsReason(dynamic e) {
+    if (e is InvalidPinException) return 'invalid_pin';
+    if (e is InvitationNotFoundException) return 'not_found';
+    if (e is InvitationExpiredException) return 'expired';
+    if (e is RelationAlreadyExistsException) return 'already_exists';
+    if (e is SubscriptionLimitException) return 'subscription_limit';
+    if (e is ValidationException) return 'validation';
+    if (e is InvitationRefusedException) return 'refused';
+    return 'unknown';
+  }
+
+  String _shareLevelValue(ShareLevel shareLevel) {
+    switch (shareLevel) {
+      case ShareLevel.realtime:
+        return 'realtime';
+      case ShareLevel.alertOnly:
+        return 'alert_only';
+      case ShareLevel.none:
+        return 'none';
+    }
   }
 }

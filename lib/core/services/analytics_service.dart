@@ -127,10 +127,42 @@ class AnalyticsService {
 
   void logContactInvited() => _capture('contact_invited');
 
+  void logContactInviteFailed({required String reason}) =>
+      _capture('contact_invite_failed', {'reason': reason});
+
   void logContactInvitationAccepted() =>
       _capture('contact_invitation_accepted');
 
   void logContactRemoved() => _capture('contact_removed');
+
+  void logInvitationLinkOpened({required bool hasPrefilledPin}) =>
+      _capture('invitation_link_opened', {
+        'has_prefilled_pin': hasPrefilledPin,
+      });
+
+  void logInvitationCheckSucceeded({
+    required bool requiresPin,
+    required String shareLevel,
+  }) => _capture('invitation_check_succeeded', {
+    'requires_pin': requiresPin,
+    'share_level': shareLevel,
+  });
+
+  void logInvitationCheckFailed({required String reason}) =>
+      _capture('invitation_check_failed', {'reason': reason});
+
+  void logInvitationAcceptStarted({
+    required bool hasPin,
+    required String shareLevel,
+  }) => _capture('invitation_accept_started', {
+    'has_pin': hasPin,
+    'share_level': shareLevel,
+  });
+
+  void logInvitationAcceptFailed({required String reason}) =>
+      _capture('invitation_accept_failed', {'reason': reason});
+
+  void logInvitationRefused() => _capture('invitation_refused');
 
   void logZoneCreated({required String icon, required int radius}) => _capture(
     'zone_created',
@@ -190,6 +222,14 @@ class AnalyticsService {
 
   void logPaywallDismissed() => _capture('paywall_dismissed');
 
+  void logPaywallOpenFailed({
+    required String trigger,
+    required String reason,
+  }) => _capture('paywall_open_failed', {
+    'trigger': trigger,
+    'reason': reason,
+  });
+
   void logSubscriptionTrialStarted({
     required String tier,
     required String billing,
@@ -208,6 +248,18 @@ class AnalyticsService {
 
   void logSubscriptionCancelled({required String tier}) =>
       _capture('subscription_cancelled', {'tier': tier});
+
+  void logSubscriptionRestoreRequested() =>
+      _capture('subscription_restore_requested');
+
+  void logSubscriptionRestoreSucceeded() =>
+      _capture('subscription_restore_succeeded');
+
+  void logSubscriptionRestoreFailed({required String reason}) =>
+      _capture('subscription_restore_failed', {'reason': reason});
+
+  void logSubscriptionPurchaseFailed({required String reason}) =>
+      _capture('subscription_purchase_failed', {'reason': reason});
 
   void setUserTier(String tier) =>
       _fire(_product.setPersonProperties({'subscription_tier': tier}));
@@ -231,6 +283,59 @@ class AnalyticsService {
 
   void logNotificationOpened({required String type}) =>
       _capture('notification_opened', {'type': type});
+
+  void logNotificationReceived({
+    required String type,
+    required String appState,
+  }) => _capture('notification_received', {
+    'type': type,
+    'app_state': appState,
+  });
+
+  void logNotificationDisplayed({required String type}) =>
+      _capture('notification_displayed', {'type': type});
+
+  void logFcmTokenRegistered({required bool refreshed}) =>
+      _capture('fcm_token_registered', {'refreshed': refreshed});
+
+  void logFcmTokenRegistrationFailed({required String reason}) =>
+      _capture('fcm_token_registration_failed', {'reason': reason});
+
+  void logAppStatusChecked({
+    required String platform,
+    required String currentVersion,
+    required int currentBuild,
+    required String minVersion,
+    required int minimumBuild,
+    required bool updateRequired,
+  }) => _capture('app_status_checked', {
+    'platform': platform,
+    'current_version': currentVersion,
+    'current_build': currentBuild,
+    'min_version': minVersion,
+    'minimum_build': minimumBuild,
+    'update_required': updateRequired,
+  });
+
+  void logForcedUpdateRequired({
+    required String platform,
+    required String currentVersion,
+    required int currentBuild,
+    required String minVersion,
+    required int minimumBuild,
+  }) => _capture('forced_update_required', {
+    'platform': platform,
+    'current_version': currentVersion,
+    'current_build': currentBuild,
+    'min_version': minVersion,
+    'minimum_build': minimumBuild,
+  });
+
+  void logForcedUpdateScreenViewed({required bool hasStoreUrl}) =>
+      _capture('forced_update_screen_viewed', {'has_store_url': hasStoreUrl});
+
+  void logForcedUpdateStoreOpened({required bool success}) =>
+      _capture('forced_update_store_opened', {'success': success});
 
   void logAppOpenedFromBackground() => _capture('app_opened_from_background');
 

@@ -1,17 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ForcedUpdatePage extends StatelessWidget {
+import '../../../core/services/analytics_service.dart';
+
+class ForcedUpdatePage extends StatefulWidget {
   final String storeUrl;
 
   const ForcedUpdatePage({super.key, required this.storeUrl});
 
+  @override
+  State<ForcedUpdatePage> createState() => _ForcedUpdatePageState();
+}
+
+class _ForcedUpdatePageState extends State<ForcedUpdatePage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logForcedUpdateScreenViewed(
+      hasStoreUrl: widget.storeUrl.isNotEmpty,
+    );
+  }
+
   Future<void> _launchStore() async {
-    if (storeUrl.isEmpty) return;
-    final uri = Uri.parse(storeUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (widget.storeUrl.isEmpty) {
+      AnalyticsService().logForcedUpdateStoreOpened(success: false);
+      return;
     }
+    final uri = Uri.parse(widget.storeUrl);
+    if (await canLaunchUrl(uri)) {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      AnalyticsService().logForcedUpdateStoreOpened(success: opened);
+      return;
+    }
+    AnalyticsService().logForcedUpdateStoreOpened(success: false);
   }
 
   @override

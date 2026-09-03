@@ -62,7 +62,7 @@ class FCMService {
       final token = await _messaging.getToken();
       if (token != null) {
         log(
-          '🔥 FCMService._getToken: Token récupéré: ${token.substring(0, 20)}...',
+          '🔥 FCMService._getToken: Token récupéré: ${_tokenPreview(token)}...',
         );
         _currentToken = token;
         await _saveTokenLocally(token);
@@ -85,12 +85,14 @@ class FCMService {
         }
       } else {
         log('❌ FCMService._getToken: Impossible de récupérer le token');
+        AnalyticsService().logFcmTokenRegistrationFailed(reason: 'token_null');
       }
 
       log('🔥 FCMService._getToken: FIN');
       return token;
     } catch (e) {
       log('❌ FCMService._getToken: Erreur: $e');
+      AnalyticsService().logFcmTokenRegistrationFailed(reason: 'token_exception');
       return null;
     }
   }
@@ -98,16 +100,23 @@ class FCMService {
   /// Gérer le rafraîchissement du token
   Future<void> _onTokenRefresh(String token) async {
     try {
-      log('FCMService: Token refreshed: ${token.substring(0, 20)}...');
+      log('FCMService: Token refreshed: ${_tokenPreview(token)}...');
       _currentToken = token;
       await _saveTokenLocally(token);
 
       // Envoyer le nouveau token au backend
       if (_bearerToken != null && _baseUrl != null) {
         await _sendTokenToBackend(token);
+      } else {
+        AnalyticsService().logFcmTokenRegistrationFailed(
+          reason: 'missing_credentials',
+        );
       }
     } catch (e) {
       log('FCMService: Error handling token refresh: $e');
+      AnalyticsService().logFcmTokenRegistrationFailed(
+        reason: 'refresh_exception',
+      );
     }
   }
 
@@ -140,7 +149,7 @@ class FCMService {
   }) async {
     log('🔥 FCMService._sendTokenToBackend: DÉBUT');
     log(
-      '🔥 FCMService._sendTokenToBackend: Token: ${token.substring(0, 20)}...',
+      '🔥 FCMService._sendTokenToBackend: Token: ${_tokenPreview(token)}...',
     );
     log('🔥 FCMService._sendTokenToBackend: _baseUrl: $_baseUrl');
     log(
@@ -156,6 +165,9 @@ class FCMService {
       log(
         '❌ FCMService._sendTokenToBackend: _bearerToken null: ${_bearerToken == null}',
       );
+      AnalyticsService().logFcmTokenRegistrationFailed(
+        reason: 'missing_credentials',
+      );
       return false;
     }
 
@@ -168,6 +180,7 @@ class FCMService {
         log(
           'ℹ️ FCMService._sendTokenToBackend: Token déjà envoyé (pas de forceUpdate)',
         );
+        AnalyticsService().logFcmTokenRegistered(refreshed: false);
         return true;
       }
 
@@ -185,6 +198,7 @@ class FCMService {
         log(
           '❌ FCMService._sendTokenToBackend: Email utilisateur non disponible',
         );
+        AnalyticsService().logFcmTokenRegistrationFailed(reason: 'missing_email');
         return false;
       }
 
@@ -211,9 +225,11 @@ class FCMService {
       log(
         '✅ FCMService._sendTokenToBackend: Token envoyé avec succès via route publique',
       );
+      AnalyticsService().logFcmTokenRegistered(refreshed: forceUpdate);
       return true;
     } catch (e) {
       log('❌ FCMService._sendTokenToBackend: Exception: $e');
+      AnalyticsService().logFcmTokenRegistrationFailed(reason: 'send_exception');
       return false;
     }
   }
@@ -245,7 +261,7 @@ class FCMService {
       final token = await _messaging.getToken();
       if (token != null) {
         log(
-          '🔥 FCMService._getTokenWithForceUpdate: Token récupéré: ${token.substring(0, 20)}...',
+          '🔥 FCMService._getTokenWithForceUpdate: Token récupéré: ${_tokenPreview(token)}...',
         );
         _currentToken = token;
         await _saveTokenLocally(token);
@@ -263,17 +279,22 @@ class FCMService {
           log(
             '⚠️ FCMService._getTokenWithForceUpdate: Pas d\'envoi - credentials manquants',
           );
+          AnalyticsService().logFcmTokenRegistrationFailed(
+            reason: 'missing_credentials',
+          );
         }
       } else {
         log(
           '❌ FCMService._getTokenWithForceUpdate: Impossible de récupérer le token',
         );
+        AnalyticsService().logFcmTokenRegistrationFailed(reason: 'token_null');
       }
 
       log('🔥 FCMService._getTokenWithForceUpdate: FIN');
       return token;
     } catch (e) {
       log('❌ FCMService._getTokenWithForceUpdate: Erreur: $e');
+      AnalyticsService().logFcmTokenRegistrationFailed(reason: 'token_exception');
       return null;
     }
   }
@@ -285,6 +306,7 @@ class FCMService {
 
       if (_currentToken == null) {
         log('⚠️ FCMService.forceSendTokenToBackend: Aucun token disponible');
+        AnalyticsService().logFcmTokenRegistrationFailed(reason: 'token_null');
         return false;
       }
 
@@ -299,6 +321,7 @@ class FCMService {
       return success;
     } catch (e) {
       log('❌ FCMService.forceSendTokenToBackend: Erreur: $e');
+      AnalyticsService().logFcmTokenRegistrationFailed(reason: 'send_exception');
       return false;
     }
   }
@@ -338,6 +361,10 @@ class FCMService {
       final message = await _messaging.getInitialMessage();
       if (message != null) {
         log('FCMService: App launched from notification: ${message.messageId}');
+        AnalyticsService().logNotificationReceived(
+          type: _messageType(message),
+          appState: 'terminated',
+        );
         await _handleNotificationTap(message);
       }
     } catch (e) {
@@ -355,6 +382,10 @@ class FCMService {
       log('FCMService: Data: ${message.data}');
       log('FCMService: From: ${message.from}');
       log('FCMService: ================================================');
+      AnalyticsService().logNotificationReceived(
+        type: _messageType(message),
+        appState: 'foreground',
+      );
 
       await _processNotificationMessage(message);
     } catch (e) {
@@ -371,6 +402,10 @@ class FCMService {
   static Future<void> _handleBackgroundMessage(RemoteMessage message) async {
     try {
       log('FCMService: Received background message: ${message.messageId}');
+      AnalyticsService().logNotificationReceived(
+        type: _messageType(message),
+        appState: 'background',
+      );
       // Pour les messages en arrière-plan, on traite via le NotificationManager
       final notificationManager = NotificationManager();
       await notificationManager.initialize();
@@ -424,6 +459,7 @@ class FCMService {
     try {
       final data = message.data;
       final notification = message.notification;
+      final type = data['type']?.toString() ?? 'unknown';
 
       log('FCMService: ========== PROCESSING NOTIFICATION ==========');
       log('FCMService: Type: ${data['type']}');
@@ -436,7 +472,7 @@ class FCMService {
       log('FCMService: ============================================');
 
       // Traiter selon le type de notification
-      switch (data['type']) {
+      switch (type) {
         case 'danger_zone_alert':
           log('FCMService: Handling danger zone alert...');
           await _handleDangerZoneAlert(data, notification, notificationManager);
@@ -485,7 +521,6 @@ class FCMService {
         default:
           log('FCMService: Unhandled notification type: ${data['type']}');
       }
-
       log('FCMService: Notification processing completed');
     } catch (e) {
       log('FCMService: Error in _processNotificationMessageStatic: $e');
@@ -541,6 +576,7 @@ class FCMService {
         severity: severity,
         distanceMeters: distanceMeters,
       );
+      AnalyticsService().logNotificationDisplayed(type: 'danger_zone_alert');
 
       log('FCMService: triggerDangerZoneAlert completed successfully');
       log('FCMService: ===============================================');
@@ -587,6 +623,7 @@ class FCMService {
         zoneName: zoneName,
         contactName: contactName,
       );
+      AnalyticsService().logNotificationDisplayed(type: type.toString());
     } catch (e) {
       log('FCMService: Error handling safe zone alert: $e');
     }
@@ -634,6 +671,7 @@ class FCMService {
         zoneName: zoneName,
         contactName: contactName,
       );
+      AnalyticsService().logNotificationDisplayed(type: 'safe_zone_entry');
     } catch (e) {
       log('FCMService: Error handling safe zone entry: $e');
     }
@@ -663,6 +701,7 @@ class FCMService {
           'navigate_to': 'proches', // Indique où naviguer
         }),
       );
+      AnalyticsService().logNotificationDisplayed(type: 'invitation_response');
 
       log(
         'FCMService: Invitation response notification displayed successfully',
@@ -694,6 +733,9 @@ class FCMService {
         body: body,
         payload: jsonEncode(_withNavigationTarget(data)),
       );
+      AnalyticsService().logNotificationDisplayed(
+        type: data['type']?.toString() ?? 'unknown',
+      );
     } catch (e) {
       log('FCMService: Error handling contact notification: $e');
     }
@@ -720,6 +762,9 @@ class FCMService {
         payload: jsonEncode({
           ..._withNavigationTarget(data),
         }),
+      );
+      AnalyticsService().logNotificationDisplayed(
+        type: data['type']?.toString() ?? 'community_alert',
       );
     } catch (e) {
       log('FCMService: Error handling community alert: $e');
@@ -749,6 +794,7 @@ class FCMService {
           ..._withNavigationTarget(data),
         }),
       );
+      AnalyticsService().logNotificationDisplayed(type: 'route_incident');
     } catch (e) {
       log('FCMService: Error handling route incident: $e');
     }
@@ -782,6 +828,14 @@ class FCMService {
 
   /// Obtenir le token actuel (getter)
   String? get currentToken => _currentToken;
+
+  static String _messageType(RemoteMessage message) =>
+      message.data['type']?.toString() ?? 'unknown';
+
+  static String _tokenPreview(String token) {
+    if (token.length <= 20) return token;
+    return token.substring(0, 20);
+  }
 
   /// Mettre à jour les credentials (baseUrl et bearerToken)
   void updateCredentials({String? baseUrl, String? bearerToken}) {

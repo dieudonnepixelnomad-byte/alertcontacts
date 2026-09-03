@@ -5,6 +5,8 @@ import 'package:alertcontacts/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'analytics_service.dart';
+
 class AppVersionService {
   AppVersionService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -28,8 +30,8 @@ class AppVersionService {
       }
 
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      final platformConfig =
-          payload[Platform.isIOS ? 'ios' : 'android'] as Map<String, dynamic>?;
+      final platform = Platform.isIOS ? 'ios' : 'android';
+      final platformConfig = payload[platform] as Map<String, dynamic>?;
       if (platformConfig == null) {
         log('AppVersionService: missing platform config in app-status');
         return (required: false, storeUrl: '');
@@ -43,6 +45,23 @@ class AppVersionService {
       final versionTooOld = _compareVersions(current, minimum) < 0;
       final buildTooOld = minimumBuild > 0 && currentBuild < minimumBuild;
       final updateRequired = versionTooOld || buildTooOld;
+      AnalyticsService().logAppStatusChecked(
+        platform: platform,
+        currentVersion: info.version,
+        currentBuild: currentBuild,
+        minVersion: minString,
+        minimumBuild: minimumBuild,
+        updateRequired: updateRequired,
+      );
+      if (updateRequired) {
+        AnalyticsService().logForcedUpdateRequired(
+          platform: platform,
+          currentVersion: info.version,
+          currentBuild: currentBuild,
+          minVersion: minString,
+          minimumBuild: minimumBuild,
+        );
+      }
 
       log(
         'AppVersionService: current=${info.version}+${info.buildNumber} '

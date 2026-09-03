@@ -6,6 +6,7 @@ import '../../../features/paywall/presentation/paywall_page.dart';
 import '../../../core/models/invitation.dart';
 import '../../../core/services/prefs_service.dart';
 import '../../../core/services/app_review_service.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/colors.dart';
 import '../../auth/providers/auth_notifier.dart';
@@ -41,6 +42,9 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logInvitationLinkOpened(
+      hasPrefilledPin: widget.prefilledPin?.isNotEmpty == true,
+    );
     _service = ApiInvitationService();
     _prefsService = PrefsService();
     _animCtrl = AnimationController(
@@ -72,9 +76,14 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
         _loading = false;
         _invitation = invitation;
       });
+      AnalyticsService().logInvitationCheckSucceeded(
+        requiresPin: invitation.requiresPin,
+        shareLevel: _shareLevelValue(invitation.defaultShareLevel),
+      );
       _animCtrl.forward();
     } catch (e) {
       await AppReviewService().recordRecentError();
+      AnalyticsService().logInvitationCheckFailed(reason: _analyticsReason(e));
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -85,6 +94,10 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
 
   Future<void> _accept() async {
     if (_invitation == null || _accepting) return;
+    AnalyticsService().logInvitationAcceptStarted(
+      hasPin: widget.prefilledPin?.isNotEmpty == true,
+      shareLevel: _shareLevelValue(ShareLevel.realtime),
+    );
     setState(() => _accepting = true);
     try {
       final authToken = await _prefsService.getBearerToken();
@@ -96,6 +109,9 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
         acceptedZones: [],
       );
       if (!mounted) return;
+      AnalyticsService().logContactInvitationAccepted();
+      AnalyticsService().logAha1ContactAccepted();
+      AnalyticsService().setHasActiveContact(true);
       final user = context.read<AuthNotifier>().user;
       final initials = user != null && user.name.isNotEmpty
           ? user.name.trim().split(' ').map((p) => p[0]).take(2).join().toUpperCase()
@@ -109,6 +125,7 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
         ),
       );
     } catch (e) {
+      AnalyticsService().logInvitationAcceptFailed(reason: _analyticsReason(e));
       if (!mounted) return;
       setState(() => _accepting = false);
       if (e is SubscriptionLimitException) {
@@ -131,7 +148,10 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
     }
   }
 
-  void _refuse() => context.go(AppRoutes.appShell);
+  void _refuse() {
+    AnalyticsService().logInvitationRefused();
+    context.go(AppRoutes.appShell);
+  }
 
   String _parseError(dynamic e) {
     if (e is InvalidPinException) return 'Code PIN incorrect. Réessayez.';
@@ -140,6 +160,28 @@ class _AcceptInvitationPageState extends State<AcceptInvitationPage>
     if (e is RelationAlreadyExistsException) return 'Vous êtes déjà connecté(e) à cette personne.';
     if (e is SubscriptionLimitException) return e.message;
     return 'Une erreur s\'est produite. Réessayez.';
+  }
+
+  String _analyticsReason(dynamic e) {
+    if (e is InvalidPinException) return 'invalid_pin';
+    if (e is InvitationNotFoundException) return 'not_found';
+    if (e is InvitationExpiredException) return 'expired';
+    if (e is RelationAlreadyExistsException) return 'already_exists';
+    if (e is SubscriptionLimitException) return 'subscription_limit';
+    if (e is ValidationException) return 'validation';
+    if (e is InvitationRefusedException) return 'refused';
+    return 'unknown';
+  }
+
+  String _shareLevelValue(ShareLevel shareLevel) {
+    switch (shareLevel) {
+      case ShareLevel.realtime:
+        return 'realtime';
+      case ShareLevel.alertOnly:
+        return 'alert_only';
+      case ShareLevel.none:
+        return 'none';
+    }
   }
 
   @override

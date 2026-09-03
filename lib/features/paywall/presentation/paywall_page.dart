@@ -78,6 +78,10 @@ class _PaywallPageState extends State<PaywallPage> {
       Navigator.of(context).pop();
     } catch (error, stackTrace) {
       _log('Erreur pendant le parcours paywall: $error');
+      AnalyticsService().logPaywallOpenFailed(
+        trigger: widget.trigger,
+        reason: _paywallFailureReason(error),
+      );
       if (kDebugMode) {
         debugPrintStack(stackTrace: stackTrace, label: '[Paywall] erreur');
       }
@@ -94,6 +98,11 @@ class _PaywallPageState extends State<PaywallPage> {
 
   void _log(String message) {
     if (kDebugMode) debugPrint('[Paywall] $message');
+  }
+
+  String _paywallFailureReason(Object error) {
+    if (error is StateError) return 'not_configured';
+    return 'unexpected';
   }
 
   @override
